@@ -1,0 +1,10 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="gspellblade-longkang-energi" cx="50%" cy="40%" r="72%">
+      <stop offset="0%" stop-color="#1c1a2e"/>
+      <stop offset="100%" stop-color="#0c0a16"/>
+    </radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="60" fill="url(#gspellblade-longkang-energi)" stroke="#6c63c9" stroke-width="3"/>
+  <circle cx="64" cy="64" r="7" fill="#f2e9d8"/><circle cx="64" cy="64" r="20" fill="none" stroke="#f2e9d8" stroke-width="3" opacity="0.85"/><circle cx="64" cy="64" r="32" fill="none" stroke="#f2e9d8" stroke-width="2.5" opacity="0.55"/><circle cx="64" cy="64" r="44" fill="none" stroke="#f2e9d8" stroke-width="2" opacity="0.3"/>
+</svg>

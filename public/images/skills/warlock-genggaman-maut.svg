@@ -1,0 +1,10 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="gwarlock-genggaman-maut" cx="50%" cy="40%" r="72%">
+      <stop offset="0%" stop-color="#3a2410"/>
+      <stop offset="100%" stop-color="#160e06"/>
+    </radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="60" fill="url(#gwarlock-genggaman-maut)" stroke="#c9a24b" stroke-width="3"/>
+  <polygon points="64,28 74,50 98,50 78,64 86,88 64,74 42,88 50,64 30,50 54,50" fill="none" stroke="#f2e9d8" stroke-width="2.5" stroke-linejoin="round" opacity="0.8"/><circle cx="64" cy="64" r="6" fill="#f2e9d8"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="gwarden-hantaman-runa" cx="50%" cy="40%" r="72%">
+      <stop offset="0%" stop-color="#2a1414"/>
+      <stop offset="100%" stop-color="#14090a"/>
+    </radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="60" fill="url(#gwarden-hantaman-runa)" stroke="#b8433a" stroke-width="3"/>
+  <path d="M64 32 L88 42 V64 C88 82 76 92 64 98 C52 92 40 82 40 64 V42 Z" fill="none" stroke="#f2e9d8" stroke-width="4" stroke-linejoin="round"/>
+</svg>
