@@ -1,0 +1,5 @@
+/* Global overrides on top of Bootstrap 5 (loaded via CDN in app.blade.php) */
+body {
+    background-color: #10121a;
+    color: #e8e8f0;
+}
