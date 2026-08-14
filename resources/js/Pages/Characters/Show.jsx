@@ -1,4 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage, router } from '@inertiajs/react';
+import { useState } from 'react';
 import Layout from '../../Layout';
 
 const CLASS_ACCENT = {
@@ -6,6 +7,11 @@ const CLASS_ACCENT = {
     tanker: '#3f8c94',
     mage: '#7269d1',
     saint: '#c9a24b',
+};
+
+const UPGRADE_MULTIPLIER = {
+    physical_damage: 15, physical_defense: 15, magic_damage: 15, magic_defense: 15,
+    agility: 15, evasion: 15, critical_hit: 25, critical_luck: 25,
 };
 
 function Bar({ current, max, color }) {
@@ -30,8 +36,13 @@ function ResourceRow({ label, current, max, color }) {
 }
 
 // Model "FIFA card" - label kiri, bar horizontal isi proporsional, angka kanan.
-function FifaStatBar({ label, value, max = 100, color, suffix = '' }) {
+// Kalau `statKey` dikasih dan karakter ini milik user yang login, muncul tombol "+".
+function FifaStatBar({ label, value, max = 100, color, suffix = '', statKey, character, isOwner, upgrading, onUpgrade }) {
     const pct = Math.max(0, Math.min(100, (value / max) * 100));
+    const bonusValue = statKey ? (character[`bonus_${statKey}`] ?? 0) : 0;
+    const cost = statKey ? (bonusValue + 1) * UPGRADE_MULTIPLIER[statKey] : 0;
+    const canAfford = statKey && character.exp >= cost;
+
     return (
         <div className="d-flex align-items-center gap-3 mb-3">
             <div style={{ width: 170, fontSize: '0.95rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{label}</div>
@@ -41,13 +52,41 @@ function FifaStatBar({ label, value, max = 100, color, suffix = '' }) {
             <div style={{ width: 56, textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1.05rem', color, flexShrink: 0 }}>
                 {value}{suffix}
             </div>
+            {statKey && isOwner && (
+                <button
+                    onClick={() => onUpgrade(statKey)}
+                    disabled={!canAfford || upgrading}
+                    title={`Upgrade +1 (${cost} EXP)`}
+                    className="btn btn-sm"
+                    style={{
+                        width: 30, height: 30, padding: 0, flexShrink: 0,
+                        background: canAfford ? 'var(--bg-panel-hover)' : 'transparent',
+                        border: `1px solid ${canAfford ? color : 'var(--border-subtle)'}`,
+                        color: canAfford ? color : 'var(--text-muted)',
+                        borderRadius: 6, fontSize: '0.9rem', lineHeight: 1,
+                    }}
+                >
+                    +
+                </button>
+            )}
         </div>
     );
 }
 
 export default function Show({ character }) {
+    const { props } = usePage();
     const accent = CLASS_ACCENT[character.subclass?.game_class?.slug] ?? '#8890a4';
     const subclass = character.subclass;
+    const isOwner = props.auth?.user?.id && character.user_id === props.auth.user.id;
+    const [upgrading, setUpgrading] = useState(false);
+
+    function upgrade(stat) {
+        setUpgrading(true);
+        router.post(route('characters.upgrade', character.id), { stat }, {
+            preserveScroll: true,
+            onFinish: () => setUpgrading(false),
+        });
+    }
 
     return (
         <Layout>
@@ -92,30 +131,54 @@ export default function Show({ character }) {
                         {/* Resources */}
                         <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Resource</div>
                         <div className="rpg-card mb-4" style={{ '--accent': accent, padding: '1.5rem' }}>
-                            <ResourceRow label="HP" current={character.current_hp} max={subclass?.base_hp ?? character.current_hp} color="#b8433a" />
-                            <ResourceRow label="SP (Stamina)" current={character.current_stamina} max={subclass?.base_sp ?? character.current_stamina} color="#c98a3a" />
-                            <ResourceRow label="MP (Mana)" current={character.current_mana} max={subclass?.base_mp ?? character.current_mana} color="#7269d1" />
+                            <ResourceRow label="HP" current={character.current_hp} max={character.effective_base_hp} color="#b8433a" />
+                            <ResourceRow label="SP (Stamina)" current={character.current_stamina} max={character.effective_base_sp} color="#c98a3a" />
+                            <ResourceRow label="MP (Mana)" current={character.current_mana} max={character.effective_base_mp} color="#7269d1" />
                             <p className="mb-0 mt-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                                EXP: {character.exp}
+                                EXP: {character.exp}{isOwner && ' — klik tombol + di stat buat upgrade'}
                             </p>
                         </div>
 
                         {/* Base Stats - langsung di bawah Resource, model bar ala FIFA */}
                         <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Base Stats</div>
                         <div className="rpg-card" style={{ '--accent': accent, padding: '1.5rem' }}>
-                            <FifaStatBar label="Base HP" value={subclass?.base_hp} max={100} color="#b8433a" />
-                            <FifaStatBar label="Base MP" value={subclass?.base_mp} max={100} color="#7269d1" />
-                            <FifaStatBar label="Base SP" value={subclass?.base_sp} max={100} color="#c98a3a" />
-                            <FifaStatBar label="Physical Attack" value={subclass?.base_physical_damage} max={100} color="#b8433a" />
-                            <FifaStatBar label="Physical Defense" value={subclass?.base_physical_defense} max={100} color="#c98a3a" />
-                            <FifaStatBar label="Magic Attack" value={subclass?.base_magic_damage} max={100} color="#7269d1" />
-                            <FifaStatBar label="Magic Defense" value={subclass?.base_magic_defense} max={100} color="#3f8c94" />
-                            <FifaStatBar label="Mana Regeneration" value={subclass?.mana_regen} max={20} color="#7269d1" />
-                            <FifaStatBar label="Stamina Regeneration" value={subclass?.stamina_regen} max={20} color="#c98a3a" />
-                            <FifaStatBar label="Agility" value={subclass?.agility} max={100} color="#3f8c94" />
-                            <FifaStatBar label="Evasion" value={subclass?.evasion} max={100} color="#3f8c94" />
-                            <FifaStatBar label="Critical Hit" value={subclass?.critical_hit_bonus} max={100} color="#c9a24b" suffix="%" />
-                            <FifaStatBar label="Critical Luck" value={subclass?.critical_luck} max={100} color="#c9a24b" suffix="%" />
+                            <FifaStatBar label="Base HP" value={character.effective_base_hp} max={150} color="#b8433a" />
+                            <FifaStatBar label="Base MP" value={character.effective_base_mp} max={150} color="#7269d1" />
+                            <FifaStatBar label="Base SP" value={character.effective_base_sp} max={150} color="#c98a3a" />
+                            <FifaStatBar
+                                label="Physical Attack" value={character.effective_physical_damage} max={100} color="#b8433a"
+                                statKey="physical_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                            />
+                            <FifaStatBar
+                                label="Physical Defense" value={character.effective_physical_defense} max={100} color="#c98a3a"
+                                statKey="physical_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                            />
+                            <FifaStatBar
+                                label="Magic Attack" value={character.effective_magic_damage} max={100} color="#7269d1"
+                                statKey="magic_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                            />
+                            <FifaStatBar
+                                label="Magic Defense" value={character.effective_magic_defense} max={100} color="#3f8c94"
+                                statKey="magic_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                            />
+                            <FifaStatBar label="Mana Regeneration" value={character.effective_mana_regen} max={20} color="#7269d1" />
+                            <FifaStatBar label="Stamina Regeneration" value={character.effective_stamina_regen} max={20} color="#c98a3a" />
+                            <FifaStatBar
+                                label="Agility" value={character.effective_agility} max={100} color="#3f8c94"
+                                statKey="agility" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                            />
+                            <FifaStatBar
+                                label="Evasion" value={character.effective_evasion} max={100} color="#3f8c94"
+                                statKey="evasion" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                            />
+                            <FifaStatBar
+                                label="Critical Hit" value={character.effective_critical_hit} max={100} color="#c9a24b" suffix="%"
+                                statKey="critical_hit" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                            />
+                            <FifaStatBar
+                                label="Critical Luck" value={character.effective_critical_luck} max={100} color="#c9a24b" suffix="%"
+                                statKey="critical_luck" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                            />
                         </div>
                     </div>
                 </div>

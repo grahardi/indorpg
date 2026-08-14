@@ -72,16 +72,16 @@ class BattleService
         $round = 1;
 
         while ($battle->monster_current_hp > 0 && $this->anyAlive($battle) && $round <= self::MAX_ROUNDS) {
-            // Regen stamina/mana tiap awal ronde, dibatasi pool max dari Subclass
-            // (base_sp/base_mp, computed dari physical/magic attack+defense).
+            // Regen stamina/mana tiap awal ronde, dibatasi pool max efektif karakter
+            // (base subclass + bonus upgrade dari EXP).
             foreach ($battle->participants as $participant) {
                 if (! $participant->is_alive) {
                     continue;
                 }
-                $subclass = $participant->character->subclass;
+                $character = $participant->character;
 
-                $participant->current_stamina = min($subclass->base_sp, $participant->current_stamina + $subclass->stamina_regen);
-                $participant->current_mana = min($subclass->base_mp, $participant->current_mana + $subclass->mana_regen);
+                $participant->current_stamina = min($character->effective_base_sp, $participant->current_stamina + $character->effective_stamina_regen);
+                $participant->current_mana = min($character->effective_base_mp, $participant->current_mana + $character->effective_mana_regen);
             }
 
             foreach ($battle->participants as $participant) {
@@ -95,20 +95,20 @@ class BattleService
                     continue;
                 }
 
-                $subclass = $participant->character->subclass;
+                $character = $participant->character;
 
                 $participant->current_stamina = max(0, $participant->current_stamina - $skill->stamina_cost);
                 $participant->current_mana = max(0, $participant->current_mana - $skill->mana_cost);
 
                 // Cek Agility (ofensif) karakter vs evasion bawaan monster - bisa meleset total.
-                $hitChance = max(50, min(99, 100 + $subclass->agility - 90 - $monster->agility));
+                $hitChance = max(50, min(99, 100 + $character->effective_agility - 90 - $monster->agility));
                 if (random_int(1, 100) > $hitChance) {
                     $participant->save();
                     $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!");
                     continue;
                 }
 
-                $offenseStat = $skill->scaling_stat === 'magic' ? $subclass->base_magic_damage : $subclass->base_physical_damage;
+                $offenseStat = $skill->scaling_stat === 'magic' ? $character->effective_magic_damage : $character->effective_physical_damage;
                 $defenseStat = $skill->scaling_stat === 'magic' ? $monster->magic_defense : $monster->physical_defense;
 
                 $raw = $offenseStat * (float) $skill->base_multiplier;
@@ -125,9 +125,9 @@ class BattleService
                 }
 
                 // Roll critical hit.
-                $isCrit = random_int(1, 100) <= $subclass->critical_luck;
+                $isCrit = random_int(1, 100) <= $character->effective_critical_luck;
                 if ($isCrit) {
-                    $mitigated *= (1 + $subclass->critical_hit_bonus / 100);
+                    $mitigated *= (1 + $character->effective_critical_hit / 100);
                     $note .= ' CRITICAL!';
                 }
 
@@ -148,16 +148,16 @@ class BattleService
 
                 if ($alive->isNotEmpty()) {
                     $target = $alive->random();
-                    $subclass = $target->character->subclass;
+                    $character = $target->character;
 
                     // Cek akurasi monster vs Evasion (defensif) karakter.
-                    $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $subclass->evasion));
+                    $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $character->effective_evasion));
                     if (random_int(1, 100) > $hitChance) {
                         $log[] = $this->snapshot($battle, "{$monster->name} menyerang {$target->character->name}: MELESET!");
                     } else {
                         $useMagic = $monster->magic_damage > $monster->physical_damage;
                         $offenseStat = $useMagic ? $monster->magic_damage : $monster->physical_damage;
-                        $defenseStat = $useMagic ? $subclass->base_magic_defense : $subclass->base_physical_defense;
+                        $defenseStat = $useMagic ? $character->effective_magic_defense : $character->effective_physical_defense;
 
                         $raw = $offenseStat;
                         $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);

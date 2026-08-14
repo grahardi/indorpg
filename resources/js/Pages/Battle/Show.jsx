@@ -1,4 +1,4 @@
-import { Link, Head, usePage } from '@inertiajs/react';
+import { Link, Head, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Layout from '../../Layout';
 import { battleAudio } from '../../battleAudio';
@@ -30,6 +30,7 @@ export default function Show({ battle }) {
     const [step, setStep] = useState(0);
     const [finished, setFinished] = useState(log.length <= 1);
     const [soundOn, setSoundOn] = useState(true);
+    const [redirectIn, setRedirectIn] = useState(null);
     const timerRef = useRef(null);
     const finishedSoundPlayed = useRef(false);
 
@@ -74,6 +75,25 @@ export default function Show({ battle }) {
         if (battle.status === 'won') battleAudio.victory();
         else if (battle.status === 'lost') battleAudio.defeat();
         finishedSoundPlayed.current = true;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [finished]);
+
+    // Auto-balik ke Guild beberapa detik setelah battle kelar - biar gak ada yang
+    // "kejebak" di layar battle lama pas balik buka app lagi.
+    useEffect(() => {
+        if (!finished || battle.status === 'ongoing') return;
+        setRedirectIn(5);
+        const countdown = setInterval(() => {
+            setRedirectIn((s) => {
+                if (s <= 1) {
+                    clearInterval(countdown);
+                    router.visit(route('guild.index'));
+                    return 0;
+                }
+                return s - 1;
+            });
+        }, 1000);
+        return () => clearInterval(countdown);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [finished]);
 
@@ -141,24 +161,43 @@ export default function Show({ battle }) {
                     </div>
                 </div>
 
-                {/* Result banner - layar VS ala pokemon.id pas menang */}
+                {/* Result banner - layar VS ala pokemon.id pas menang/kalah/mundur */}
                 {finished && battle.status !== 'ongoing' && (
-                    <div className="rpg-card mb-4 text-center" style={{ '--accent': battle.status === 'won' ? '#c9a24b' : '#5b6178' }}>
-                        {battle.status === 'won' && (
+                    <div className="rpg-card mb-4 text-center" style={{ '--accent': battle.status === 'won' ? '#c9a24b' : battle.status === 'lost' ? '#5b6178' : '#8890a4' }}>
+                        {(battle.status === 'won' || battle.status === 'lost') && (
                             <div className="d-flex align-items-center justify-content-center gap-3 gap-md-4 mb-3 flex-wrap">
-                                <div style={{ width: 130 }}>
+                                <div style={{ width: 130, position: 'relative' }}>
                                     {mainSubclass?.full_body_path ? (
                                         <img
                                             src={mainSubclass.full_body_path}
                                             alt={mainParticipant.character.name}
-                                            style={{ width: '100%', aspectRatio: '1 / 2', objectFit: 'contain', background: 'var(--bg-panel)', borderRadius: 10, border: `2px solid ${mainColor}` }}
+                                            style={{
+                                                width: '100%', aspectRatio: '1 / 2', objectFit: 'contain',
+                                                background: 'var(--bg-panel)', borderRadius: 10,
+                                                border: `2px solid ${battle.status === 'lost' ? '#5b6178' : mainColor}`,
+                                                filter: battle.status === 'lost' ? 'grayscale(1) brightness(0.55)' : 'none',
+                                            }}
                                         />
                                     ) : (
-                                        <div className="rpg-badge-hex mx-auto" style={{ '--accent': mainColor, width: 90, height: 90, fontSize: '2rem' }}>
+                                        <div
+                                            className="rpg-badge-hex mx-auto"
+                                            style={{ '--accent': mainColor, width: 90, height: 90, fontSize: '2rem', filter: battle.status === 'lost' ? 'grayscale(1) brightness(0.6)' : 'none' }}
+                                        >
                                             {mainParticipant.character.name.charAt(0)}
                                         </div>
                                     )}
-                                    <div className="mt-2" style={{ color: mainColor, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.9rem' }}>
+                                    {battle.status === 'lost' && (
+                                        <div
+                                            style={{
+                                                position: 'absolute', top: '38%', left: '50%', transform: 'translate(-50%, -50%) rotate(-8deg)',
+                                                fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.2rem', color: '#5b6178',
+                                                textShadow: '0 0 10px rgba(0,0,0,0.9), 0 0 3px black',
+                                            }}
+                                        >
+                                            TUMBANG
+                                        </div>
+                                    )}
+                                    <div className="mt-2" style={{ color: battle.status === 'lost' ? 'var(--text-muted)' : mainColor, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.9rem' }}>
                                         {mainParticipant.character.name}
                                     </div>
                                 </div>
@@ -174,39 +213,53 @@ export default function Show({ battle }) {
                                             alt={monster.name}
                                             style={{
                                                 width: '100%', aspectRatio: '1 / 1', objectFit: 'contain',
-                                                background: 'var(--bg-panel)', borderRadius: 10, border: '2px solid #5b6178',
-                                                filter: 'grayscale(1) brightness(0.55)',
+                                                background: 'var(--bg-panel)', borderRadius: 10,
+                                                border: `2px solid ${battle.status === 'won' ? '#5b6178' : MONSTER_COLOR}`,
+                                                filter: battle.status === 'won' ? 'grayscale(1) brightness(0.55)' : 'none',
                                             }}
                                         />
                                     ) : (
                                         <div
                                             className="rpg-badge-hex mx-auto"
-                                            style={{ '--accent': '#5b6178', width: 90, height: 90, fontSize: '2rem', filter: 'grayscale(1) brightness(0.6)' }}
+                                            style={{ '--accent': MONSTER_COLOR, width: 90, height: 90, fontSize: '2rem', filter: battle.status === 'won' ? 'grayscale(1) brightness(0.6)' : 'none' }}
                                         >
                                             {monster.name.charAt(0)}
                                         </div>
                                     )}
-                                    <div
-                                        style={{
-                                            position: 'absolute', top: '38%', left: '50%', transform: 'translate(-50%, -50%) rotate(-8deg)',
-                                            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.4rem', color: '#b8433a',
-                                            textShadow: '0 0 10px rgba(0,0,0,0.9), 0 0 3px black',
-                                        }}
-                                    >
-                                        K.O.
-                                    </div>
-                                    <div className="mt-2" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.9rem' }}>
+                                    {battle.status === 'won' && (
+                                        <div
+                                            style={{
+                                                position: 'absolute', top: '38%', left: '50%', transform: 'translate(-50%, -50%) rotate(-8deg)',
+                                                fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.4rem', color: '#b8433a',
+                                                textShadow: '0 0 10px rgba(0,0,0,0.9), 0 0 3px black',
+                                            }}
+                                        >
+                                            K.O.
+                                        </div>
+                                    )}
+                                    <div className="mt-2" style={{ color: battle.status === 'won' ? 'var(--text-muted)' : MONSTER_COLOR, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.9rem' }}>
                                         {monster.name}
                                     </div>
                                 </div>
                             </div>
                         )}
 
+                        {battle.status === 'fled' && (
+                            <div className="mb-3" style={{ fontSize: '3rem', lineHeight: 1 }}>🏳️</div>
+                        )}
+
                         <div className="rpg-subclass-name" style={{ fontSize: '1.3rem' }}>
                             {battle.status === 'won' && '🏆 Menang!'}
                             {battle.status === 'lost' && '💀 Kalah...'}
-                            {battle.status === 'fled' && '🏃 Party mundur.'}
+                            {battle.status === 'fled' && 'Party Menyerah'}
                         </div>
+                        {battle.status === 'fled' && (
+                            <p className="text-secondary small mt-1 mb-0">Pertarungan kelamaan, party mundur teratur.</p>
+                        )}
+
+                        {redirectIn !== null && redirectIn > 0 && (
+                            <p className="text-secondary small mt-3 mb-0">Kembali ke Guild otomatis dalam {redirectIn}s...</p>
+                        )}
                         <div className="d-flex gap-2 justify-content-center mt-3">
                             <Link href={route('guild.index')} className="rpg-back-link">Kembali ke Guild</Link>
                             <Link href={route('maps.index')} className="rpg-back-link">Peta</Link>
@@ -229,9 +282,9 @@ export default function Show({ battle }) {
                             hp: p.current_hp, stamina: p.current_stamina, mana: p.current_mana, is_alive: p.is_alive,
                         };
                         const subclass = p.character.subclass;
-                        const maxHp = subclass?.base_hp ?? live.hp;
-                        const maxStamina = subclass?.base_sp ?? live.stamina;
-                        const maxMana = subclass?.base_mp ?? live.mana;
+                        const maxHp = p.character.effective_base_hp ?? live.hp;
+                        const maxStamina = p.character.effective_base_sp ?? live.stamina;
+                        const maxMana = p.character.effective_base_mp ?? live.mana;
                         const pColor = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
 
                         return (

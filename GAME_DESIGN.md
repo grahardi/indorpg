@@ -396,3 +396,26 @@ Pas battle menang, sekarang muncul tampilan **karakter utama vs monster** side-b
 | `defeat` | Battle selesai status lost | 4 nada turun (sawtooth) |
 
 Ada tombol toggle 🔊/🔇 di pojok kanan atas layar battle buat matiin suara. Browser autoplay policy ditangani defensif (AudioContext di-resume on-demand, gagal = diem aja, gak nge-crash).
+
+---
+
+## 15. Upgrade Stat Pakai EXP + Layar Battle End yang Lebih Lengkap (v3.2)
+
+### Upgrade Stat (akhirnya "bisa ditambah exp" beneran jalan)
+Kolom baru di `characters`: `bonus_physical_damage`, `bonus_physical_defense`, `bonus_magic_damage`, `bonus_magic_defense`, `bonus_agility`, `bonus_evasion`, `bonus_critical_hit`, `bonus_critical_luck` — masing-masing mulai dari 0, naik tiap kali di-upgrade pakai EXP.
+
+**Effective stat** = base subclass + bonus karakter. Contoh: `effective_physical_damage = subclass.base_physical_damage + character.bonus_physical_damage`. Base HP/MP/SP/Regen ikut kehitung ulang dari effective stat (bukan base subclass mentah lagi), jadi upgrade Physical/Magic Defense otomatis nambah Base HP juga (sesuai formula lama).
+
+**Biaya upgrade**: `(bonus_saat_ini + 1) × 15 EXP` buat stat biasa, `× 25 EXP` buat Critical Hit/Critical Luck (karena efeknya lebih besar per poin). Beban naik makin mahal tiap kali di-upgrade — poin pertama 15 EXP, kedua 30, ketiga 45, dst.
+
+**Endpoint**: `POST /characters/{id}/upgrade` (body: `stat`), cuma bisa dipanggil sama pemilik karakter (`character.user_id === auth()->id()`), validasi EXP cukup di server. Tombol "+" muncul di tiap stat yang upgradable di halaman detail karakter — cuma keliatan kalau kamu yang login adalah pemilik karakter itu.
+
+**Battle sekarang pakai effective stat**, bukan base subclass mentah — jadi upgrade beneran ngefek ke damage/defense/hit-chance/crit di pertarungan.
+
+### Layar Battle End — 3 kondisi beda
+- **Menang**: karakter utama normal vs monster grayscale + label "K.O." (sudah ada dari v3.1)
+- **Kalah**: dibalik — karakter utama grayscale + label "TUMBANG", monster normal warna
+- **Mundur (kena limit ronde)**: layar lebih sederhana, ikon bendera putih 🏳️ + teks "Party Menyerah"
+
+### Auto-redirect ke Guild
+Begitu battle selesai (menang/kalah/mundur), muncul countdown "Kembali ke Guild otomatis dalam Xs..." (5 detik) sebelum auto-navigate ke `/guild`. Player masih bisa klik "Kembali ke Guild" atau "Peta" manual buat skip nunggu. Ini nyelesain masalah "kejebak di layar battle lama" kalau reopen app/browser — sekarang battle yang udah selesai gak nge-gantung nunggu aksi manual.

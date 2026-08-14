@@ -13,10 +13,31 @@ class Character extends Model
 
     protected $fillable = [
         'user_id', 'subclass_id', 'name', 'level', 'exp',
+        'bonus_physical_damage', 'bonus_physical_defense',
+        'bonus_magic_damage', 'bonus_magic_defense',
+        'bonus_agility', 'bonus_evasion',
+        'bonus_critical_hit', 'bonus_critical_luck',
         'current_hp', 'current_stamina', 'current_mana', 'avatar_path', 'full_body_path', 'is_npc',
     ];
 
-    protected $appends = ['avatar_url', 'full_body_url'];
+    protected $appends = [
+        'avatar_url', 'full_body_url',
+        'effective_physical_damage', 'effective_physical_defense',
+        'effective_magic_damage', 'effective_magic_defense',
+        'effective_base_hp', 'effective_base_mp', 'effective_base_sp',
+        'effective_mana_regen', 'effective_stamina_regen',
+        'effective_agility', 'effective_evasion',
+        'effective_critical_hit', 'effective_critical_luck',
+    ];
+
+    /**
+     * Biaya EXP buat upgrade 1 poin stat tertentu. Naik tiap kali udah pernah
+     * di-upgrade (semakin banyak bonus yang udah ada, semakin mahal poin berikutnya).
+     */
+    public const UPGRADABLE_STATS = [
+        'physical_damage', 'physical_defense', 'magic_damage', 'magic_defense',
+        'agility', 'evasion', 'critical_hit', 'critical_luck',
+    ];
 
     public function subclass(): BelongsTo
     {
@@ -43,5 +64,82 @@ class Character extends Model
     public function getFullBodyUrlAttribute(): ?string
     {
         return $this->full_body_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->full_body_path) : null;
+    }
+
+    public function getEffectivePhysicalDamageAttribute(): int
+    {
+        return $this->subclass->base_physical_damage + $this->bonus_physical_damage;
+    }
+
+    public function getEffectivePhysicalDefenseAttribute(): int
+    {
+        return $this->subclass->base_physical_defense + $this->bonus_physical_defense;
+    }
+
+    public function getEffectiveMagicDamageAttribute(): int
+    {
+        return $this->subclass->base_magic_damage + $this->bonus_magic_damage;
+    }
+
+    public function getEffectiveMagicDefenseAttribute(): int
+    {
+        return $this->subclass->base_magic_defense + $this->bonus_magic_defense;
+    }
+
+    public function getEffectiveBaseHpAttribute(): int
+    {
+        return $this->effective_physical_defense + $this->effective_magic_defense;
+    }
+
+    public function getEffectiveBaseMpAttribute(): int
+    {
+        return $this->effective_magic_damage + $this->effective_magic_defense;
+    }
+
+    public function getEffectiveBaseSpAttribute(): int
+    {
+        return $this->effective_physical_damage + $this->effective_physical_defense;
+    }
+
+    public function getEffectiveManaRegenAttribute(): int
+    {
+        return max(1, (int) round($this->effective_base_mp * 0.1));
+    }
+
+    public function getEffectiveStaminaRegenAttribute(): int
+    {
+        return max(1, (int) round($this->effective_base_sp * 0.1));
+    }
+
+    public function getEffectiveAgilityAttribute(): int
+    {
+        return $this->effective_physical_damage + $this->effective_magic_damage + $this->bonus_agility;
+    }
+
+    public function getEffectiveEvasionAttribute(): int
+    {
+        return $this->effective_physical_defense + $this->effective_magic_defense + $this->bonus_evasion;
+    }
+
+    public function getEffectiveCriticalHitAttribute(): int
+    {
+        return $this->subclass->critical_hit_bonus + $this->bonus_critical_hit;
+    }
+
+    public function getEffectiveCriticalLuckAttribute(): int
+    {
+        return $this->subclass->critical_luck + $this->bonus_critical_luck;
+    }
+
+    /**
+     * Biaya EXP buat nambah 1 poin ke stat tertentu. Formula: (bonus_saat_ini + 1) * 15.
+     * Stat critical (persentase, lebih powerful per poin) dikali biaya 25.
+     */
+    public function upgradeCost(string $stat): int
+    {
+        $currentBonus = $this->{"bonus_{$stat}"} ?? 0;
+        $multiplier = in_array($stat, ['critical_hit', 'critical_luck'], true) ? 25 : 15;
+
+        return ($currentBonus + 1) * $multiplier;
     }
 }

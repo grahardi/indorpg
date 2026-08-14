@@ -69,4 +69,29 @@ class CharacterController extends Controller
 
         return redirect()->route('characters.index');
     }
+
+    /**
+     * Upgrade 1 poin stat pakai EXP. Cuma pemilik karakter yang boleh.
+     */
+    public function upgradeStat(Request $request, Character $character): RedirectResponse
+    {
+        if ($character->user_id !== $request->user()->id) {
+            abort(403, 'Bukan karaktermu.');
+        }
+
+        $data = $request->validate([
+            'stat' => ['required', 'string', 'in:'.implode(',', Character::UPGRADABLE_STATS)],
+        ]);
+
+        $cost = $character->upgradeCost($data['stat']);
+
+        if ($character->exp < $cost) {
+            return back()->withErrors(['stat' => 'EXP gak cukup buat upgrade ini.']);
+        }
+
+        $character->decrement('exp', $cost);
+        $character->increment("bonus_{$data['stat']}");
+
+        return back();
+    }
 }

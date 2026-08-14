@@ -41,6 +41,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 Route::middleware('auth')->group(function () {
     Route::post('/characters', [CharacterController::class, 'store'])->name('characters.store');
     Route::delete('/characters/{character}', [CharacterController::class, 'destroy'])->name('characters.destroy');
+    Route::post('/characters/{character}/upgrade', [CharacterController::class, 'upgradeStat'])->name('characters.upgrade');
 
     Route::get('/guild', [GuildController::class, 'index'])->name('guild.index');
     Route::post('/guild/quick-mission', [GuildController::class, 'quickMission'])->name('guild.quick-mission');
