@@ -71,7 +71,12 @@ export default function Select({ encounter, characters, preselected = [] }) {
                                             </div>
                                         )}
                                         <div>
-                                            <div className="rpg-subclass-name" style={{ fontSize: '0.95rem' }}>{c.name}</div>
+                                            <div className="rpg-subclass-name d-flex align-items-center gap-2" style={{ fontSize: '0.95rem' }}>
+                                            {c.name}
+                                            {c.is_npc && (
+                                                <span className="rpg-element-badge" style={{ '--accent': '#8890a4', fontSize: '0.58rem' }}>NPC</span>
+                                            )}
+                                        </div>
                                             <div className="rpg-power-type">Lv.{c.level} &middot; {c.subclass?.name}</div>
                                         </div>
                                         {selected && <span className="ms-auto" style={{ color: accent }}>✓</span>}

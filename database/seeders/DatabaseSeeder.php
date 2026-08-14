@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             MonsterSeeder::class,
             SecondaryStatsSeeder::class,
             MapSeeder::class,
+            NpcSeeder::class,
         ]);
     }
 }

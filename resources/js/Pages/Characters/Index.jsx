@@ -48,7 +48,14 @@ export default function Index({ characters }) {
                                             </div>
                                         )}
                                         <div>
-                                            <div className="rpg-subclass-name">{c.name}</div>
+                                            <div className="rpg-subclass-name d-flex align-items-center gap-2">
+                                                {c.name}
+                                                {c.is_npc && (
+                                                    <span className="rpg-element-badge" style={{ '--accent': '#8890a4', fontSize: '0.6rem' }}>
+                                                        NPC
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="rpg-power-type">
                                                 Lv.{c.level} &middot; {c.subclass?.name}
                                             </div>

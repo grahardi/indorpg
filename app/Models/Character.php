@@ -13,7 +13,7 @@ class Character extends Model
 
     protected $fillable = [
         'subclass_id', 'name', 'level', 'exp',
-        'current_hp', 'current_stamina', 'current_mana', 'avatar_path', 'full_body_path',
+        'current_hp', 'current_stamina', 'current_mana', 'avatar_path', 'full_body_path', 'is_npc',
     ];
 
     protected $appends = ['avatar_url', 'full_body_url'];
