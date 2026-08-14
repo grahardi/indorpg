@@ -16,7 +16,7 @@ class Monster extends Model
         'hp', 'physical_damage', 'physical_defense', 'magic_damage', 'magic_defense',
         'exp_reward', 'min_party_level',
         'special_skill_name', 'special_skill_description',
-        'description', 'avatar_path',
+        'description', 'avatar_path', 'full_body_path',
     ];
 
     /**

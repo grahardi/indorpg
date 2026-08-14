@@ -1,4 +1,5 @@
-import { Link, Head } from '@inertiajs/react';
+import { Link, Head, useForm, router } from '@inertiajs/react';
+import { useRef } from 'react';
 import Layout from '../../Layout';
 
 const TYPE_ACCENT = {
@@ -20,6 +21,66 @@ function patternLabel(pattern) {
     return `${rangeLabel} · ${dmgLabel}`;
 }
 
+function ArtUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect, accent }) {
+    const inputRef = useRef(null);
+    const { setData, progress, errors } = useForm({ [fieldName]: null });
+    const background = `radial-gradient(circle at 50% 30%, ${accent}2e, var(--bg-panel) 75%)`;
+
+    function handleFile(file) {
+        if (!file) return;
+        setData(fieldName, file);
+        router.post(uploadUrl, { [fieldName]: file }, { forceFormData: true, preserveScroll: true });
+    }
+
+    function openPicker(e) {
+        e.stopPropagation();
+        inputRef.current?.click();
+    }
+
+    return (
+        <div>
+            <div className="rpg-skill-group-title d-flex justify-content-between">
+                <span>{label}</span>
+                <span style={{ color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>{spec}</span>
+            </div>
+            <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
+                style={{ position: 'relative', aspectRatio: aspect, background, border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden' }}
+            >
+                {currentUrl && (
+                    <img src={currentUrl} alt={label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
+                )}
+                {!currentUrl && (
+                    <div
+                        onClick={openPicker}
+                        style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem' }}
+                    >
+                        Klik atau drop gambar di sini
+                    </div>
+                )}
+                {currentUrl && (
+                    <button
+                        type="button"
+                        onClick={openPicker}
+                        className="btn btn-sm"
+                        style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(11,12,18,0.85)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', padding: '5px 12px', borderRadius: 6 }}
+                    >
+                        ✎ Ganti Gambar
+                    </button>
+                )}
+            </div>
+            <input ref={inputRef} type="file" accept="image/*" className="d-none" onChange={(e) => handleFile(e.target.files[0])} />
+            {progress && (
+                <div className="progress mt-2" style={{ height: 4 }}>
+                    <div className="progress-bar" style={{ width: `${progress.percentage}%` }} />
+                </div>
+            )}
+            {errors[fieldName] && <div className="text-danger small mt-1">{errors[fieldName]}</div>}
+        </div>
+    );
+}
+
 export default function Show({ monster }) {
     const accent = TYPE_ACCENT[monster.type] ?? '#8890a4';
 
@@ -32,9 +93,17 @@ export default function Show({ monster }) {
                 </Link>
 
                 <div className="d-flex align-items-center gap-3 mt-4 mb-2">
-                    <div className="rpg-badge-hex" style={{ '--accent': accent, width: 64, height: 64, fontSize: '1.6rem' }}>
-                        {monster.name.charAt(0)}
-                    </div>
+                    {monster.avatar_path ? (
+                        <img
+                            src={monster.avatar_path}
+                            alt={monster.name}
+                            style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${accent}`, flexShrink: 0, background: 'var(--bg-panel)' }}
+                        />
+                    ) : (
+                        <div className="rpg-badge-hex" style={{ '--accent': accent, width: 64, height: 64, fontSize: '1.6rem' }}>
+                            {monster.name.charAt(0)}
+                        </div>
+                    )}
                     <div>
                         <h1 className="rpg-class-title mb-0" style={{ fontSize: '2rem' }}>{monster.name}</h1>
                         <p className="rpg-power-type mb-0">
@@ -44,6 +113,31 @@ export default function Show({ monster }) {
                     </div>
                 </div>
                 <p className="rpg-class-desc mt-3">{monster.description}</p>
+
+                <div className="row g-4 my-4">
+                    <div className="col-md-4">
+                        <ArtUploadSlot
+                            label="Avatar"
+                            spec="256×256"
+                            currentUrl={monster.avatar_path}
+                            fieldName="avatar"
+                            uploadUrl={route('monsters.avatar', monster.id)}
+                            aspect="1 / 1"
+                            accent={accent}
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <ArtUploadSlot
+                            label="Full Body"
+                            spec="512×1024"
+                            currentUrl={monster.full_body_path}
+                            fieldName="full_body"
+                            uploadUrl={route('monsters.fullbody', monster.id)}
+                            aspect="1 / 2"
+                            accent={accent}
+                        />
+                    </div>
+                </div>
 
                 <div className="row g-3 my-4">
                     {[

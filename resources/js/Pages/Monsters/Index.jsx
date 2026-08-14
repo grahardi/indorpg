@@ -37,11 +37,20 @@ export default function Index({ monsters }) {
                             <div className="col-md-6 col-lg-4" key={m.id}>
                                 <Link href={route('monsters.show', m.id)} className="rpg-card" style={{ '--accent': accent }}>
                                     <div className="d-flex justify-content-between align-items-start mb-2">
-                                        <div>
-                                            <div className="rpg-subclass-name">{m.name}</div>
-                                            <div className="rpg-power-type">
-                                                Lv.{m.level} &middot; {m.type}
-                                                {m.element && <> &middot; {m.element.name}</>}
+                                        <div className="d-flex align-items-center gap-2">
+                                            {m.avatar_path ? (
+                                                <img
+                                                    src={m.avatar_path}
+                                                    alt={m.name}
+                                                    style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${accent}`, flexShrink: 0 }}
+                                                />
+                                            ) : null}
+                                            <div>
+                                                <div className="rpg-subclass-name">{m.name}</div>
+                                                <div className="rpg-power-type">
+                                                    Lv.{m.level} &middot; {m.type}
+                                                    {m.element && <> &middot; {m.element.name}</>}
+                                                </div>
                                             </div>
                                         </div>
                                         <span className="rpg-element-badge" style={{ '--accent': accent }}>

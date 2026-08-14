@@ -14,6 +14,8 @@ Route::post('/subclass/{subclass}/full-body', [GameDataController::class, 'uploa
 
 Route::get('/monsters', [MonsterController::class, 'index'])->name('monsters.index');
 Route::get('/monsters/{monster}', [MonsterController::class, 'show'])->name('monsters.show');
+Route::post('/monsters/{monster}/avatar', [MonsterController::class, 'uploadAvatar'])->name('monsters.avatar');
+Route::post('/monsters/{monster}/full-body', [MonsterController::class, 'uploadFullBody'])->name('monsters.fullbody');
 
 Route::get('/maps', [MapController::class, 'index'])->name('maps.index');
 Route::get('/maps/{map}', [MapController::class, 'show'])->name('maps.show');
