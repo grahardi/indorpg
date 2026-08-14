@@ -264,7 +264,16 @@ Ini yang bikin frontend bisa animasikan HP bar turun sinkron sama log yang muncu
 - Battle log di bawah, muncul progresif ngikutin animasi step-by-step. Ada tombol "Lewati" buat skip langsung ke hasil akhir.
 
 ### Yang belum diimplementasikan
-- AI auto-pick masih sederhana (cuma damage tertinggi, gak mempertimbangkan strong/weak monster secara strategis).
 - "Ambil Misi" masih sebatas "Misi Cepat" (random monster level-matched) — belum ada sistem misi terstruktur (objektif, reward khusus, dll).
 - Level matching masih berbasis level karakter individual, belum ada konsep "level pemain/akun" karena belum ada auth.
 - Endpoint battle manual per-ronde (`action()`) udah dihapus dari controller — kalau nanti mau balikin mode manual (misal buat player yang mau kontrol penuh), perlu dibangun ulang terpisah dari alur auto ini.
+
+### Update v2.1: Cooldown skill sekarang beneran dicek
+Ditemukan pas audit kesesuaian skill vs gamestyle baru — `cooldown_seconds` di tabel skills dulu **gak pernah dicek** di `autoPickSkill()`, jadi karakter bisa spam Ultimate tiap ronde selama resource cukup, bikin 4 dari 8 skill tiap subclass nyaris gak pernah kepake. Sekarang:
+- `battle_participants.skill_cooldowns` (json, `{skill_id: ronde_terakhir_dipakai}`) nge-track kapan tiap skill terakhir dipakai.
+- `cooldown_seconds` ditranslate ke "berapa ronde terkunci" pakai asumsi ~2.5 detik/ronde (`ceil(cooldown_seconds / 2.5)`), sesuai pacing animasi playback di frontend.
+- Efeknya: Ultimate (cooldown 30 detik ≈ 12 ronde) sekarang beneran jarang kepake, skill tier 1 lain jadi ikut kepake pas Ultimate lagi cooldown.
+
+### Masih belum diselesaikan (butuh keputusan desain, sengaja belum saya ubah sepihak)
+- **Resource gak regen antar ronde** — sekali stamina/mana abis, karakter kejebak pakai skill termurah/gratis doang sampe battle selesai. Bisa ditambah regen kecil per-ronde kalau battle mulai kerasa monoton di late-game.
+- **2 pilihan Ultimate (fisik & magic) per subclass jadi gak ada bedanya secara build** — karena AI cuma pilih skill ber-multiplier tertinggi yang usable, bukan player yang milih sesuai gaya main. Kalau mau balikin makna "pilihan build", butuh salah satu dari: (a) UI buat player pre-set loadout 3 skill+1 ultimate sebelum battle (baru AI pilih dari situ aja, bukan dari 8 skill penuh), atau (b) AI dikasih preferensi/personality biar konsisten pilih 1 ultimate tertentu per karakter.

@@ -69,9 +69,9 @@ class BattleService
                     continue;
                 }
 
-                $skill = $this->autoPickSkill($participant);
+                $skill = $this->autoPickSkill($participant, $round);
                 if (! $skill) {
-                    $log[] = $this->snapshot($battle, "{$participant->character->name} kehabisan resource, cuma bertahan.");
+                    $log[] = $this->snapshot($battle, "{$participant->character->name} belum ada skill siap pakai, cuma bertahan.");
                     continue;
                 }
 
@@ -162,23 +162,43 @@ class BattleService
     }
 
     /**
-     * AI sederhana: pilih skill dengan multiplier tertinggi yang masih affordable
-     * (resource cukup). Kalau gak ada yang affordable, return null (skip turn).
+     * AI: pilih skill ber-multiplier tertinggi yang affordable DAN gak lagi cooldown.
+     * cooldown_seconds ditranslate ke "berapa ronde terkunci" (asumsi ~2.5 detik/ronde,
+     * sesuai pacing animasi playback di frontend).
      */
-    private function autoPickSkill(BattleParticipant $participant): ?Skill
+    private function autoPickSkill(BattleParticipant $participant, int $currentRound): ?Skill
     {
         $skills = $participant->character->subclass->skills;
+        $cooldowns = $participant->skill_cooldowns ?? [];
 
-        $affordable = $skills->filter(function (Skill $skill) use ($participant) {
-            return $skill->stamina_cost <= $participant->current_stamina
+        $usable = $skills->filter(function (Skill $skill) use ($participant, $cooldowns, $currentRound) {
+            $affordable = $skill->stamina_cost <= $participant->current_stamina
                 && $skill->mana_cost <= $participant->current_mana;
+
+            if (! $affordable) {
+                return false;
+            }
+
+            $lastUsedRound = $cooldowns[$skill->id] ?? null;
+            if ($lastUsedRound === null) {
+                return true;
+            }
+
+            $roundsLocked = max(1, (int) ceil($skill->cooldown_seconds / 2.5));
+
+            return ($currentRound - $lastUsedRound) >= $roundsLocked;
         });
 
-        if ($affordable->isEmpty()) {
+        if ($usable->isEmpty()) {
             return null;
         }
 
-        return $affordable->sortByDesc(fn (Skill $s) => (float) $s->base_multiplier)->first();
+        $chosen = $usable->sortByDesc(fn (Skill $s) => (float) $s->base_multiplier)->first();
+
+        $cooldowns[$chosen->id] = $currentRound;
+        $participant->skill_cooldowns = $cooldowns;
+
+        return $chosen;
     }
 
     private function anyAlive(Battle $battle): bool

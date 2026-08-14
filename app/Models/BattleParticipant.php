@@ -12,11 +12,12 @@ class BattleParticipant extends Model
 
     protected $fillable = [
         'battle_id', 'character_id', 'current_hp',
-        'current_stamina', 'current_mana', 'is_alive',
+        'current_stamina', 'current_mana', 'skill_cooldowns', 'is_alive',
     ];
 
     protected $casts = [
         'is_alive' => 'boolean',
+        'skill_cooldowns' => 'array',
     ];
 
     public function battle(): BelongsTo
