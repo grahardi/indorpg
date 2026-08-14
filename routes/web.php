@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BattleController;
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\GameDataController;
+use App\Http\Controllers\GuideController;
 use App\Http\Controllers\GuildController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\MonsterController;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 
 // Browsing publik - gak butuh login.
 Route::get('/', [GameDataController::class, 'index'])->name('classes.index');
+Route::get('/guide', [GuideController::class, 'index'])->name('guide.index');
 Route::get('/subclass/{subclassId}', [GameDataController::class, 'showSubclass'])->name('subclass.show');
 Route::post('/subclass/{subclass}/avatar', [GameDataController::class, 'uploadAvatar'])->name('subclass.avatar');
 Route::post('/subclass/{subclass}/full-body', [GameDataController::class, 'uploadFullBody'])->name('subclass.fullbody');

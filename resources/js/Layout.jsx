@@ -40,6 +40,9 @@ export default function Layout({ children }) {
                         <Link href={route('maps.index')} className="text-decoration-none" style={{ color: 'var(--text-secondary)' }}>
                             Peta
                         </Link>
+                        <Link href={route('guide.index')} className="text-decoration-none" style={{ color: 'var(--text-secondary)' }}>
+                            Cara Main
+                        </Link>
 
                         {user ? (
                             <>

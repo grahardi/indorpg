@@ -481,3 +481,31 @@ Sebelumnya `character.level` statis dari awal bikin karakter, gak pernah naik wa
 - Tiap menang battle: `exp` DAN `total_exp` sama-sama nambah dari `monster.exp_reward`. Abis itu `Character::syncLevel()` ngecek apakah `total_exp` udah lewatin threshold level berikutnya — kalau iya, level naik (bisa lompat lebih dari 1 level kalau EXP reward-nya gede banget), dicatat di battle log ("X naik ke Level Y!").
 - Monster level tinggi udah otomatis kasih EXP lebih banyak dari desain awal (Slime Api lv1 = 15 EXP, Golem Batu Kecil lv5 = 50 EXP, Harpy Muda lv6 = 60 EXP) — jadi "monster tingkat tinggi EXP gain banyak" udah otomatis kepenuhi dari data yang udah ada, gak perlu tuning tambahan.
 - Halaman karakter (`/characters/{id}`) sekarang nampilin progress bar "Menuju Level X" (total_exp saat ini vs threshold level berikutnya).
+
+---
+
+## 19. Halaman Cara Bermain/FAQ & Restrukturisasi Stat 3-Layer (v3.6)
+
+### Halaman Cara Bermain (`/guide`, publik)
+Panduan singkat 6 bagian (Bikin Karakter → Loadout → Guild → Misi Cepat/Peta → Battle → EXP/Level/Upgrade) plus 5 FAQ. Diakses dari nav "Cara Main", gak perlu login.
+
+### Stat sekarang 3 layer
+Sebelumnya cuma 2 layer (`subclass base` + `character bonus`). Sekarang:
+
+```
+Effective Stat = Leveled Base (subclass base + pertumbuhan level) + Bonus (upgrade EXP)
+```
+
+**Base Stats** (Physical Attack, Physical Defense, Magic Attack, Magic Defense) — **GAK BISA di-upgrade manual lagi**, naik OTOMATIS tiap level:
+```
+levelGrowth(stat) = floor(subclass.base_{stat} * 10% * (level - 1))
+```
+Level 1 = 0 pertumbuhan. Formula ini elegan karena **otomatis ngikutin profil excel yang udah ada** tanpa perlu tabel growth baru per subclass — stat yang base-nya udah TINGGI (misal Physical Attack Berserker = 45) naik CEPAT tiap level (4-5 poin/level), sedangkan stat yang RENDAH (misal Magic Attack Berserker = 10) naik SANGAT LAMBAT (~1 poin/level). Persis sesuai instruksi "yang tinggi cepat, yang rendah lambat, sesuai excel kemarin".
+
+**Bonus Stats** (Bonus Physical Attack, Bonus Physical Defense, Bonus Magic Attack, Bonus Magic Defense, Bonus Agility, Bonus Evasion, Bonus Critical Hit, Bonus Critical Luck) — ini yang **masih bisa di-upgrade pakai EXP** (tombol +), mulai dari 0. Formula biaya upgrade gak berubah dari sebelumnya.
+
+### UI Characters/Show
+Dipisah jadi 2 card terpisah: **"Base Stats"** (nampilin `leveled_*`, gak ada tombol +, note "naik otomatis tiap level sesuai profil subclass") dan **"Bonus Stats"** (nampilin `bonus_*` mentah + tombol upgrade, dengan hint kecil "Total: X" nunjukkin hasil gabungan base+bonus yang beneran dipakai di battle).
+
+### Battle gak perlu diubah
+`BattleService` udah dari awal pakai `character->effective_*` (bukan `subclass->base_*` langsung), jadi otomatis dapet manfaat level growth begitu model-nya diupdate — gak ada perubahan kode battle sama sekali.

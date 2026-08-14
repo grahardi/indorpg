@@ -26,6 +26,8 @@ class Character extends Model
 
     protected $appends = [
         'avatar_url', 'full_body_url', 'is_busy',
+        'leveled_physical_damage', 'leveled_physical_defense',
+        'leveled_magic_damage', 'leveled_magic_defense',
         'effective_physical_damage', 'effective_physical_defense',
         'effective_magic_damage', 'effective_magic_defense',
         'effective_base_hp', 'effective_base_mp', 'effective_base_sp',
@@ -36,9 +38,11 @@ class Character extends Model
     ];
 
     /**
-     * Biaya EXP buat upgrade 1 poin stat tertentu. Naik tiap kali udah pernah
-     * di-upgrade (semakin banyak bonus yang udah ada, semakin mahal poin berikutnya).
+     * 4 stat inti yang naik otomatis tiap level (bukan lagi upgrade manual).
+     * Bonus stat yang masih bisa di-upgrade pakai EXP (klik tombol +).
      */
+    public const CORE_LEVEL_STATS = ['physical_damage', 'physical_defense', 'magic_damage', 'magic_defense'];
+
     public const UPGRADABLE_STATS = [
         'physical_damage', 'physical_defense', 'magic_damage', 'magic_defense',
         'agility', 'evasion', 'critical_hit', 'critical_luck',
@@ -71,24 +75,59 @@ class Character extends Model
         return $this->full_body_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->full_body_path) : null;
     }
 
+    /**
+     * Kenaikan stat inti otomatis tiap level, sebanding sama base value-nya di
+     * subclass - jadi stat yang UDAH TINGGI di excel (misal Physical Attack
+     * Berserker=45) naik CEPAT tiap level, sedangkan stat yang RENDAH (misal
+     * Magic Attack Berserker=10) naik SANGAT LAMBAT. Gak perlu tabel growth
+     * per-subclass terpisah - otomatis ngikutin profil excel yang udah ada.
+     * Formula: floor(base * 10% * (level-1)). Level 1 = 0 (belum naik apa-apa).
+     */
+    public function levelGrowth(string $stat): int
+    {
+        $baseValue = $this->subclass->{"base_{$stat}"} ?? 0;
+
+        return (int) floor($baseValue * 0.1 * ($this->level - 1));
+    }
+
+    public function getLeveledPhysicalDamageAttribute(): int
+    {
+        return $this->subclass->base_physical_damage + $this->levelGrowth('physical_damage');
+    }
+
+    public function getLeveledPhysicalDefenseAttribute(): int
+    {
+        return $this->subclass->base_physical_defense + $this->levelGrowth('physical_defense');
+    }
+
+    public function getLeveledMagicDamageAttribute(): int
+    {
+        return $this->subclass->base_magic_damage + $this->levelGrowth('magic_damage');
+    }
+
+    public function getLeveledMagicDefenseAttribute(): int
+    {
+        return $this->subclass->base_magic_defense + $this->levelGrowth('magic_defense');
+    }
+
     public function getEffectivePhysicalDamageAttribute(): int
     {
-        return $this->subclass->base_physical_damage + $this->bonus_physical_damage;
+        return $this->leveled_physical_damage + $this->bonus_physical_damage;
     }
 
     public function getEffectivePhysicalDefenseAttribute(): int
     {
-        return $this->subclass->base_physical_defense + $this->bonus_physical_defense;
+        return $this->leveled_physical_defense + $this->bonus_physical_defense;
     }
 
     public function getEffectiveMagicDamageAttribute(): int
     {
-        return $this->subclass->base_magic_damage + $this->bonus_magic_damage;
+        return $this->leveled_magic_damage + $this->bonus_magic_damage;
     }
 
     public function getEffectiveMagicDefenseAttribute(): int
     {
-        return $this->subclass->base_magic_defense + $this->bonus_magic_defense;
+        return $this->leveled_magic_defense + $this->bonus_magic_defense;
     }
 
     public function getEffectiveBaseHpAttribute(): int
