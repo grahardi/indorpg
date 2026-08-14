@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ValidatesPartyOwnership;
 use App\Models\Battle;
 use App\Models\Character;
 use App\Models\Encounter;
@@ -13,6 +14,8 @@ use Inertia\Response;
 
 class BattleController extends Controller
 {
+    use ValidatesPartyOwnership;
+
     public function __construct(private BattleService $battleService) {}
 
     /**
@@ -21,7 +24,7 @@ class BattleController extends Controller
     public function select(Encounter $encounter): Response
     {
         $encounter->load('monster');
-        $characters = Character::with('subclass.gameClass')->get();
+        $characters = Character::with(['subclass.gameClass', 'user'])->get();
 
         return Inertia::render('Battle/Select', [
             'encounter' => $encounter,
@@ -36,6 +39,8 @@ class BattleController extends Controller
             'character_ids' => ['required', 'array', 'min:2', 'max:3'],
             'character_ids.*' => ['exists:characters,id'],
         ]);
+
+        $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
 
         $battle = $this->battleService->startBattle($encounter, $data['character_ids']);
 

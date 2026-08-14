@@ -1,4 +1,4 @@
-import { Link, Head, useForm } from '@inertiajs/react';
+import { Link, Head, useForm, usePage } from '@inertiajs/react';
 import Layout from '../../Layout';
 
 const CLASS_ACCENT = {
@@ -9,6 +9,7 @@ const CLASS_ACCENT = {
 };
 
 export default function Select({ encounter, characters, preselected = [] }) {
+    const { props } = usePage();
     const { data, setData, post, processing, errors } = useForm({
         character_ids: preselected,
     });
@@ -51,6 +52,7 @@ export default function Select({ encounter, characters, preselected = [] }) {
                     {characters.map((c) => {
                         const accent = CLASS_ACCENT[c.subclass?.game_class?.slug] ?? '#8890a4';
                         const selected = data.character_ids.includes(c.id);
+                        const isMine = props.auth?.user?.id && c.user_id === props.auth.user.id;
                         return (
                             <div className="col-md-4" key={c.id}>
                                 <div
@@ -72,11 +74,14 @@ export default function Select({ encounter, characters, preselected = [] }) {
                                         )}
                                         <div>
                                             <div className="rpg-subclass-name d-flex align-items-center gap-2" style={{ fontSize: '0.95rem' }}>
-                                            {c.name}
-                                            {c.is_npc && (
-                                                <span className="rpg-element-badge" style={{ '--accent': '#8890a4', fontSize: '0.58rem' }}>NPC</span>
-                                            )}
-                                        </div>
+                                                {c.name}
+                                                {c.is_npc && (
+                                                    <span className="rpg-element-badge" style={{ '--accent': '#8890a4', fontSize: '0.58rem' }}>NPC</span>
+                                                )}
+                                                {isMine && (
+                                                    <span className="rpg-element-badge" style={{ '--accent': '#c9a24b', color: '#c9a24b', fontSize: '0.58rem' }}>Milikmu</span>
+                                                )}
+                                            </div>
                                             <div className="rpg-power-type">Lv.{c.level} &middot; {c.subclass?.name}</div>
                                         </div>
                                         {selected && <span className="ms-auto" style={{ color: accent }}>✓</span>}

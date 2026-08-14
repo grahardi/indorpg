@@ -41,8 +41,14 @@ export default function Index({ characters }) {
                         {props.errors.mission}
                     </div>
                 )}
+                {props.errors?.character_ids && (
+                    <div className="rpg-card mb-4" style={{ '--accent': '#b8433a', color: '#b8433a' }}>
+                        {props.errors.character_ids}
+                    </div>
+                )}
 
                 <h4 className="rpg-skill-group-title mb-3">1. Pilih Party</h4>
+                <p className="text-secondary small mb-3">Minimal 1 karakter di party harus milik kamu sendiri (bukan cuma NPC).</p>
 
                 {characters.length === 0 && (
                     <p className="text-secondary">
@@ -54,6 +60,7 @@ export default function Index({ characters }) {
                     {characters.map((c) => {
                         const accent = CLASS_ACCENT[c.subclass?.game_class?.slug] ?? '#8890a4';
                         const isSelected = selected.includes(c.id);
+                        const isMine = props.auth?.user?.id && c.user_id === props.auth.user.id;
                         return (
                             <div className="col-md-4" key={c.id}>
                                 <div
@@ -71,11 +78,14 @@ export default function Index({ characters }) {
                                         )}
                                         <div>
                                             <div className="rpg-subclass-name d-flex align-items-center gap-2" style={{ fontSize: '0.95rem' }}>
-                                            {c.name}
-                                            {c.is_npc && (
-                                                <span className="rpg-element-badge" style={{ '--accent': '#8890a4', fontSize: '0.58rem' }}>NPC</span>
-                                            )}
-                                        </div>
+                                                {c.name}
+                                                {c.is_npc && (
+                                                    <span className="rpg-element-badge" style={{ '--accent': '#8890a4', fontSize: '0.58rem' }}>NPC</span>
+                                                )}
+                                                {isMine && (
+                                                    <span className="rpg-element-badge" style={{ '--accent': '#c9a24b', color: '#c9a24b', fontSize: '0.58rem' }}>Milikmu</span>
+                                                )}
+                                            </div>
                                             <div className="rpg-power-type">Lv.{c.level} &middot; {c.subclass?.name}</div>
                                         </div>
                                         {isSelected && <span className="ms-auto" style={{ color: accent }}>✓</span>}

@@ -12,7 +12,7 @@ class Character extends Model
     use HasFactory;
 
     protected $fillable = [
-        'subclass_id', 'name', 'level', 'exp',
+        'user_id', 'subclass_id', 'name', 'level', 'exp',
         'current_hp', 'current_stamina', 'current_mana', 'avatar_path', 'full_body_path', 'is_npc',
     ];
 
@@ -21,6 +21,11 @@ class Character extends Model
     public function subclass(): BelongsTo
     {
         return $this->belongsTo(Subclass::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function skills(): BelongsToMany

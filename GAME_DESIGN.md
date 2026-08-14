@@ -346,3 +346,28 @@ Semua stat di tabel yang "bisa ditambah exp" itu baru **niat desain**, belum ada
 
 ### UI: Characters/Show — model "FIFA stat bar"
 Base Stats section dipindah **langsung di bawah Resource** (bukan section terpisah jauh), dan model tampilannya diganti dari kartu kotak jadi **bar horizontal** (label kiri, bar isi warna, angka kanan) — mirip tampilan stat pemain di game FIFA. HP/SP/MP di Resource juga masing-masing dikasih warna beda (merah/oranye/ungu) dengan progress bar sendiri, font diperbesar, dan line-spacing dirapiin.
+
+---
+
+## 13. Sistem Login Sederhana (v3.0)
+
+Login akhirnya masuk — dipicu kebutuhan: party battle harus punya minimal 1 karakter beneran punya player, bukan cuma NPC. Sengaja dibuat **sesimpel mungkin**:
+
+### Yang dipakai
+- **Username + password aja**, gak pakai email (kolom email di tabel `users` dijadiin nullable, `username` baru ditambah unik).
+- Auth pakai fitur bawaan Laravel (`Auth` facade, `Hash` via cast `'hashed'` di model `User`) — **gak nambah composer package baru** sama sekali, biar gak kejadian masalah `composer.lock` lagi kayak sebelumnya.
+- Session-based (standard Laravel web auth), bukan token/API.
+
+### Yang butuh login
+- Bikin karakter (`/characters/create`)
+- Guild Adventure (pilih party, misi cepat, explore)
+- Battle (pilih party dari encounter, lihat battle)
+
+### Yang TETAP publik (gak perlu login)
+- Codex (class/subclass/skill), Bestiary (monster), Peta (liat doang), Roster karakter (liat doang)
+
+### Aturan party
+`ValidatesPartyOwnership` trait — dipakai di `GuildController` dan `BattleController`. Party (2-3 karakter) harus punya **minimal 1 karakter dengan `user_id` = user yang login**. NPC (user_id null) boleh diajak asal ada minimal 1 karakter beneran punya sendiri di situ. Divalidasi server-side, badge "Milikmu" ditampilkan di UI biar player tau mana yang kehitung.
+
+### Migrasi data lama
+Karakter yang udah ada sebelum fitur ini (termasuk 14 NPC yang di-seed sebelumnya) otomatis `user_id = null` — NPC memang sengaja gitu selamanya, tapi kalau ada karakter player lama dari sebelum sistem login ada, mereka juga jadi "tak bertuan" karena gak ada cara tau siapa yang bikin. Practically di tahap ini gak masalah karena baru mulai testing.

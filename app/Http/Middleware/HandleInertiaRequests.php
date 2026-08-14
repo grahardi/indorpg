@@ -19,6 +19,12 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'appName' => config('app.name', 'IndoRPG'),
+            'auth' => [
+                'user' => $request->user() ? [
+                    'id' => $request->user()->id,
+                    'username' => $request->user()->username,
+                ] : null,
+            ],
             'flash' => [
                 'explore_result' => fn () => $request->session()->get('explore_result'),
             ],

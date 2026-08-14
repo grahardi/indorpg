@@ -13,7 +13,7 @@ class CharacterController extends Controller
 {
     public function index(): Response
     {
-        $characters = Character::with(['subclass.gameClass', 'subclass.element'])
+        $characters = Character::with(['subclass.gameClass', 'subclass.element', 'user'])
             ->latest()
             ->get();
 
@@ -41,6 +41,7 @@ class CharacterController extends Controller
         $subclass = Subclass::with('gameClass')->findOrFail($data['subclass_id']);
 
         $character = Character::create([
+            'user_id' => $request->user()->id,
             'subclass_id' => $subclass->id,
             'name' => $data['name'],
             'level' => 1,

@@ -1,4 +1,4 @@
-import { Link, Head } from '@inertiajs/react';
+import { Link, Head, usePage } from '@inertiajs/react';
 import Layout from '../../Layout';
 
 const CLASS_ACCENT = {
@@ -9,6 +9,9 @@ const CLASS_ACCENT = {
 };
 
 export default function Index({ characters }) {
+    const { props } = usePage();
+    const currentUserId = props.auth?.user?.id;
+
     return (
         <Layout>
             <Head title="Karakter" />
@@ -17,7 +20,7 @@ export default function Index({ characters }) {
                     <div>
                         <h1 className="rpg-hero-title display-5 mb-2">Roster Karakter</h1>
                         <p className="rpg-tagline mb-0">
-                            {characters.length} karakter dibuat. Belum ada login — roster ini bersama untuk semua tester.
+                            {characters.length} karakter tercatat — gabungan NPC dan karakter milik semua pemain.
                         </p>
                     </div>
                     <Link href={route('characters.create')} className="rpg-back-link">
@@ -32,6 +35,7 @@ export default function Index({ characters }) {
                 <div className="row g-3">
                     {characters.map((c) => {
                         const accent = CLASS_ACCENT[c.subclass?.game_class?.slug] ?? '#8890a4';
+                        const isMine = currentUserId && c.user_id === currentUserId;
                         return (
                             <div className="col-md-6 col-lg-3" key={c.id}>
                                 <Link href={route('characters.show', c.id)} className="rpg-card" style={{ '--accent': accent }}>
@@ -55,9 +59,15 @@ export default function Index({ characters }) {
                                                         NPC
                                                     </span>
                                                 )}
+                                                {isMine && (
+                                                    <span className="rpg-element-badge" style={{ '--accent': '#c9a24b', color: '#c9a24b', fontSize: '0.6rem' }}>
+                                                        Milikmu
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="rpg-power-type">
                                                 Lv.{c.level} &middot; {c.subclass?.name}
+                                                {!c.is_npc && c.user && !isMine && <> &middot; {c.user.username}</>}
                                             </div>
                                         </div>
                                     </div>

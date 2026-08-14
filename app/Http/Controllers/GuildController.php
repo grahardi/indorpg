@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ValidatesPartyOwnership;
 use App\Models\Character;
 use App\Models\Encounter;
 use App\Models\SpawnPoint;
@@ -13,11 +14,13 @@ use Inertia\Response;
 
 class GuildController extends Controller
 {
+    use ValidatesPartyOwnership;
+
     public function __construct(private BattleService $battleService) {}
 
     public function index(): Response
     {
-        $characters = Character::with('subclass.gameClass')->get();
+        $characters = Character::with(['subclass.gameClass', 'user'])->get();
 
         return Inertia::render('Guild/Index', [
             'characters' => $characters,
@@ -36,6 +39,8 @@ class GuildController extends Controller
             'character_ids.*' => ['exists:characters,id'],
         ]);
 
+        $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
+
         session(['guild_party' => $data['character_ids']]);
 
         return redirect()->route('maps.index');
@@ -51,6 +56,8 @@ class GuildController extends Controller
             'character_ids' => ['required', 'array', 'min:2', 'max:3'],
             'character_ids.*' => ['exists:characters,id'],
         ]);
+
+        $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
 
         $characters = Character::whereIn('id', $data['character_ids'])->get();
 
