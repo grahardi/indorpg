@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
             SubclassSeeder::class,
             SkillSeeder::class,
             MonsterSeeder::class,
+            MapSeeder::class,
         ]);
     }
 }

@@ -19,6 +19,9 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'appName' => config('app.name', 'IndoRPG'),
+            'flash' => [
+                'explore_result' => fn () => $request->session()->get('explore_result'),
+            ],
         ];
     }
 }

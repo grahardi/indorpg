@@ -164,3 +164,30 @@ Slime Api, Slime Air, Tikus Raksasa, Kelelawar Gua, Bandit Pemula, Laba-laba Ber
 - Player pilih 2-3 karakter (dari roster `characters`) buat masuk party lawan 1 monster.
 - Requirement lawan monster tertentu: level party, mungkin nanti juga tipe/elemen tertentu.
 - **Belum ada**: battle engine (turn order, damage calculation, UI battle screen). Ini scope besar terpisah, next milestone setelah skill tree tier 2 & assign skill ke karakter selesai.
+
+---
+
+## 8. Sistem Map & Spawn Point (v1)
+
+### Struktur
+- `maps`: area petualangan (Hutan Awal, Reruntuhan Kuno, dst), punya level range.
+- `spawn_points`: titik lokasi di dalam map (misal "Gua Kelelawar"), posisi (pos_x, pos_y dalam persen buat markering di atas background map), respawn_seconds, last_defeated_at.
+- `spawn_point_monster`: pivot weighted — monster apa aja yang bisa muncul di titik itu + bobotnya.
+- `encounters`: histori tiap kali monster berhasil di-roll dari suatu spawn point (status pending/won/lost/fled).
+
+### Algoritma Roll Monster (`SpawnPoint::rollMonster()`)
+1. Cek cooldown: `last_defeated_at + respawn_seconds > now()` → kalau masih cooldown, return null (monster belum muncul).
+2. Ambil pool monster spawn point + weight masing-masing.
+3. Total-in semua weight, `random_int(1, total)`, jalan kumulatif sampai ketemu monster yang kena roll (standar weighted random / loot table).
+4. Return monster terpilih, dibungkus jadi record `Encounter` (status pending).
+5. Nanti setelah battle system jadi: menang → set `last_defeated_at = now()` di spawn point (mulai cooldown), kasih EXP ke party, update status encounter jadi won/lost/fled.
+
+### Roster Awal
+**Hutan Awal** (level 1-3): Tepi Hutan, Gua Kelelawar, Jalan Setapak, Kolam Tenang.
+**Reruntuhan Kuno** (level 3-6): Gerbang Reruntuhan, Sarang Laba-laba, Kuil Terendam, Puncak Menara.
+
+### Yang belum diimplementasikan
+- Background art peta (sekarang masih placeholder gradient, marker spawn point posisinya persentase jadi siap dipasangi gambar peta beneran kapan aja tanpa ubah data).
+- Battle system beneran — `explore()` sekarang cuma nge-roll monster dan nampilin hasilnya, belum lempar ke battle screen.
+- EXP/reward belum kepotong ke karakter (karena battle belum ada).
+- Level scaling: monster levelnya masih fix dari seeder, belum random dalam suatu range.
