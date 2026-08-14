@@ -32,7 +32,8 @@ class BattleController extends Controller
             })
             ->get();
 
-        $this->rollNpcAvailability($characters);
+        // Fitur "NPC on mission" dimatikan sementara - lihat catatan di GuildController.
+        // $this->rollNpcAvailability($characters);
 
         return Inertia::render('Battle/Select', [
             'encounter' => $encounter,

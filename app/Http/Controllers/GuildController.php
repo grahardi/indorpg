@@ -30,7 +30,12 @@ class GuildController extends Controller
             })
             ->get();
 
-        $this->rollNpcAvailability($characters);
+        // FITUR "NPC ON MISSION" DIMATIKAN SEMENTARA - kemarin kejadian semua NPC
+        // ke-mark "Sedang Misi" pas testing (kemungkinan besar gara-gara reload
+        // berkali-kali numpuk banyak NPC ke-roll busy bersamaan). Nanti diaktifkan
+        // lagi setelah logic-nya diperbaiki (misal: cooldown per-request/session,
+        // bukan re-roll tiap page load).
+        // $this->rollNpcAvailability($characters);
 
         return Inertia::render('Guild/Index', [
             'characters' => $characters,

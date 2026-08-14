@@ -466,13 +466,12 @@ Panel monster sekarang **sticky** (nempel di atas layar, di bawah nav) selama sc
 - **Roster (`/characters`)**: sekarang cuma nampilin karakter **milik sendiri** (query `where('user_id', auth()->id())`). Halaman ini juga dipindah ke grup `auth` — gak masuk akal diakses kalau belum login karena isinya personal.
 - **Guild & Battle Select**: nampilin karakter **milik sendiri + semua NPC**, karakter milik pemain lain **disembunyikan sementara** (`where('user_id', auth()->id())->orWhere('is_npc', true)`).
 
-### NPC "On Mission" (random unavailable)
-Kolom baru `characters.busy_until` (nullable timestamp). Tiap buka Guild/Battle Select, NPC yang lagi gak busy punya **25% kemungkinan** ke-roll jadi "on mission" selama 3-15 menit acak (`RollsNpcAvailability` trait). NPC yang lagi busy:
-- Badge merah "Sedang Misi" di kartu pilihannya
-- Gak bisa diklik/dipilih (disabled di frontend)
-- Divalidasi juga di server (`ValidatesPartyOwnership::ensureNoBusyNpcInParty()`) — jaga-jaga ada yang coba submit NPC busy lewat request manual
+### NPC "On Mission" (random unavailable) — **DIMATIKAN SEMENTARA (bug)**
+~~Kolom baru `characters.busy_until` (nullable timestamp). Tiap buka Guild/Battle Select, NPC yang lagi gak busy punya **25% kemungkinan** ke-roll jadi "on mission" selama 3-15 menit acak.~~
 
-NPC yang udah busy dibiarkan gitu aja sampe `busy_until` lewat sendiri (gak di-roll ulang selama masih on mission).
+**Update**: fitur ini dimatiin sementara setelah kejadian di produksi — semua 14 NPC ke-mark "Sedang Misi" bersamaan, bikin party gak bisa dibentuk sama sekali. Kemungkinan besar penyebabnya: reload halaman berkali-kali numpuk banyak roll 25% independen dalam window waktu yang sama, jadi lama-lama semua NPC kena. Kolom `busy_until`, trait `RollsNpcAvailability`, dan validasi `ensureNoBusyNpcInParty()` semua **masih ada di kode**, cuma pemanggilannya di-comment di `GuildController`/`BattleController`. Migration baru nge-reset semua NPC yang kejebak (`busy_until = null`).
+
+**Next step kalau mau diaktifkan lagi**: perbaiki logic-nya biar gak numpuk — misal cache/session-based cooldown per-request, atau reset roll cuma sekali per beberapa menit pakai scheduled job, bukan re-roll independen tiap page load.
 
 ### Sistem Level-Up (akhirnya beneran naik level)
 Sebelumnya `character.level` statis dari awal bikin karakter, gak pernah naik walau EXP numpuk. Sekarang:
