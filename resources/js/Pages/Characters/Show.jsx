@@ -166,10 +166,7 @@ export default function Show({ character }) {
                             </p>
                         </div>
 
-                        {/* Base Stats - langsung di bawah Resource, model bar ala FIFA */}
-                        <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Base Stats</div>
-                        <div className="rpg-card" style={{ '--accent': accent, padding: '1.5rem' }}>
-                            {/* Base Stats - naik otomatis dari level, GAK bisa di-upgrade manual */}
+                        {/* Base Stats - naik otomatis dari level, GAK bisa di-upgrade manual */}
                         <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Base Stats</div>
                         <p className="text-secondary small mb-2">Naik otomatis tiap level, sesuai profil {subclass?.name} — stat yang tinggi naik cepat, yang rendah naik lambat.</p>
                         <div className="rpg-card mb-4" style={{ '--accent': accent, padding: '1.5rem' }}>
