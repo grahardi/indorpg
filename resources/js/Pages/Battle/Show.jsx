@@ -6,12 +6,6 @@ import { battleAudio } from '../../battleAudio';
 const MONSTER_COLOR = '#b8433a';
 const PARTICIPANT_COLORS = ['#3f8c94', '#c9a24b', '#7269d1'];
 
-function skillPillColor(skill) {
-    if (skill.tier === 3) return '#c9a24b'; // ultimate - gold
-    if (skill.scaling_stat === 'magic') return '#7269d1'; // magic - violet
-    return '#b8433a'; // physical - crimson
-}
-
 function Bar({ current, max, color }) {
     const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
     return (
@@ -247,7 +241,7 @@ export default function Show({ battle }) {
     return (
         <Layout>
             <Head title={`Battle vs ${monster.name}`} />
-            <div className="container py-5" style={{ maxWidth: 900 }}>
+            <div className="container py-5" style={{ maxWidth: 700 }}>
                 <div className="text-end mb-2">
                     <button
                         className="rpg-back-link"
@@ -261,31 +255,32 @@ export default function Show({ battle }) {
                 {/* Monster + Party dijadiin satu blok sticky bareng, biar gak saling tabrak/nutupin
                     pas scroll turun ke battle log - HP monster & party tetap kelihatan terus. */}
                 <div style={{ position: 'sticky', top: 64, zIndex: 15, background: 'var(--bg-deep)', paddingBottom: '0.6rem' }}>
+                    {/* Monster - full body, di atas */}
                     <div
-                        className="rpg-card mb-2"
-                        style={{ '--accent': '#b8433a', padding: '0.85rem 1rem', boxShadow: '0 8px 20px -8px rgba(0,0,0,0.6)' }}
+                        className="rpg-card text-center mx-auto mb-2"
+                        style={{ '--accent': MONSTER_COLOR, padding: '0.75rem', maxWidth: 220, boxShadow: '0 8px 20px -8px rgba(0,0,0,0.6)' }}
                     >
-                        <div className="d-flex align-items-center gap-2">
-                            {monster.avatar_path ? (
-                                <img src={monster.avatar_path} alt={monster.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid #b8433a', flexShrink: 0 }} />
-                            ) : (
-                                <div className="rpg-badge-hex" style={{ '--accent': '#b8433a', width: 44, height: 44, fontSize: '1.05rem', flexShrink: 0 }}>
-                                    {monster.name.charAt(0)}
-                                </div>
-                            )}
-                            <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                                <div className="d-flex justify-content-between">
-                                    <div className="rpg-subclass-name text-truncate" style={{ fontSize: '0.95rem' }}>{monster.name}</div>
-                                    <span className="rpg-power-type" style={{ flexShrink: 0, marginLeft: 8 }}>Lv.{monster.level}</span>
-                                </div>
-                                <Bar current={current.monster_hp} max={monster.hp} color="#b8433a" />
-                                <div className="rpg-stat-label mt-1"><span>HP</span><span>{current.monster_hp} / {monster.hp}</span></div>
+                        {monster.full_body_path ? (
+                            <img
+                                src={monster.full_body_path}
+                                alt={monster.name}
+                                style={{ width: 84, height: 84, borderRadius: 10, objectFit: 'contain', background: 'var(--bg-panel)', margin: '0 auto' }}
+                            />
+                        ) : (
+                            <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
+                                {monster.name.charAt(0)}
                             </div>
+                        )}
+                        <div className="rpg-subclass-name text-truncate mt-1" style={{ fontSize: '0.88rem' }}>{monster.name}</div>
+                        <div className="rpg-power-type mb-1">Lv.{monster.level}</div>
+                        <div style={{ width: 130, margin: '0 auto' }}>
+                            <Bar current={current.monster_hp} max={monster.hp} color={MONSTER_COLOR} />
+                            <div className="rpg-stat-label mt-1" style={{ fontSize: '0.6rem' }}><span>HP</span><span>{current.monster_hp}/{monster.hp}</span></div>
                         </div>
                     </div>
 
-                    {/* Party columns */}
-                    <div className="row g-2">
+                    {/* Party - full body, bar pendek, "Kamu" di-highlight */}
+                    <div className="d-flex justify-content-center flex-wrap gap-2">
                         {battle.participants.map((p, i) => {
                             const live = current.participants[p.character_id] || {
                                 hp: p.current_hp, stamina: p.current_stamina, mana: p.current_mana, is_alive: p.is_alive,
@@ -295,46 +290,40 @@ export default function Show({ battle }) {
                             const maxStamina = p.character.effective_base_sp ?? live.stamina;
                             const maxMana = p.character.effective_base_mp ?? live.mana;
                             const pColor = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
+                            const isMain = p.character.user_id === currentUserId;
 
                             return (
-                                <div className="col-md-4" key={p.id}>
-                                    <div className="rpg-card h-100" style={{ '--accent': pColor, opacity: live.is_alive ? 1 : 0.45, padding: '0.7rem 0.85rem' }}>
-                                        <div className="d-flex align-items-center gap-2 mb-1">
-                                            {p.character.subclass?.avatar_path ? (
-                                                <img src={p.character.subclass?.avatar_path} alt={p.character.name} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${pColor}`, flexShrink: 0 }} />
-                                            ) : (
-                                                <div className="rpg-badge-hex" style={{ '--accent': pColor, width: 30, height: 30, fontSize: '0.72rem', flexShrink: 0 }}>
-                                                    {p.character.name.charAt(0)}
-                                                </div>
-                                            )}
-                                            <div style={{ minWidth: 0 }}>
-                                                <div className="rpg-subclass-name text-truncate" style={{ fontSize: '0.82rem', color: pColor }}>
-                                                    {p.character.name} {!live.is_alive && '☠'}
-                                                </div>
-                                                <div className="rpg-power-type text-truncate">{subclass?.name}</div>
-                                            </div>
+                                <div
+                                    key={p.id}
+                                    className="rpg-card text-center"
+                                    style={{ '--accent': pColor, opacity: live.is_alive ? 1 : 0.45, padding: '0.6rem', width: 108 }}
+                                >
+                                    {isMain && (
+                                        <span className="rpg-element-badge d-block mb-1" style={{ '--accent': '#c9a24b', color: '#c9a24b', fontSize: '0.55rem' }}>
+                                            KAMU
+                                        </span>
+                                    )}
+                                    {subclass?.full_body_path ? (
+                                        <img
+                                            src={subclass.full_body_path}
+                                            alt={p.character.name}
+                                            style={{ width: 46, height: 92, objectFit: 'contain', background: 'var(--bg-panel)', borderRadius: 6, margin: '0 auto' }}
+                                        />
+                                    ) : (
+                                        <div className="rpg-badge-hex mx-auto" style={{ '--accent': pColor, width: 46, height: 46, fontSize: '1rem' }}>
+                                            {p.character.name.charAt(0)}
                                         </div>
-
+                                    )}
+                                    <div className="rpg-subclass-name text-truncate mt-1" style={{ fontSize: '0.72rem', color: pColor }}>
+                                        {p.character.name} {!live.is_alive && '☠'}
+                                    </div>
+                                    <div style={{ width: 80, margin: '0 auto' }}>
                                         <Bar current={live.hp} max={maxHp} color="#b8433a" />
-                                        <div className="rpg-stat-label mt-1" style={{ fontSize: '0.6rem' }}><span>HP</span><span>{live.hp}</span></div>
+                                        <div className="rpg-stat-label mt-1" style={{ fontSize: '0.55rem' }}><span>HP</span><span>{live.hp}</span></div>
                                         <Bar current={live.stamina} max={maxStamina} color="#c98a3a" />
-                                        <div className="rpg-stat-label mt-1" style={{ fontSize: '0.6rem' }}><span>SP</span><span>{live.stamina}</span></div>
+                                        <div className="rpg-stat-label mt-1" style={{ fontSize: '0.55rem' }}><span>SP</span><span>{live.stamina}</span></div>
                                         <Bar current={live.mana} max={maxMana} color="#7269d1" />
-                                        <div className="rpg-stat-label mt-1 mb-1" style={{ fontSize: '0.6rem' }}><span>MP</span><span>{live.mana}</span></div>
-
-                                        <div className="d-flex flex-wrap gap-1 mt-1">
-                                            {subclass?.skills
-                                                ?.filter((s) => (p.loadout_skill_ids || []).includes(s.id))
-                                                .map((s) => (
-                                                    <span
-                                                        key={s.id}
-                                                        className="rpg-element-badge"
-                                                        style={{ '--accent': skillPillColor(s), color: skillPillColor(s), fontSize: '0.6rem' }}
-                                                    >
-                                                        {s.name}
-                                                    </span>
-                                                ))}
-                                        </div>
+                                        <div className="rpg-stat-label mt-1" style={{ fontSize: '0.55rem' }}><span>MP</span><span>{live.mana}</span></div>
                                     </div>
                                 </div>
                             );
@@ -342,7 +331,7 @@ export default function Show({ battle }) {
                     </div>
                 </div>
 
-                <div className="text-end mb-3">
+                <div className="text-end mb-3 mt-3">
                     <button className="rpg-back-link" onClick={skipToEnd} style={{ background: 'none' }}>
                         Lewati ▶▶
                     </button>

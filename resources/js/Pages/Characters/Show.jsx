@@ -171,10 +171,7 @@ export default function Show({ character }) {
                             <ResourceRow label="HP" current={character.current_hp} max={character.effective_base_hp} color="#b8433a" />
                             <ResourceRow label="SP (Stamina)" current={character.current_stamina} max={character.effective_base_sp} color="#c98a3a" />
                             <ResourceRow label="MP (Mana)" current={character.current_mana} max={character.effective_base_mp} color="#7269d1" />
-                            <p className="mb-0 mt-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                                EXP (bisa dipakai upgrade): {character.exp}
-                            </p>
-                            <p className="mb-0 mt-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: character.stat_points > 0 ? '#c9a24b' : 'var(--text-secondary)' }}>
+                            <p className="mb-0 mt-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: character.stat_points > 0 ? '#c9a24b' : 'var(--text-secondary)' }}>
                                 Stat Point Gratis: {character.stat_points}{isOwner && character.stat_points > 0 && ' — klik + di stat buat pakai (gratis!)'}
                             </p>
                         </div>

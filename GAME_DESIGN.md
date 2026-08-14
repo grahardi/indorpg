@@ -527,3 +527,21 @@ Sebelumnya cuma ada 1 cara nambah Bonus Stats: potong EXP (makin mahal tiap kali
 - UI nunjukkin "Stat Point Gratis: X" di section Resource, dan tooltip tombol + berubah jadi "gratis, pakai stat point" kalau lagi ada stat point nganggur.
 
 Formula EXP-buat-level makin curam (100, ~303, ~580, ~919...) jadi total stat point gratis yang kekumpul juga proporsional sama effort — misal sampe level 5 total dapat 5+5+5+5+10=30 stat point gratis, sepadan sama ~919 total EXP yang harus dikumpulin buat nyampe situ.
+
+---
+
+## 21. Redesign Layar Battle (mobile-first, sesuai sketsa v2) + hapus display EXP redundan (v3.8)
+
+### Characters/Show.jsx
+Baris "EXP (bisa dipakai upgrade): X" dihapus dari tampilan — sekarang stat point gratis dari level jadi sorotan utama. **Catatan**: EXP masih tetap dipakai di backend sebagai fallback upgrade kalau stat_points abis (gak dihapus fungsinya, cuma gak ditonjolkan lagi di UI).
+
+### Battle Screen — redesign total (layar sedang berjalan)
+User kasih 2 sketsa layout, pilih yang lebih mobile-friendly (desain #2 — Main Player dipisah dari party lain). Diadaptasi jadi flex-wrap centered (bukan grid kaku) biar reflow natural di layar sempit:
+
+- **Monster**: full body image (bukan avatar bulat lagi) di paling atas, card kecil center, HP bar pendek (~130px, bukan full-width).
+- **Party**: full body image tiap karakter (ukuran kecil ~46x92px), card compact (~108px lebar), HP/SP/MP masing-masing bar pendek (~80px, bukan stretch full width).
+- **Main Player** (karakter yang login) dikasih badge emas "KAMU" di atas card-nya, biar kebeda dari party member lain.
+- **Skill Pool/Loadout dihapus total** dari layar battle — sesuai instruksi "gak perlu tampilin jurus kedepannya".
+- Monster+Party masih satu blok sticky bareng (dari v3.4), battle log di bawahnya gak berubah.
+
+Prinsip desain: bar pendek & fixed-width (bukan `flex-grow` full-width) di semua tempat, biar keliatan rapi baik di HP kecil maupun desktop tanpa perlu breakpoint khusus.
