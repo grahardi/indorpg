@@ -12,8 +12,8 @@ export default function Create({ subclasses }) {
     const classes = useMemo(() => {
         const map = new Map();
         subclasses.forEach((s) => {
-            if (s.gameClass && !map.has(s.gameClass.id)) {
-                map.set(s.gameClass.id, s.gameClass);
+            if (s.game_class && !map.has(s.game_class.id)) {
+                map.set(s.game_class.id, s.game_class);
             }
         });
         return Array.from(map.values());

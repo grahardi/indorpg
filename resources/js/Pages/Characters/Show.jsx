@@ -108,7 +108,7 @@ function ImageUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect
 }
 
 export default function Show({ character }) {
-    const accent = CLASS_ACCENT[character.subclass?.gameClass?.slug] ?? '#8890a4';
+    const accent = CLASS_ACCENT[character.subclass?.game_class?.slug] ?? '#8890a4';
 
     return (
         <Layout>
@@ -125,7 +125,7 @@ export default function Show({ character }) {
                     <div>
                         <h1 className="rpg-class-title mb-0" style={{ fontSize: '2rem' }}>{character.name}</h1>
                         <p className="rpg-power-type mb-0">
-                            Level {character.level} &middot; {character.subclass?.name} &middot; {character.subclass?.gameClass?.name}
+                            Level {character.level} &middot; {character.subclass?.name} &middot; {character.subclass?.game_class?.name}
                         </p>
                     </div>
                 </div>

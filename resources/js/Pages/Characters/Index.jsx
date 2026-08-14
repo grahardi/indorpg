@@ -31,7 +31,7 @@ export default function Index({ characters }) {
 
                 <div className="row g-3">
                     {characters.map((c) => {
-                        const accent = CLASS_ACCENT[c.subclass?.gameClass?.slug] ?? '#8890a4';
+                        const accent = CLASS_ACCENT[c.subclass?.game_class?.slug] ?? '#8890a4';
                         return (
                             <div className="col-md-6 col-lg-3" key={c.id}>
                                 <Link href={route('characters.show', c.id)} className="rpg-card" style={{ '--accent': accent }}>

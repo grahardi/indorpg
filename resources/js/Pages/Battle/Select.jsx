@@ -49,7 +49,7 @@ export default function Select({ encounter, characters, preselected = [] }) {
 
                 <div className="row g-3 mb-4">
                     {characters.map((c) => {
-                        const accent = CLASS_ACCENT[c.subclass?.gameClass?.slug] ?? '#8890a4';
+                        const accent = CLASS_ACCENT[c.subclass?.game_class?.slug] ?? '#8890a4';
                         const selected = data.character_ids.includes(c.id);
                         return (
                             <div className="col-md-4" key={c.id}>

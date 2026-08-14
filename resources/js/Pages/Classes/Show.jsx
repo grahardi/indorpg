@@ -123,7 +123,7 @@ function SkillCard({ skill, accent }) {
 }
 
 export default function Show({ subclass }) {
-    const accent = CLASS_META[subclass.gameClass?.slug]?.accent ?? '#8890a4';
+    const accent = CLASS_META[subclass.game_class?.slug]?.accent ?? '#8890a4';
 
     const physicalSkills = subclass.skills.filter((s) => s.tier !== 3 && s.scaling_stat === 'physical');
     const magicSkills = subclass.skills.filter((s) => s.tier !== 3 && s.scaling_stat === 'magic');
@@ -156,7 +156,7 @@ export default function Show({ subclass }) {
                     <div>
                         <h1 className="rpg-class-title mb-0" style={{ fontSize: '2rem' }}>{subclass.name}</h1>
                         <p className="rpg-power-type mb-0">
-                            {subclass.gameClass?.name} &middot; {subclass.power_type}
+                            {subclass.game_class?.name} &middot; {subclass.power_type}
                             {subclass.element && <> &middot; Elemen {subclass.element.name}</>}
                         </p>
                     </div>

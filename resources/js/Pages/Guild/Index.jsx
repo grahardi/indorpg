@@ -52,7 +52,7 @@ export default function Index({ characters }) {
 
                 <div className="row g-3 mb-5">
                     {characters.map((c) => {
-                        const accent = CLASS_ACCENT[c.subclass?.gameClass?.slug] ?? '#8890a4';
+                        const accent = CLASS_ACCENT[c.subclass?.game_class?.slug] ?? '#8890a4';
                         const isSelected = selected.includes(c.id);
                         return (
                             <div className="col-md-4" key={c.id}>
