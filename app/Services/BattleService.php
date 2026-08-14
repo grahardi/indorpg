@@ -32,12 +32,15 @@ class BattleService
             'battle_log' => [],
         ]);
 
-        $characters = Character::with('subclass.skills')->whereIn('id', $characterIds)->get();
+        $characters = Character::with(['subclass.skills', 'skills'])->whereIn('id', $characterIds)->get();
 
         foreach ($characters as $character) {
+            $loadout = $this->resolveLoadout($character);
+            $loadoutIds = $loadout->pluck('id')->toArray();
+
             // Ultimate (tier 3) sengaja di-set udah "dipakai" di ronde 0, jadi dari
             // awal battle langsung cooldown - gak bisa langsung ultimate di ronde 1.
-            $initialCooldowns = $character->subclass->skills
+            $initialCooldowns = $loadout
                 ->where('tier', 3)
                 ->mapWithKeys(fn ($skill) => [$skill->id => 0])
                 ->toArray();
@@ -49,11 +52,31 @@ class BattleService
                 'current_stamina' => $character->current_stamina,
                 'current_mana' => $character->current_mana,
                 'skill_cooldowns' => $initialCooldowns,
+                'loadout_skill_ids' => $loadoutIds,
                 'is_alive' => true,
             ]);
         }
 
         return $this->autoResolve($battle);
+    }
+
+    /**
+     * Loadout tempur = 4 skill tier 1 + 1 skill tier 3 (ultimate). Kalau karakter
+     * udah punya loadout manual (via character_skills pivot, diatur di halaman
+     * profil), pakai itu. Kalau belum (NPC atau karakter yang belum di-setting),
+     * random 4+1 dari skill pool subclass-nya - biar tetap kepake buat level rendah.
+     */
+    private function resolveLoadout(Character $character): \Illuminate\Support\Collection
+    {
+        if ($character->skills->count() === 5) {
+            return $character->skills;
+        }
+
+        $pool = $character->subclass->skills;
+        $tier1 = $pool->where('tier', 1)->shuffle()->take(4);
+        $tier3 = $pool->where('tier', 3)->shuffle()->take(1);
+
+        return $tier1->concat($tier3);
     }
 
     /**
@@ -209,7 +232,8 @@ class BattleService
      */
     private function autoPickSkill(BattleParticipant $participant, int $currentRound): ?Skill
     {
-        $skills = $participant->character->subclass->skills;
+        $loadoutIds = $participant->loadout_skill_ids ?? [];
+        $skills = $participant->character->subclass->skills->whereIn('id', $loadoutIds);
         $cooldowns = $participant->skill_cooldowns ?? [];
 
         $usable = $skills->filter(function (Skill $skill) use ($participant, $cooldowns, $currentRound) {

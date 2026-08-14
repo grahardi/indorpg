@@ -56,7 +56,7 @@ class CharacterController extends Controller
 
     public function show(Character $character): Response
     {
-        $character->load(['subclass.gameClass', 'subclass.element', 'skills']);
+        $character->load(['subclass.gameClass', 'subclass.element', 'subclass.skills', 'skills']);
 
         return Inertia::render('Characters/Show', [
             'character' => $character,
@@ -91,6 +91,42 @@ class CharacterController extends Controller
 
         $character->decrement('exp', $cost);
         $character->increment("bonus_{$data['stat']}");
+
+        return back();
+    }
+
+    /**
+     * Simpan loadout manual: harus persis 4 skill tier 1 (skill/magic biasa)
+     * + 1 skill tier 3 (ultimate), semua dari subclass karakter itu sendiri.
+     * Kalau kosong (belum pernah diisi), battle otomatis random 4+1.
+     */
+    public function updateLoadout(Request $request, Character $character): RedirectResponse
+    {
+        if ($character->user_id !== $request->user()->id) {
+            abort(403, 'Bukan karaktermu.');
+        }
+
+        $data = $request->validate([
+            'skill_ids' => ['required', 'array', 'size:5'],
+            'skill_ids.*' => ['required', 'integer', 'exists:skills,id'],
+        ]);
+
+        $skills = \App\Models\Skill::whereIn('id', $data['skill_ids'])
+            ->where('subclass_id', $character->subclass_id)
+            ->get();
+
+        if ($skills->count() !== 5) {
+            return back()->withErrors(['skill_ids' => 'Semua skill harus dari subclass karakter ini.']);
+        }
+
+        $tier1Count = $skills->where('tier', 1)->count();
+        $tier3Count = $skills->where('tier', 3)->count();
+
+        if ($tier1Count !== 4 || $tier3Count !== 1) {
+            return back()->withErrors(['skill_ids' => 'Harus persis 4 skill biasa + 1 ultimate.']);
+        }
+
+        $character->skills()->sync($data['skill_ids']);
 
         return back();
     }

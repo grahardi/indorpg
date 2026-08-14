@@ -1,5 +1,5 @@
 import { Head, Link, usePage, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Layout from '../../Layout';
 
 const CLASS_ACCENT = {
@@ -183,28 +183,120 @@ export default function Show({ character }) {
                     </div>
                 </div>
 
-                <div className="rpg-skill-group-title mb-3" style={{ fontSize: '0.85rem' }}>Skill Terbuka</div>
+                <LoadoutSection character={character} isOwner={isOwner} />
+            </div>
+        </Layout>
+    );
+}
+
+function LoadoutSection({ character, isOwner }) {
+    const subclassSkills = character.subclass?.skills ?? [];
+    const tier1Skills = subclassSkills.filter((s) => s.tier === 1);
+    const tier3Skills = subclassSkills.filter((s) => s.tier === 3);
+
+    const [selected, setSelected] = useState(() => character.skills.map((s) => s.id));
+    const [saving, setSaving] = useState(false);
+
+    const selectedTier1Count = useMemo(
+        () => selected.filter((id) => tier1Skills.some((s) => s.id === id)).length,
+        [selected, tier1Skills]
+    );
+    const selectedTier3Count = useMemo(
+        () => selected.filter((id) => tier3Skills.some((s) => s.id === id)).length,
+        [selected, tier3Skills]
+    );
+
+    function toggle(skill) {
+        const isSelected = selected.includes(skill.id);
+        if (isSelected) {
+            setSelected((prev) => prev.filter((id) => id !== skill.id));
+            return;
+        }
+        if (skill.tier === 1 && selectedTier1Count >= 4) return;
+        if (skill.tier === 3 && selectedTier3Count >= 1) return;
+        setSelected((prev) => [...prev, skill.id]);
+    }
+
+    function save() {
+        setSaving(true);
+        router.post(route('characters.loadout', character.id), { skill_ids: selected }, {
+            preserveScroll: true,
+            onFinish: () => setSaving(false),
+        });
+    }
+
+    const canSave = selectedTier1Count === 4 && selectedTier3Count === 1;
+
+    if (!isOwner) {
+        return (
+            <>
+                <div className="rpg-skill-group-title mb-3" style={{ fontSize: '0.85rem' }}>Loadout Battle</div>
                 {character.skills.length === 0 ? (
                     <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
-                        Belum ada skill yang di-assign ke karakter ini. Fitur assign skill per-karakter belum dibangun —
-                        battle sekarang otomatis pakai seluruh skill pool subclass.
+                        Belum diatur manual — battle otomatis pakai 4 skill + 1 ultimate acak dari subclass ini.
                     </p>
                 ) : (
                     <div className="row g-3">
                         {character.skills.map((s) => (
-                            <div className="col-md-6" key={s.id}>
-                                <div className="rpg-skill-card">
-                                    {s.icon_path && <img src={s.icon_path} alt={s.name} className="rpg-skill-icon" />}
-                                    <div>
-                                        <div className="rpg-skill-name">{s.name}</div>
-                                        <p className="rpg-skill-desc">{s.description}</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <SkillCard key={s.id} skill={s} />
                         ))}
                     </div>
                 )}
+            </>
+        );
+    }
+
+    return (
+        <>
+            <div className="d-flex justify-content-between align-items-end mb-3">
+                <div>
+                    <div className="rpg-skill-group-title" style={{ fontSize: '0.85rem' }}>Loadout Battle</div>
+                    <p className="text-secondary small mb-0">
+                        Pilih 4 skill biasa + 1 ultimate ({selectedTier1Count}/4 skill, {selectedTier3Count}/1 ultimate).
+                        Belum diatur? Battle otomatis random 4+1.
+                    </p>
+                </div>
+                <button className="rpg-back-link" onClick={save} disabled={!canSave || saving}>
+                    {saving ? 'Menyimpan...' : 'Simpan Loadout'}
+                </button>
             </div>
-        </Layout>
+
+            <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.72rem' }}>Skill Biasa (pilih 4)</div>
+            <div className="row g-3 mb-4">
+                {tier1Skills.map((s) => (
+                    <SkillCard key={s.id} skill={s} selectable selected={selected.includes(s.id)} onClick={() => toggle(s)} />
+                ))}
+            </div>
+
+            <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.72rem' }}>Ultimate (pilih 1)</div>
+            <div className="row g-3">
+                {tier3Skills.map((s) => (
+                    <SkillCard key={s.id} skill={s} selectable selected={selected.includes(s.id)} onClick={() => toggle(s)} />
+                ))}
+            </div>
+        </>
+    );
+}
+
+function SkillCard({ skill, selectable = false, selected = false, onClick }) {
+    return (
+        <div className="col-md-6" key={skill.id}>
+            <div
+                className={`rpg-skill-card ${skill.tier === 3 ? 'is-ultimate' : ''}`}
+                onClick={selectable ? onClick : undefined}
+                style={{
+                    cursor: selectable ? 'pointer' : 'default',
+                    outline: selected ? '2px solid #c9a24b' : 'none',
+                }}
+            >
+                {skill.icon_path && <img src={skill.icon_path} alt={skill.name} className="rpg-skill-icon" />}
+                <div>
+                    <div className="rpg-skill-name">
+                        {skill.name} {selected && <span style={{ color: '#c9a24b' }}>✓</span>}
+                    </div>
+                    <p className="rpg-skill-desc">{skill.description}</p>
+                </div>
+            </div>
+        </div>
     );
 }

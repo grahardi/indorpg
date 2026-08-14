@@ -438,3 +438,22 @@ Solusinya: kolom `battles.viewed_at` (nullable timestamp).
 - Kunjungan kedua dst (misal user pencet Back di browser ke battle yang udah kelar): `viewed_at` udah keisi -> redirect ke `/guild` dengan pesan "Battle ini udah pernah selesai dan dilihat sebelumnya", gak ditampilkan ulang.
 
 Battle jadi murni **log/history sekali-lihat**, bukan halaman yang bisa "dibuka ulang jadi hidup lagi".
+
+---
+
+## 17. Loadout Battle (4 skill + 1 ultimate) & Layout Battle Compact (v3.4)
+
+### Loadout, bukan pool penuh 8 skill
+Sebelumnya battle pakai SEMUA skill subclass (6 tier1 + 2 tier3). Sekarang tiap battle cuma pakai **4 skill biasa + 1 ultimate**:
+- Kalau karakter **udah punya loadout manual** (diatur di halaman profil, tersimpan di pivot `character_skills`) — pakai itu.
+- Kalau **belum diatur** (NPC atau karakter baru) — random 4 tier1 + 1 tier3 dari subclass pool tiap battle dimulai (`BattleService::resolveLoadout()`).
+- Loadout final battle disimpan di `battle_participants.loadout_skill_ids` — `autoPickSkill()` cuma milih dari 5 skill ini, bukan 8.
+
+### Pilih Loadout Manual (halaman profil karakter)
+Section baru "Loadout Battle" di `/characters/{id}` — cuma muncul editable buat pemilik karakter:
+- Skill tier 1 & tier 3 ditampilkan terpisah, klik buat pilih/batalkan (maksimal 4 tier1 + 1 tier3).
+- Tombol "Simpan Loadout" aktif kalau pas 4+1, POST ke `/characters/{id}/loadout`, di-validasi server-side (harus dari subclass yang sama, persis 4+1).
+- Kalau bukan pemilik atau belum login, cuma liat read-only (atau pesan "belum diatur, random dipakai").
+
+### Layout Battle — Monster Selalu Kelihatan
+Panel monster sekarang **sticky** (nempel di atas layar, di bawah nav) selama scroll — gak akan ilang dari pandangan pas scroll ke party/skill/log, di PC maupun mobile. Semua card di battle (party, monster) dibikin lebih compact (avatar lebih kecil, padding dikurangi, font-size diperkecil) biar muat rapi di layar sempit tanpa perlu scroll horizontal.
