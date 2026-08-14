@@ -36,5 +36,3 @@ Route::get('/characters/create', [CharacterController::class, 'create'])->name('
 Route::post('/characters', [CharacterController::class, 'store'])->name('characters.store');
 Route::get('/characters/{character}', [CharacterController::class, 'show'])->name('characters.show');
 Route::delete('/characters/{character}', [CharacterController::class, 'destroy'])->name('characters.destroy');
-Route::post('/characters/{character}/avatar', [CharacterController::class, 'uploadAvatar'])->name('characters.avatar');
-Route::post('/characters/{character}/full-body', [CharacterController::class, 'uploadFullBody'])->name('characters.fullbody');

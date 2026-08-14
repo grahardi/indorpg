@@ -62,8 +62,8 @@ export default function Index({ characters }) {
                                     style={{ '--accent': accent, cursor: 'pointer', outline: isSelected ? `2px solid ${accent}` : 'none' }}
                                 >
                                     <div className="d-flex align-items-center gap-2">
-                                        {c.avatar_url ? (
-                                            <img src={c.avatar_url} alt={c.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                                        {c.subclass?.avatar_path ? (
+                                            <img src={c.subclass?.avatar_path} alt={c.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
                                         ) : (
                                             <div className="rpg-badge-hex" style={{ '--accent': accent, width: 40, height: 40, fontSize: '0.9rem' }}>
                                                 {c.name.charAt(0)}

@@ -113,8 +113,8 @@ export default function Show({ battle }) {
                             <div className="col-md-4" key={p.id}>
                                 <div className="rpg-card h-100" style={{ '--accent': '#3f8c94', opacity: live.is_alive ? 1 : 0.45 }}>
                                     <div className="d-flex align-items-center gap-2 mb-2">
-                                        {p.character.avatar_url ? (
-                                            <img src={p.character.avatar_url} alt={p.character.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                                        {p.character.subclass?.avatar_path ? (
+                                            <img src={p.character.subclass?.avatar_path} alt={p.character.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
                                         ) : (
                                             <div className="rpg-badge-hex" style={{ '--accent': '#3f8c94', width: 40, height: 40, fontSize: '0.9rem' }}>
                                                 {p.character.name.charAt(0)}

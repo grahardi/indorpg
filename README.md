@@ -38,7 +38,7 @@ Lihat `GAME_DESIGN.md` (dokumen desain balance & skill tree) di repo terpisah / 
 - Migration: `classes`, `elements`, `element_matchups`, `subclasses`, `characters`, `skills`, `character_skills`
 - Seeder: 4 class, 14 subclass (dengan nama baru), siklus elemen Fire→Wind→Earth→Water→Fire, 8 skill/subclass (112 skill total) lengkap dengan ikon SVG
 - Halaman Inertia+React: `/` (codex class & subclass), `/subclass/{id}` (detail + skill), `/characters` (roster), `/characters/create` (buat karakter), `/characters/{id}` (detail + upload avatar & full body)
-- **Upload avatar & full body sudah fungsional dengan auto crop+resize**: drag-drop atau klik untuk pilih file, otomatis di-crop+resize server-side ke ukuran spec persis (avatar 256×256, full body 512×1024 dengan anchor bawah biar telapak kaki gak kepotong), tersimpan ke `storage/app/public/characters/{avatars,fullbody}` sebagai PNG
+- **Upload avatar & full view sudah fungsional dengan auto crop+resize** untuk **subclass** dan **monster** (drag-drop atau klik untuk pilih file, otomatis di-crop+resize server-side ke ukuran spec). **Karakter player TIDAK punya upload sendiri** — otomatis pakai art default dari subclass-nya, biar konsisten & siap dipakai buat animasi battle nanti.
 
 ## Belum ada (next steps)
 

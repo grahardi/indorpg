@@ -36,9 +36,9 @@ export default function Index({ characters }) {
                             <div className="col-md-6 col-lg-3" key={c.id}>
                                 <Link href={route('characters.show', c.id)} className="rpg-card" style={{ '--accent': accent }}>
                                     <div className="d-flex align-items-center gap-2 mb-2">
-                                        {c.avatar_url ? (
+                                        {c.subclass?.avatar_path ? (
                                             <img
-                                                src={c.avatar_url}
+                                                src={c.subclass?.avatar_path}
                                                 alt={c.name}
                                                 style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${accent}` }}
                                             />
