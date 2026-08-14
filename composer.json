@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.5",
         "inertiajs/inertia-laravel": "^2.0",
+        "intervention/image": "^3.9",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "tightenco/ziggy": "^2.4"
