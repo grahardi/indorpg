@@ -24,6 +24,7 @@ Route::get('/maps', [MapController::class, 'index'])->name('maps.index');
 Route::get('/maps/{map}', [MapController::class, 'show'])->name('maps.show');
 
 Route::get('/characters', [CharacterController::class, 'index'])->name('characters.index');
+Route::get('/characters/create', [CharacterController::class, 'create'])->middleware('auth')->name('characters.create');
 Route::get('/characters/{character}', [CharacterController::class, 'show'])->name('characters.show');
 
 // Auth - username + password sederhana.
@@ -38,7 +39,6 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 // Butuh login - bikin karakter, adventure/battle (party wajib punya
 // minimal 1 karakter milik sendiri, divalidasi di controller).
 Route::middleware('auth')->group(function () {
-    Route::get('/characters/create', [CharacterController::class, 'create'])->name('characters.create');
     Route::post('/characters', [CharacterController::class, 'store'])->name('characters.store');
     Route::delete('/characters/{character}', [CharacterController::class, 'destroy'])->name('characters.destroy');
 
