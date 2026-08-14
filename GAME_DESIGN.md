@@ -419,3 +419,22 @@ Kolom baru di `characters`: `bonus_physical_damage`, `bonus_physical_defense`, `
 
 ### Auto-redirect ke Guild
 Begitu battle selesai (menang/kalah/mundur), muncul countdown "Kembali ke Guild otomatis dalam Xs..." (5 detik) sebelum auto-navigate ke `/guild`. Player masih bisa klik "Kembali ke Guild" atau "Peta" manual buat skip nunggu. Ini nyelesain masalah "kejebak di layar battle lama" kalau reopen app/browser — sekarang battle yang udah selesai gak nge-gantung nunggu aksi manual.
+
+---
+
+## 16. Battle URL Token & Anti-Replay History (v3.3)
+
+### URL battle gak lagi pakai ID urut
+Sebelumnya `/battles/1`, `/battles/2` — gampang ditebak/di-enumerate orang lain. Sekarang:
+- Kolom `battles.token` (random 14 karakter, unik, di-generate otomatis pas battle dibuat via `Battle::booted()`).
+- `Battle::getRouteKeyName()` di-override return `'token'` — semua route yang pakai `{battle}` (implicit model binding) otomatis pakai token, bukan `id`, tanpa perlu ubah sintaks route sama sekali.
+- Controller yang redirect ke battle sekarang pass **model instance** (`redirect()->route('battles.show', $battle)`), bukan `$battle->id` — Laravel otomatis resolve ke token lewat `getRouteKeyName()`.
+
+### Anti-"replay" via browser history
+Battle di sistem kita **auto-resolve penuh** sebelum halaman show pernah dirender — jadi begitu battle page pertama kali kebuka, statusnya udah final (won/lost/fled), bukan 'ongoing'. Ini bikin gak bisa asal cek `status !== ongoing` buat nge-block, karena itu juga true di kunjungan PERTAMA yang sah.
+
+Solusinya: kolom `battles.viewed_at` (nullable timestamp).
+- Kunjungan pertama: `viewed_at` masih null -> ditampilkan normal, langsung di-set `now()`.
+- Kunjungan kedua dst (misal user pencet Back di browser ke battle yang udah kelar): `viewed_at` udah keisi -> redirect ke `/guild` dengan pesan "Battle ini udah pernah selesai dan dilihat sebelumnya", gak ditampilkan ulang.
+
+Battle jadi murni **log/history sekali-lihat**, bukan halaman yang bisa "dibuka ulang jadi hidup lagi".

@@ -44,11 +44,23 @@ class BattleController extends Controller
 
         $battle = $this->battleService->startBattle($encounter, $data['character_ids']);
 
-        return redirect()->route('battles.show', $battle->id);
+        return redirect()->route('battles.show', $battle);
     }
 
-    public function show(Battle $battle): Response
+    public function show(Battle $battle): Response|RedirectResponse
     {
+        // Battle yang statusnya udah final (bukan ongoing) dan udah pernah dibuka
+        // sekali sebelumnya -> anggap ini "history", jangan ditampilkan ulang kayak
+        // battle hidup lagi (misal user pencet Back di browser). Lempar ke Guild.
+        if ($battle->status !== 'ongoing' && $battle->viewed_at !== null) {
+            return redirect()->route('guild.index')
+                ->withErrors(['mission' => 'Battle ini udah pernah selesai dan dilihat sebelumnya.']);
+        }
+
+        if ($battle->viewed_at === null) {
+            $battle->update(['viewed_at' => now()]);
+        }
+
         $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'monster.element']);
 
         return Inertia::render('Battle/Show', [

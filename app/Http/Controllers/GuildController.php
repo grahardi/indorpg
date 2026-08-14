@@ -84,6 +84,6 @@ class GuildController extends Controller
 
         $battle = $this->battleService->startBattle($encounter, $data['character_ids']);
 
-        return redirect()->route('battles.show', $battle->id);
+        return redirect()->route('battles.show', $battle);
     }
 }
