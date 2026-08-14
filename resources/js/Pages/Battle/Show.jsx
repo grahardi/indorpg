@@ -2,6 +2,15 @@ import { Link, Head } from '@inertiajs/react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Layout from '../../Layout';
 
+const MONSTER_COLOR = '#b8433a';
+const PARTICIPANT_COLORS = ['#3f8c94', '#c9a24b', '#7269d1'];
+
+function skillPillColor(skill) {
+    if (skill.tier === 3) return '#c9a24b'; // ultimate - gold
+    if (skill.scaling_stat === 'magic') return '#7269d1'; // magic - violet
+    return '#b8433a'; // physical - crimson
+}
+
 function Bar({ current, max, color }) {
     const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
     return (
@@ -49,6 +58,20 @@ export default function Show({ battle }) {
 
     const current = log[step] || { monster_hp: battle.monster_current_hp, participants: {} };
     const visibleLog = log.slice(0, step + 1);
+
+    // Peta nama -> warna, biar battle log bisa dibedain siapa yang ngomong.
+    const nameColorMap = useMemo(() => {
+        const map = { [monster.name]: MONSTER_COLOR };
+        battle.participants.forEach((p, i) => {
+            map[p.character.name] = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
+        });
+        return map;
+    }, [battle.participants, monster.name]);
+
+    function logLineColor(text) {
+        const speaker = Object.keys(nameColorMap).find((name) => text.startsWith(name));
+        return speaker ? nameColorMap[speaker] : 'var(--text-secondary)';
+    }
 
     return (
         <Layout>
@@ -100,7 +123,7 @@ export default function Show({ battle }) {
 
                 {/* Party columns */}
                 <div className="row g-3 mb-4">
-                    {battle.participants.map((p) => {
+                    {battle.participants.map((p, i) => {
                         const live = current.participants[p.character_id] || {
                             hp: p.current_hp, stamina: p.current_stamina, mana: p.current_mana, is_alive: p.is_alive,
                         };
@@ -108,20 +131,21 @@ export default function Show({ battle }) {
                         const maxHp = subclass?.base_hp ?? live.hp;
                         const maxStamina = subclass?.base_sp ?? live.stamina;
                         const maxMana = subclass?.base_mp ?? live.mana;
+                        const pColor = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
 
                         return (
                             <div className="col-md-4" key={p.id}>
-                                <div className="rpg-card h-100" style={{ '--accent': '#3f8c94', opacity: live.is_alive ? 1 : 0.45 }}>
+                                <div className="rpg-card h-100" style={{ '--accent': pColor, opacity: live.is_alive ? 1 : 0.45 }}>
                                     <div className="d-flex align-items-center gap-2 mb-2">
                                         {p.character.subclass?.avatar_path ? (
-                                            <img src={p.character.subclass?.avatar_path} alt={p.character.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                                            <img src={p.character.subclass?.avatar_path} alt={p.character.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${pColor}` }} />
                                         ) : (
-                                            <div className="rpg-badge-hex" style={{ '--accent': '#3f8c94', width: 40, height: 40, fontSize: '0.9rem' }}>
+                                            <div className="rpg-badge-hex" style={{ '--accent': pColor, width: 40, height: 40, fontSize: '0.9rem' }}>
                                                 {p.character.name.charAt(0)}
                                             </div>
                                         )}
                                         <div>
-                                            <div className="rpg-subclass-name" style={{ fontSize: '0.9rem' }}>
+                                            <div className="rpg-subclass-name" style={{ fontSize: '0.9rem', color: pColor }}>
                                                 {p.character.name} {!live.is_alive && '☠'}
                                             </div>
                                             <div className="rpg-power-type">{subclass?.name}</div>
@@ -141,7 +165,7 @@ export default function Show({ battle }) {
                                             <span
                                                 key={s.id}
                                                 className="rpg-element-badge"
-                                                style={{ '--accent': '#8890a4', fontSize: '0.62rem' }}
+                                                style={{ '--accent': skillPillColor(s), color: skillPillColor(s), fontSize: '0.62rem' }}
                                             >
                                                 {s.name}
                                             </span>
@@ -157,7 +181,7 @@ export default function Show({ battle }) {
                 <div className="rpg-skill-group-title">Battle Log</div>
                 <div className="rpg-card" style={{ '--accent': '#8890a4', maxHeight: 240, overflowY: 'auto', fontSize: '0.85rem' }}>
                     {visibleLog.map((entry, i) => (
-                        <p key={i} className="mb-1 text-secondary">{entry.text}</p>
+                        <p key={i} className="mb-1" style={{ color: logLineColor(entry.text) }}>{entry.text}</p>
                     ))}
                     <div id="battle-log-end" />
                 </div>
