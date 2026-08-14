@@ -256,7 +256,7 @@ export default function Show({ battle }) {
             <div
                 key={p.id}
                 className="rpg-card text-center"
-                style={{ '--accent': pColor, opacity: live.is_alive ? 1 : 0.45, padding: '0.6rem', width: 108 }}
+                style={{ '--accent': pColor, opacity: live.is_alive ? 1 : 0.45, padding: '0.6rem', width: 108, margin: '0 auto' }}
             >
                 {isMain && (
                     <span className="rpg-element-badge d-block mb-1" style={{ '--accent': '#c9a24b', color: '#c9a24b', fontSize: '0.55rem' }}>
@@ -312,7 +312,7 @@ export default function Show({ battle }) {
                     <div style={{ gridArea: 'monster' }}>
                         <div
                             className="rpg-card text-center"
-                            style={{ '--accent': MONSTER_COLOR, padding: '0.75rem' }}
+                            style={{ '--accent': MONSTER_COLOR, padding: '0.75rem', maxWidth: 220, margin: '0 auto' }}
                         >
                             {monster.full_body_path ? (
                                 <img
