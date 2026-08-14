@@ -129,3 +129,38 @@ Ini masih bisa berkembang (inventory, item, quest) tapi untuk fase sekarang cuku
 - Berserker & Paladin sengaja dibuat "ekstrem" (all-in satu jalur damage) biar punya identitas kuat, sementara Blade Knight & Spellblade jadi opsi hybrid yang lebih fleksibel.
 - Tanker sengaja **tidak** dikasih physical/magic damage tinggi sama sekali — biar perannya jelas sebagai damage soak, bukan damage dealer sekunder. Kalau dirasa terlalu lemah pas battle testing, gampang dinaikkan sedikit.
 - Mage & Saint sama-sama fragile (def rendah), bedanya Mage burst tinggi tanpa buff/heal, Saint lebih rendah damage tapi support.
+
+---
+
+## 7. Sistem Monster & Battle (v1)
+
+### Pola Combat (Strong/Weak)
+Setiap monster punya 1 pola yang dia **kuat lawan** dan 1 pola yang dia **lemah lawan**. Pola = kombinasi cara serang x jenis damage:
+
+| Cara Serang | Jenis Damage |
+|---|---|
+| Close (jarak dekat) | Physical |
+| Range (jarak jauh) | Magic |
+| Area (AoE) | |
+
+6 kombinasi: `close_physical`, `range_physical`, `area_physical`, `close_magic`, `range_magic`, `area_magic`.
+
+**Belum diimplementasikan**: skill milik karakter belum punya klasifikasi close/range/area (baru scaling_stat physical/magic). Ini next step biar strong/weak monster bisa dicocokkan otomatis ke skill yang dipakai player pas battle.
+
+### Struktur Monster
+- name, level, type (Slime/Beast/Undead/Humanoid/Insect/Spirit/Elemental/Construct, dst — bebas nambah tipe baru)
+- element (opsional, reuse tabel `elements` yang sama dengan Mage subclass — Fire/Water/Earth/Wind, null kalau non-elemental)
+- strong_against / weak_against (pola combat)
+- stat: hp, physical_damage, physical_defense, magic_damage, magic_defense
+- exp_reward
+- min_party_level (rekomendasi level minimum party buat lawan monster ini)
+- special_skill (nama + deskripsi, contoh: regen HP per giliran, poison, buff diri sendiri, dst — flavor text dulu, belum ada logic battle beneran)
+
+### Roster Awal (12 monster, level 1-6)
+Slime Api, Slime Air, Tikus Raksasa, Kelelawar Gua, Bandit Pemula, Laba-laba Beracun, Serigala Hutan, Zombie Reyot, Peri Air, Elemental Api Kecil, Golem Batu Kecil, Harpy Muda.
+
+### Battle System (konsep, belum diimplementasikan)
+- Round-based mirip Pokemon/FF klasik.
+- Player pilih 2-3 karakter (dari roster `characters`) buat masuk party lawan 1 monster.
+- Requirement lawan monster tertentu: level party, mungkin nanti juga tipe/elemen tertentu.
+- **Belum ada**: battle engine (turn order, damage calculation, UI battle screen). Ini scope besar terpisah, next milestone setelah skill tree tier 2 & assign skill ke karakter selesai.

@@ -28,6 +28,9 @@ export default function Layout({ children }) {
                         <Link href={route('characters.index')} className="text-decoration-none" style={{ color: 'var(--text-secondary)' }}>
                             Karakter
                         </Link>
+                        <Link href={route('monsters.index')} className="text-decoration-none" style={{ color: 'var(--text-secondary)' }}>
+                            Monster
+                        </Link>
                         <Link href={route('characters.create')} className="text-decoration-none" style={{ color: 'var(--accent-saint)' }}>
                             + Karakter Baru
                         </Link>
