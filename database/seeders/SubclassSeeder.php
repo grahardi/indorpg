@@ -16,7 +16,9 @@ class SubclassSeeder extends Seeder
             'warrior' => [
                 ['name' => 'Berserker', 'power_type' => 'Kekuatan Mentah / Senjata', 'flavor_bonus' => null,
                     'phys_dmg' => 45, 'phys_def' => 20, 'magic_dmg' => 10, 'magic_def' => 10,
-                    'description' => 'All-in damage fisik, raw power tanpa kompromi.'],
+                    'description' => 'All-in damage fisik, raw power tanpa kompromi.',
+                    'avatar_path' => '/images/subclasses/berserker-avatar.png',
+                    'full_body_path' => '/images/subclasses/berserker-fullbody.png'],
                 ['name' => 'Blade Knight', 'power_type' => 'Senjata', 'flavor_bonus' => null,
                     'phys_dmg' => 30, 'phys_def' => 20, 'magic_dmg' => 20, 'magic_def' => 10,
                     'description' => 'All-rounder senjata, seimbang serang-bertahan.'],
@@ -74,20 +76,32 @@ class SubclassSeeder extends Seeder
                     $elementId = Element::where('name', $item['element'])->value('id');
                 }
 
+                $values = [
+                    'class_id' => $class->id,
+                    'element_id' => $elementId,
+                    'name' => $item['name'],
+                    'power_type' => $item['power_type'],
+                    'description' => $item['description'],
+                    'flavor_bonus' => $item['flavor_bonus'],
+                    'base_physical_damage' => $item['phys_dmg'],
+                    'base_physical_defense' => $item['phys_def'],
+                    'base_magic_damage' => $item['magic_dmg'],
+                    'base_magic_defense' => $item['magic_def'],
+                ];
+
+                // avatar_path / full_body_path cuma di-set kalau seeder eksplisit
+                // menyediakannya, biar art yang sudah diupload lewat browser untuk
+                // subclass lain gak ketiban null tiap kali migrate:fresh --seed.
+                if (isset($item['avatar_path'])) {
+                    $values['avatar_path'] = $item['avatar_path'];
+                }
+                if (isset($item['full_body_path'])) {
+                    $values['full_body_path'] = $item['full_body_path'];
+                }
+
                 Subclass::updateOrCreate(
                     ['slug' => Str::slug($item['name'])],
-                    [
-                        'class_id' => $class->id,
-                        'element_id' => $elementId,
-                        'name' => $item['name'],
-                        'power_type' => $item['power_type'],
-                        'description' => $item['description'],
-                        'flavor_bonus' => $item['flavor_bonus'],
-                        'base_physical_damage' => $item['phys_dmg'],
-                        'base_physical_defense' => $item['phys_def'],
-                        'base_magic_damage' => $item['magic_dmg'],
-                        'base_magic_defense' => $item['magic_def'],
-                    ]
+                    $values
                 );
             }
         }

@@ -13,7 +13,7 @@ class Subclass extends Model
 
     protected $fillable = [
         'class_id', 'element_id', 'name', 'slug', 'power_type',
-        'description', 'flavor_bonus',
+        'description', 'flavor_bonus', 'avatar_path', 'full_body_path',
         'base_physical_damage', 'base_physical_defense',
         'base_magic_damage', 'base_magic_defense',
     ];

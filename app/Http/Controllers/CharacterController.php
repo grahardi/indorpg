@@ -4,14 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Character;
 use App\Models\Subclass;
+use App\Services\ImageResizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use Intervention\Image\Encoders\PngEncoder;
-use Intervention\Image\ImageManager;
 
 class CharacterController extends Controller
 {
@@ -110,17 +109,12 @@ class CharacterController extends Controller
      */
     private function resizeAndStore($uploadedFile, string $directory, int $width, int $height, string $position = 'center'): string
     {
-        $manager = new ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
-
-        $image = $manager->read($uploadedFile->getRealPath());
-        $image->cover($width, $height, $position);
-
-        $encoded = $image->encode(new PngEncoder(quality: 90));
+        $binary = ImageResizer::coverResizePng($uploadedFile->getRealPath(), $width, $height, $position);
 
         $filename = Str::uuid()->toString().'.png';
         $path = $directory.'/'.$filename;
 
-        Storage::disk('public')->put($path, (string) $encoded);
+        Storage::disk('public')->put($path, $binary);
 
         return $path;
     }

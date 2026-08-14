@@ -59,9 +59,17 @@ export default function Index({ classes }) {
                                             style={{ '--accent': meta.accent }}
                                         >
                                             <div className="d-flex align-items-center gap-2 mb-2">
-                                                <div className="rpg-badge-hex" style={{ '--accent': meta.accent }}>
-                                                    {sub.name.charAt(0)}
-                                                </div>
+                                                {sub.avatar_path ? (
+                                                    <img
+                                                        src={sub.avatar_path}
+                                                        alt={sub.name}
+                                                        style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${meta.accent}`, flexShrink: 0 }}
+                                                    />
+                                                ) : (
+                                                    <div className="rpg-badge-hex" style={{ '--accent': meta.accent }}>
+                                                        {sub.name.charAt(0)}
+                                                    </div>
+                                                )}
                                                 <div className="flex-grow-1">
                                                     <div className="rpg-subclass-name">{sub.name}</div>
                                                     <div className="rpg-power-type">{sub.power_type}</div>

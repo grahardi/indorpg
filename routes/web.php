@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [GameDataController::class, 'index'])->name('classes.index');
 Route::get('/subclass/{subclassId}', [GameDataController::class, 'showSubclass'])->name('subclass.show');
+Route::post('/subclass/{subclass}/avatar', [GameDataController::class, 'uploadAvatar'])->name('subclass.avatar');
+Route::post('/subclass/{subclass}/full-body', [GameDataController::class, 'uploadFullBody'])->name('subclass.fullbody');
 
 Route::get('/characters', [CharacterController::class, 'index'])->name('characters.index');
 Route::get('/characters/create', [CharacterController::class, 'create'])->name('characters.create');

@@ -1,4 +1,5 @@
-import { Link, Head } from '@inertiajs/react';
+import { Link, Head, useForm, router } from '@inertiajs/react';
+import { useRef } from 'react';
 import Layout from '../../Layout';
 
 const CLASS_META = {
@@ -7,6 +8,78 @@ const CLASS_META = {
     mage: { accent: '#7269d1' },
     saint: { accent: '#c9a24b' },
 };
+
+function ArtUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect }) {
+    const inputRef = useRef(null);
+    const { setData, progress, errors } = useForm({ [fieldName]: null });
+
+    function handleFile(file) {
+        if (!file) return;
+        setData(fieldName, file);
+        router.post(uploadUrl, { [fieldName]: file }, {
+            forceFormData: true,
+            preserveScroll: true,
+        });
+    }
+
+    function openPicker(e) {
+        e.stopPropagation();
+        inputRef.current?.click();
+    }
+
+    return (
+        <div>
+            <div className="rpg-skill-group-title d-flex justify-content-between">
+                <span>{label}</span>
+                <span style={{ color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>{spec}</span>
+            </div>
+            <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    handleFile(e.dataTransfer.files[0]);
+                }}
+                style={{
+                    position: 'relative',
+                    aspectRatio: aspect,
+                    background: currentUrl ? `#000 url(${currentUrl}) center/cover no-repeat` : 'var(--bg-panel)',
+                    border: currentUrl ? '1px solid var(--border-subtle)' : '1px dashed var(--border-subtle)',
+                    borderRadius: 10,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                }}
+            >
+                {!currentUrl && (
+                    <div
+                        onClick={openPicker}
+                        style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem' }}
+                    >
+                        Klik atau drop gambar di sini
+                    </div>
+                )}
+                {currentUrl && (
+                    <button
+                        type="button"
+                        onClick={openPicker}
+                        className="btn btn-sm"
+                        style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(11,12,18,0.85)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', padding: '5px 12px', borderRadius: 6 }}
+                    >
+                        ✎ Ganti Gambar
+                    </button>
+                )}
+            </div>
+            <input ref={inputRef} type="file" accept="image/*" className="d-none" onChange={(e) => handleFile(e.target.files[0])} />
+            {progress && (
+                <div className="progress mt-2" style={{ height: 4 }}>
+                    <div className="progress-bar" style={{ width: `${progress.percentage}%` }} />
+                </div>
+            )}
+            {errors[fieldName] && <div className="text-danger small mt-1">{errors[fieldName]}</div>}
+        </div>
+    );
+}
 
 function SkillCard({ skill, accent }) {
     const isUltimate = skill.tier === 3;
@@ -61,9 +134,17 @@ export default function Show({ subclass }) {
                 </Link>
 
                 <div className="d-flex align-items-center gap-3 mt-4 mb-2">
-                    <div className="rpg-badge-hex" style={{ '--accent': accent, width: 64, height: 64, fontSize: '1.6rem' }}>
-                        {subclass.name.charAt(0)}
-                    </div>
+                    {subclass.avatar_path ? (
+                        <img
+                            src={subclass.avatar_path}
+                            alt={subclass.name}
+                            style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${accent}`, flexShrink: 0 }}
+                        />
+                    ) : (
+                        <div className="rpg-badge-hex" style={{ '--accent': accent, width: 64, height: 64, fontSize: '1.6rem' }}>
+                            {subclass.name.charAt(0)}
+                        </div>
+                    )}
                     <div>
                         <h1 className="rpg-class-title mb-0" style={{ fontSize: '2rem' }}>{subclass.name}</h1>
                         <p className="rpg-power-type mb-0">
@@ -93,6 +174,29 @@ export default function Show({ subclass }) {
                             </div>
                         </div>
                     ))}
+                </div>
+
+                <div className="row g-4 mb-4">
+                    <div className="col-md-4">
+                        <ArtUploadSlot
+                            label="Avatar"
+                            spec="256×256, crop bahu ke atas"
+                            currentUrl={subclass.avatar_path}
+                            fieldName="avatar"
+                            uploadUrl={route('subclass.avatar', subclass.id)}
+                            aspect="1 / 1"
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <ArtUploadSlot
+                            label="Full Body"
+                            spec="512×1024, telapak kaki di bawah"
+                            currentUrl={subclass.full_body_path}
+                            fieldName="full_body"
+                            uploadUrl={route('subclass.fullbody', subclass.id)}
+                            aspect="1 / 2"
+                        />
+                    </div>
                 </div>
 
                 <p className="rpg-loadout-note" style={{ '--accent': accent, borderColor: accent }}>
