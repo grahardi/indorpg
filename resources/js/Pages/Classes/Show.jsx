@@ -9,7 +9,7 @@ const CLASS_META = {
     saint: { accent: '#c9a24b' },
 };
 
-function ArtUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect }) {
+function ArtUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect, background }) {
     const inputRef = useRef(null);
     const { setData, progress, errors } = useForm({ [fieldName]: null });
 
@@ -42,19 +42,23 @@ function ArtUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect }
                 style={{
                     position: 'relative',
                     aspectRatio: aspect,
-                    background: currentUrl ? `#000 url(${currentUrl}) center/cover no-repeat` : 'var(--bg-panel)',
-                    border: currentUrl ? '1px solid var(--border-subtle)' : '1px dashed var(--border-subtle)',
+                    background,
+                    border: '1px solid var(--border-subtle)',
                     borderRadius: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                     overflow: 'hidden',
                 }}
             >
+                {currentUrl && (
+                    <img
+                        src={currentUrl}
+                        alt={label}
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                )}
                 {!currentUrl && (
                     <div
                         onClick={openPicker}
-                        style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem' }}
+                        style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem', background: 'rgba(11,12,18,0.35)' }}
                     >
                         Klik atau drop gambar di sini
                     </div>
@@ -125,6 +129,11 @@ export default function Show({ subclass }) {
     const magicSkills = subclass.skills.filter((s) => s.tier !== 3 && s.scaling_stat === 'magic');
     const ultimateSkills = subclass.skills.filter((s) => s.tier === 3);
 
+    // Avatar: sementara pakai warna solid (tint warna class) sambil nunggu background art per-subclass.
+    const avatarBackground = `radial-gradient(circle at 50% 30%, ${accent}2e, var(--bg-panel) 75%)`;
+    // Full body: pakai background scene yang diupload (shared asset, dipakai semua subclass untuk sekarang).
+    const fullBodyBackground = "url('/images/subclasses/backgrounds/fullbody-bg.jpg') center/cover no-repeat";
+
     return (
         <Layout>
             <Head title={subclass.name} />
@@ -138,7 +147,7 @@ export default function Show({ subclass }) {
                         <img
                             src={subclass.avatar_path}
                             alt={subclass.name}
-                            style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${accent}`, flexShrink: 0 }}
+                            style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${accent}`, flexShrink: 0, background: 'var(--bg-panel)' }}
                         />
                     ) : (
                         <div className="rpg-badge-hex" style={{ '--accent': accent, width: 64, height: 64, fontSize: '1.6rem' }}>
@@ -158,44 +167,38 @@ export default function Show({ subclass }) {
                     <p className="rpg-flavor-note" style={{ color: accent }}>{subclass.flavor_bonus}</p>
                 )}
 
-                <div className="row g-3 my-4">
-                    {[
-                        ['Physical Damage', subclass.base_physical_damage, '#b8433a'],
-                        ['Physical Defense', subclass.base_physical_defense, '#c98a3a'],
-                        ['Magic Damage', subclass.base_magic_damage, '#7269d1'],
-                        ['Magic Defense', subclass.base_magic_defense, '#3f8c94'],
-                    ].map(([label, val, color]) => (
-                        <div className="col-6 col-md-3" key={label}>
-                            <div className="rpg-card text-center" style={{ '--accent': color }}>
-                                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.6rem', fontWeight: 600, color }}>
-                                    {val}
-                                </div>
-                                <div className="rpg-power-type mt-1">{label}</div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="row g-4 mb-4">
+                {/* Avatar bersebelahan dengan Stats */}
+                <div className="row g-4 my-4 align-items-stretch">
                     <div className="col-md-4">
                         <ArtUploadSlot
                             label="Avatar"
-                            spec="256×256, crop bahu ke atas"
+                            spec="256×256"
                             currentUrl={subclass.avatar_path}
                             fieldName="avatar"
                             uploadUrl={route('subclass.avatar', subclass.id)}
                             aspect="1 / 1"
+                            background={avatarBackground}
                         />
                     </div>
-                    <div className="col-md-4">
-                        <ArtUploadSlot
-                            label="Full Body"
-                            spec="512×1024, telapak kaki di bawah"
-                            currentUrl={subclass.full_body_path}
-                            fieldName="full_body"
-                            uploadUrl={route('subclass.fullbody', subclass.id)}
-                            aspect="1 / 2"
-                        />
+                    <div className="col-md-8">
+                        <div className="rpg-skill-group-title">Stats</div>
+                        <div className="row g-3 h-100">
+                            {[
+                                ['Physical Damage', subclass.base_physical_damage, '#b8433a'],
+                                ['Physical Defense', subclass.base_physical_defense, '#c98a3a'],
+                                ['Magic Damage', subclass.base_magic_damage, '#7269d1'],
+                                ['Magic Defense', subclass.base_magic_defense, '#3f8c94'],
+                            ].map(([label, val, color]) => (
+                                <div className="col-6" key={label}>
+                                    <div className="rpg-card text-center" style={{ '--accent': color }}>
+                                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.6rem', fontWeight: 600, color }}>
+                                            {val}
+                                        </div>
+                                        <div className="rpg-power-type mt-1">{label}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -203,32 +206,50 @@ export default function Show({ subclass }) {
                     Default penggunaan tempur: pilih 3 dari Skill Fisik / Magic, ditambah 1 Ultimate.
                 </p>
 
-                {physicalSkills.length > 0 && (
-                    <div className="mb-4">
-                        <div className="rpg-skill-group-title">Skill Fisik</div>
-                        <div className="row g-3">
-                            {physicalSkills.map((s) => <SkillCard skill={s} accent={accent} key={s.id} />)}
+                {/* Full Body bersebelahan dengan Skill/Magic/Ultimate */}
+                <div className="row g-4">
+                    <div className="col-md-4">
+                        <div style={{ position: 'sticky', top: 90 }}>
+                            <ArtUploadSlot
+                                label="Full Body"
+                                spec="512×1024"
+                                currentUrl={subclass.full_body_path}
+                                fieldName="full_body"
+                                uploadUrl={route('subclass.fullbody', subclass.id)}
+                                aspect="1 / 2"
+                                background={fullBodyBackground}
+                            />
                         </div>
                     </div>
-                )}
+                    <div className="col-md-8">
+                        {physicalSkills.length > 0 && (
+                            <div className="mb-4">
+                                <div className="rpg-skill-group-title">Skill Fisik</div>
+                                <div className="row g-3">
+                                    {physicalSkills.map((s) => <SkillCard skill={s} accent={accent} key={s.id} />)}
+                                </div>
+                            </div>
+                        )}
 
-                {magicSkills.length > 0 && (
-                    <div className="mb-4">
-                        <div className="rpg-skill-group-title">Magic</div>
-                        <div className="row g-3">
-                            {magicSkills.map((s) => <SkillCard skill={s} accent={accent} key={s.id} />)}
-                        </div>
-                    </div>
-                )}
+                        {magicSkills.length > 0 && (
+                            <div className="mb-4">
+                                <div className="rpg-skill-group-title">Magic</div>
+                                <div className="row g-3">
+                                    {magicSkills.map((s) => <SkillCard skill={s} accent={accent} key={s.id} />)}
+                                </div>
+                            </div>
+                        )}
 
-                {ultimateSkills.length > 0 && (
-                    <div className="mb-4">
-                        <div className="rpg-skill-group-title">Ultimate</div>
-                        <div className="row g-3">
-                            {ultimateSkills.map((s) => <SkillCard skill={s} accent={accent} key={s.id} />)}
-                        </div>
+                        {ultimateSkills.length > 0 && (
+                            <div className="mb-4">
+                                <div className="rpg-skill-group-title">Ultimate</div>
+                                <div className="row g-3">
+                                    {ultimateSkills.map((s) => <SkillCard skill={s} accent={accent} key={s.id} />)}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
         </Layout>
     );
