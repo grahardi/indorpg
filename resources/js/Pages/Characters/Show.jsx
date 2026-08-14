@@ -77,7 +77,7 @@ export default function Show({ character }) {
                     </div>
                 </div>
 
-                <div className="row g-4 mb-5">
+                <div className="row g-4 mb-5 align-items-start">
                     {subclass?.full_body_path && (
                         <div className="col-md-4">
                             <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Full View</div>
