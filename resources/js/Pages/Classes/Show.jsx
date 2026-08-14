@@ -129,9 +129,8 @@ export default function Show({ subclass }) {
     const magicSkills = subclass.skills.filter((s) => s.tier !== 3 && s.scaling_stat === 'magic');
     const ultimateSkills = subclass.skills.filter((s) => s.tier === 3);
 
-    // Avatar: sementara pakai warna solid (tint warna class) sambil nunggu background art per-subclass.
-    const avatarBackground = `radial-gradient(circle at 50% 30%, ${accent}2e, var(--bg-panel) 75%)`;
-    // Full body: pakai background scene yang diupload (shared asset, dipakai semua subclass untuk sekarang).
+    // Avatar & Full Body sama-sama pakai background scene yang diupload user (shared asset).
+    const avatarBackground = "url('/images/subclasses/backgrounds/avatar-bg.jpg') center/cover no-repeat";
     const fullBodyBackground = "url('/images/subclasses/backgrounds/fullbody-bg.jpg') center/cover no-repeat";
 
     return (
