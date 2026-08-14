@@ -8,9 +8,9 @@ const CLASS_ACCENT = {
     saint: '#c9a24b',
 };
 
-export default function Select({ encounter, characters }) {
+export default function Select({ encounter, characters, preselected = [] }) {
     const { data, setData, post, processing, errors } = useForm({
-        character_ids: [],
+        character_ids: preselected,
     });
 
     function toggle(id) {

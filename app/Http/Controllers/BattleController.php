@@ -26,6 +26,7 @@ class BattleController extends Controller
         return Inertia::render('Battle/Select', [
             'encounter' => $encounter,
             'characters' => $characters,
+            'preselected' => session('guild_party', []),
         ]);
     }
 
@@ -43,24 +44,11 @@ class BattleController extends Controller
 
     public function show(Battle $battle): Response
     {
-        $battle->load(['participants.character.subclass.skills', 'monster.element']);
+        $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'monster.element']);
 
         return Inertia::render('Battle/Show', [
             'battle' => $battle,
         ]);
-    }
-
-    public function action(Request $request, Battle $battle): RedirectResponse
-    {
-        $data = $request->validate([
-            'actions' => ['required', 'array'],
-            'actions.*' => ['required', 'exists:skills,id'],
-        ]);
-
-        // actions dikirim sebagai { [character_id]: skill_id }
-        $this->battleService->resolveRound($battle, $data['actions']);
-
-        return redirect()->route('battles.show', $battle->id);
     }
 
     public function flee(Battle $battle): RedirectResponse

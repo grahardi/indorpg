@@ -233,3 +233,38 @@ Kolom baru `skills.combat_range` (close/range/area) di-backfill otomatis dari na
 - **EXP** dikasih full ke semua karakter yang ikut battle (bukan dibagi), belum ada level-up logic (exp numpuk doang di kolom `characters.exp`, belum ada threshold naik level).
 - **Turn order** simplistic: semua karakter jalan duluan tiap ronde (gak ada speed stat), baru monster.
 - **Party bisa "Kabur"** kapan aja tanpa penalti apapun.
+
+---
+
+## 10. Semi-Auto Battle & Guild Adventure (v2)
+
+### Perubahan dari v1
+Battle v1 butuh player pilih skill manual tiap ronde (banyak klik). Sekarang jadi **semi-auto**: player cuma pilih party (2-3 karakter) sekali di awal, battle langsung di-resolve penuh di server (`BattleService::autoResolve()`), lalu frontend "memutar ulang" battle log secara animasi ~15-30 detik biar tetap kerasa kayak nonton pertarungan, bukan cuma hasil instan.
+
+### Guild Adventure (hub baru)
+Halaman `/guild` jadi entry point utama:
+1. Pilih 2-3 karakter (party).
+2. Pilih salah satu:
+   - **Misi Cepat** — sistem otomatis carikan monster yang levelnya paling dekat sama rata-rata level party (`BattleService::findQuickMissionMonster()`), langsung mulai battle.
+   - **Jelajahi Peta** — party yang udah dipilih disimpan di session, lempar ke `/maps` biar player pilih spawn point sendiri (party gak perlu dipilih ulang di step berikutnya).
+
+### AI Auto-Pick Skill (`BattleService::autoPickSkill()`)
+Tiap giliran, karakter otomatis pakai skill dengan `base_multiplier` tertinggi yang **masih affordable** (stamina/mana cukup). Kalau semua skill gak affordable, giliran itu di-skip (cuma bertahan). Belum ada AI yang lebih pintar (misal prioritaskan skill sesuai weak_against monster) — itu next step kalau battle udah kerasa terlalu random.
+
+### Structured Battle Log
+`battle_log` sekarang bukan array of string, tapi array of **snapshot**:
+```json
+{ "text": "...", "monster_hp": 32, "participants": { "5": {"hp": 80, "stamina": 40, "mana": 20, "is_alive": true} } }
+```
+Ini yang bikin frontend bisa animasikan HP bar turun sinkron sama log yang muncul, bukan cuma teks doang.
+
+### Battle Show — Layout Kolom
+- Panel monster di atas (avatar + HP bar).
+- Kolom party (2-3, responsive col-md-4) — tiap kolom: avatar, HP/SP/MP bar, daftar skill pool (referensi, bukan interaktif lagi karena udah auto).
+- Battle log di bawah, muncul progresif ngikutin animasi step-by-step. Ada tombol "Lewati" buat skip langsung ke hasil akhir.
+
+### Yang belum diimplementasikan
+- AI auto-pick masih sederhana (cuma damage tertinggi, gak mempertimbangkan strong/weak monster secara strategis).
+- "Ambil Misi" masih sebatas "Misi Cepat" (random monster level-matched) — belum ada sistem misi terstruktur (objektif, reward khusus, dll).
+- Level matching masih berbasis level karakter individual, belum ada konsep "level pemain/akun" karena belum ada auth.
+- Endpoint battle manual per-ronde (`action()`) udah dihapus dari controller — kalau nanti mau balikin mode manual (misal buat player yang mau kontrol penuh), perlu dibangun ulang terpisah dari alur auto ini.

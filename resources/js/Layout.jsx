@@ -22,6 +22,9 @@ export default function Layout({ children }) {
                         IndoRPG
                     </Link>
                     <div className="d-flex gap-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
+                        <Link href={route('guild.index')} className="text-decoration-none" style={{ color: 'var(--accent-saint)' }}>
+                            Guild
+                        </Link>
                         <Link href={route('classes.index')} className="text-decoration-none" style={{ color: 'var(--text-secondary)' }}>
                             Codex
                         </Link>
