@@ -1,4 +1,5 @@
 import { Link, Head } from '@inertiajs/react';
+import Layout from '../../Layout';
 
 const CLASS_META = {
     warrior: { accent: '#b8433a', eyebrow: 'Damage Dealer' },
@@ -26,7 +27,7 @@ function StatBar({ label, value, max = 50, color }) {
 
 export default function Index({ classes }) {
     return (
-        <>
+        <Layout>
             <Head title="Classes & Subclasses" />
             <div className="container py-5">
                 <div className="mb-5">
@@ -93,6 +94,6 @@ export default function Index({ classes }) {
                     );
                 })}
             </div>
-        </>
+        </Layout>
     );
 }

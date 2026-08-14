@@ -1,4 +1,5 @@
 import { Link, Head } from '@inertiajs/react';
+import Layout from '../../Layout';
 
 const CLASS_META = {
     warrior: { accent: '#b8433a' },
@@ -52,7 +53,7 @@ export default function Show({ subclass }) {
     const ultimateSkills = subclass.skills.filter((s) => s.tier === 3);
 
     return (
-        <>
+        <Layout>
             <Head title={subclass.name} />
             <div className="container py-5">
                 <Link href={route('classes.index')} className="rpg-back-link mb-4">
@@ -125,6 +126,6 @@ export default function Show({ subclass }) {
                     </div>
                 )}
             </div>
-        </>
+        </Layout>
     );
 }

@@ -13,8 +13,10 @@ class Character extends Model
 
     protected $fillable = [
         'subclass_id', 'name', 'level', 'exp',
-        'current_hp', 'current_stamina', 'current_mana', 'avatar_path',
+        'current_hp', 'current_stamina', 'current_mana', 'avatar_path', 'full_body_path',
     ];
+
+    protected $appends = ['avatar_url', 'full_body_url'];
 
     public function subclass(): BelongsTo
     {
@@ -26,5 +28,15 @@ class Character extends Model
         return $this->belongsToMany(Skill::class, 'character_skills')
             ->withPivot('unlocked_at')
             ->withTimestamps();
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar_path) : null;
+    }
+
+    public function getFullBodyUrlAttribute(): ?string
+    {
+        return $this->full_body_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->full_body_path) : null;
     }
 }
