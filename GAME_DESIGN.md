@@ -371,3 +371,28 @@ Login akhirnya masuk — dipicu kebutuhan: party battle harus punya minimal 1 ka
 
 ### Migrasi data lama
 Karakter yang udah ada sebelum fitur ini (termasuk 14 NPC yang di-seed sebelumnya) otomatis `user_id = null` — NPC memang sengaja gitu selamanya, tapi kalau ada karakter player lama dari sebelum sistem login ada, mereka juga jadi "tak bertuan" karena gak ada cara tau siapa yang bikin. Practically di tahap ini gak masalah karena baru mulai testing.
+
+---
+
+## 14. Layar Kemenangan (VS) & Efek Suara Battle (v3.1)
+
+### Layar VS ala pokemon.id
+Pas battle menang, sekarang muncul tampilan **karakter utama vs monster** side-by-side:
+- Karakter utama = karakter di party yang `user_id`-nya sama dengan user yang login (fallback ke participant pertama kalau gak ketemu, misal liat battle orang lain).
+- Full body karakter (dari subclass) ditampilkan normal, warna sesuai palet participant-nya.
+- Full body monster ditampilkan **grayscale + gelap** (`filter: grayscale(1) brightness(0.55)`) dengan label **"K.O."** miring di atasnya, biar keliatan jelas monsternya udah kalah.
+- Kalau monster/karakter belum punya art (`full_body_path` null), fallback ke hex badge inisial.
+
+### Efek Suara (synthesized, bukan file audio)
+`resources/js/battleAudio.js` — semua suara **digenerate langsung di browser pakai Web Audio API** (oscillator beep, bukan file `.mp3`/`.wav`). Alasannya: gak perlu sourcing/lisensi aset suara, ukuran bundle tetap kecil, dan gampang di-tweak (tinggal ubah frekuensi/durasi).
+
+| Suara | Trigger | Karakteristik |
+|---|---|---|
+| `hit` | Baris log mengandung "damage" | Square wave turun (220→90Hz) |
+| `critical` | Baris log mengandung "CRITICAL" | Sawtooth + square susul, lebih tebal |
+| `miss` | Baris log mengandung "MELESET" | Sine naik (600→950Hz), ringan |
+| `cast` | Monster pertama kali muncul | Triangle naik, kesan "start" |
+| `victory` | Battle selesai status won | 4 nada naik (fanfare sederhana) |
+| `defeat` | Battle selesai status lost | 4 nada turun (sawtooth) |
+
+Ada tombol toggle 🔊/🔇 di pojok kanan atas layar battle buat matiin suara. Browser autoplay policy ditangani defensif (AudioContext di-resume on-demand, gagal = diem aja, gak nge-crash).
