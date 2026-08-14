@@ -188,12 +188,15 @@ export default function Show({ subclass }) {
                                 ['Magic Damage', subclass.base_magic_damage, '#7269d1'],
                                 ['Magic Defense', subclass.base_magic_defense, '#3f8c94'],
                             ].map(([label, val, color]) => (
-                                <div className="col-6" key={label}>
-                                    <div className="rpg-card text-center" style={{ '--accent': color }}>
-                                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.6rem', fontWeight: 600, color }}>
+                                <div className="col-6" key={label} style={{ height: 'calc(50% - 0.5rem)' }}>
+                                    <div
+                                        className="rpg-card text-center h-100 d-flex flex-column align-items-center justify-content-center"
+                                        style={{ '--accent': color }}
+                                    >
+                                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.6rem', fontWeight: 700, color, lineHeight: 1 }}>
                                             {val}
                                         </div>
-                                        <div className="rpg-power-type mt-1">{label}</div>
+                                        <div className="rpg-power-type mt-2" style={{ fontSize: '0.85rem' }}>{label}</div>
                                     </div>
                                 </div>
                             ))}
