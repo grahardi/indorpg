@@ -124,7 +124,7 @@ class BattleService
                 $participant->current_mana = max(0, $participant->current_mana - $skill->mana_cost);
 
                 // Cek Agility (ofensif) karakter vs evasion bawaan monster - bisa meleset total.
-                $hitChance = max(50, min(99, 100 + $character->effective_agility - 90 - $monster->agility));
+                $hitChance = max(50, min(99, 100 + $character->effective_accuracy - 90 - $monster->agility));
                 if (random_int(1, 100) > $hitChance) {
                     $participant->save();
                     $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!");
@@ -295,9 +295,12 @@ class BattleService
             $character->increment('total_exp', $expReward);
             $character->refresh();
 
+            $oldLevel = $character->level;
             if ($character->syncLevel()) {
+                $points = $character->statPointsEarnedBetween($oldLevel, $character->level);
+                $character->stat_points += $points;
                 $character->save();
-                $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}!");
+                $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}! (+{$points} stat point)");
             }
         }
 

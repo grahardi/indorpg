@@ -11,7 +11,7 @@ const CLASS_ACCENT = {
 
 const UPGRADE_MULTIPLIER = {
     physical_damage: 15, physical_defense: 15, magic_damage: 15, magic_defense: 15,
-    agility: 15, evasion: 15, critical_hit: 25, critical_luck: 25,
+    accuracy: 15, evasion: 15, critical_hit: 25, critical_luck: 25,
 };
 
 function Bar({ current, max, color }) {
@@ -43,8 +43,9 @@ function StatBar({ label, baseValue, max = 100, color, suffix = '', statKey, cha
     const total = baseValue + bonusValue;
     const basePct = Math.max(0, Math.min(100, (baseValue / max) * 100));
     const bonusPct = Math.max(0, Math.min(100 - basePct, (bonusValue / max) * 100));
+    const hasFreePoint = character.stat_points > 0;
     const cost = statKey ? (bonusValue + 1) * UPGRADE_MULTIPLIER[statKey] : 0;
-    const canAfford = statKey && character.exp >= cost;
+    const canAfford = statKey && (hasFreePoint || character.exp >= cost);
     const bonusColor = '#c9a24b';
 
     return (
@@ -72,7 +73,7 @@ function StatBar({ label, baseValue, max = 100, color, suffix = '', statKey, cha
                 <button
                     onClick={() => onUpgrade(statKey)}
                     disabled={!canAfford || upgrading}
-                    title={`Upgrade +1 (${cost} EXP)`}
+                    title={hasFreePoint ? 'Upgrade +1 (gratis, pakai stat point)' : `Upgrade +1 (${cost} EXP)`}
                     className="btn btn-sm"
                     style={{
                         width: 30, height: 30, padding: 0, flexShrink: 0,
@@ -171,7 +172,10 @@ export default function Show({ character }) {
                             <ResourceRow label="SP (Stamina)" current={character.current_stamina} max={character.effective_base_sp} color="#c98a3a" />
                             <ResourceRow label="MP (Mana)" current={character.current_mana} max={character.effective_base_mp} color="#7269d1" />
                             <p className="mb-0 mt-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                                EXP (bisa dipakai upgrade): {character.exp}{isOwner && ' — klik tombol + di stat buat upgrade'}
+                                EXP (bisa dipakai upgrade): {character.exp}
+                            </p>
+                            <p className="mb-0 mt-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: character.stat_points > 0 ? '#c9a24b' : 'var(--text-secondary)' }}>
+                                Stat Point Gratis: {character.stat_points}{isOwner && character.stat_points > 0 && ' — klik + di stat buat pakai (gratis!)'}
                             </p>
                         </div>
 
@@ -204,8 +208,8 @@ export default function Show({ character }) {
                             <StatBar label="Mana Regeneration" baseValue={character.effective_mana_regen} max={20} color="#7269d1" character={character} />
                             <StatBar label="Stamina Regeneration" baseValue={character.effective_stamina_regen} max={20} color="#c98a3a" character={character} />
                             <StatBar
-                                label="Agility" baseValue={character.effective_agility - character.bonus_agility} max={80} color="#3f8c94"
-                                statKey="agility" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                                label="Accuracy" baseValue={character.effective_accuracy - character.bonus_accuracy} max={80} color="#3f8c94"
+                                statKey="accuracy" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
                                 label="Evasion" baseValue={character.effective_evasion - character.bonus_evasion} max={80} color="#3f8c94"

@@ -74,6 +74,10 @@ class CharacterController extends Controller
     /**
      * Upgrade 1 poin stat pakai EXP. Cuma pemilik karakter yang boleh.
      */
+    /**
+     * Upgrade 1 poin stat. Prioritas pakai stat_points gratis (dari naik level)
+     * dulu kalau ada, baru potong EXP kalau stat_points abis.
+     */
     public function upgradeStat(Request $request, Character $character): RedirectResponse
     {
         if ($character->user_id !== $request->user()->id) {
@@ -84,10 +88,17 @@ class CharacterController extends Controller
             'stat' => ['required', 'string', 'in:'.implode(',', Character::UPGRADABLE_STATS)],
         ]);
 
+        if ($character->stat_points > 0) {
+            $character->decrement('stat_points');
+            $character->increment("bonus_{$data['stat']}");
+
+            return back();
+        }
+
         $cost = $character->upgradeCost($data['stat']);
 
         if ($character->exp < $cost) {
-            return back()->withErrors(['stat' => 'EXP gak cukup buat upgrade ini.']);
+            return back()->withErrors(['stat' => 'Stat point abis dan EXP gak cukup buat upgrade ini.']);
         }
 
         $character->decrement('exp', $cost);

@@ -508,3 +508,22 @@ Dipisah jadi 2 card terpisah: **"Base Stats"** (nampilin `leveled_*`, gak ada to
 
 ### Battle gak perlu diubah
 `BattleService` udah dari awal pakai `character->effective_*` (bukan `subclass->base_*` langsung), jadi otomatis dapet manfaat level growth begitu model-nya diupdate — gak ada perubahan kode battle sama sekali.
+
+---
+
+## 20. Rename Agility → Accuracy + Stat Point Gratis dari Level (v3.7)
+
+### Rename: Agility → Accuracy
+"Agility" karakter dari awal fungsinya emang akurasi nyerang (dipakai attacker buat ngelawan evasion monster), bukan evasion diri sendiri (itu udah ada stat terpisah: **Evasion**). Nama "Agility" bikin bingung — di-rename jadi **Accuracy** biar jelas kenapa "sering MELESET" kalau stat ini rendah. Monster tetap pakai nama `agility` (fungsinya beneran evasion buat monster, gak diubah).
+
+Migration: `characters.bonus_agility` → `bonus_accuracy` (rename kolom via `ALTER TABLE ... RENAME COLUMN`, bukan drop+recreate, jadi data lama gak ilang).
+
+### Stat Point Gratis dari Naik Level
+Sebelumnya cuma ada 1 cara nambah Bonus Stats: potong EXP (makin mahal tiap kali). Sekarang ada jalur ke-2 yang **gratis**:
+- Tiap naik level dapat **+5 stat point**.
+- Level kelipatan 5 (5, 10, 15, dst) dapat **+10** (bukan +5).
+- Stat point ini disimpan di kolom baru `characters.stat_points`, terpisah dari `exp` dan `total_exp`.
+- Tombol "+" di tiap Bonus Stat **prioritas pakai stat_points dulu** (gratis, gak motong apa-apa) — baru kalau `stat_points` abis, fallback ke potong EXP kayak sebelumnya.
+- UI nunjukkin "Stat Point Gratis: X" di section Resource, dan tooltip tombol + berubah jadi "gratis, pakai stat point" kalau lagi ada stat point nganggur.
+
+Formula EXP-buat-level makin curam (100, ~303, ~580, ~919...) jadi total stat point gratis yang kekumpul juga proporsional sama effort — misal sampe level 5 total dapat 5+5+5+5+10=30 stat point gratis, sepadan sama ~919 total EXP yang harus dikumpulin buat nyampe situ.

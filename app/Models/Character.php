@@ -12,10 +12,10 @@ class Character extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'subclass_id', 'name', 'level', 'exp', 'total_exp',
+        'user_id', 'subclass_id', 'name', 'level', 'exp', 'total_exp', 'stat_points',
         'bonus_physical_damage', 'bonus_physical_defense',
         'bonus_magic_damage', 'bonus_magic_defense',
-        'bonus_agility', 'bonus_evasion',
+        'bonus_accuracy', 'bonus_evasion',
         'bonus_critical_hit', 'bonus_critical_luck',
         'current_hp', 'current_stamina', 'current_mana', 'avatar_path', 'full_body_path', 'is_npc', 'busy_until',
     ];
@@ -32,20 +32,23 @@ class Character extends Model
         'effective_magic_damage', 'effective_magic_defense',
         'effective_base_hp', 'effective_base_mp', 'effective_base_sp',
         'effective_mana_regen', 'effective_stamina_regen',
-        'effective_agility', 'effective_evasion',
+        'effective_accuracy', 'effective_evasion',
         'effective_critical_hit', 'effective_critical_luck',
         'exp_for_current_level', 'exp_for_next_level',
     ];
 
     /**
      * 4 stat inti yang naik otomatis tiap level (bukan lagi upgrade manual).
-     * Bonus stat yang masih bisa di-upgrade pakai EXP (klik tombol +).
+     * Bonus stat yang masih bisa di-upgrade (pakai stat point gratis atau EXP).
+     *
+     * Catatan: "Agility" di-rename jadi "Accuracy" - fungsinya emang akurasi
+     * nyerang (offense), bukan evasion (itu udah ada stat sendiri: Evasion).
      */
     public const CORE_LEVEL_STATS = ['physical_damage', 'physical_defense', 'magic_damage', 'magic_defense'];
 
     public const UPGRADABLE_STATS = [
         'physical_damage', 'physical_defense', 'magic_damage', 'magic_defense',
-        'agility', 'evasion', 'critical_hit', 'critical_luck',
+        'accuracy', 'evasion', 'critical_hit', 'critical_luck',
     ];
 
     public function subclass(): BelongsTo
@@ -155,9 +158,14 @@ class Character extends Model
         return max(1, (int) round($this->effective_base_sp * 0.1));
     }
 
-    public function getEffectiveAgilityAttribute(): int
+    /**
+     * Accuracy = akurasi nyerang (offense). Dulu namanya "Agility", di-rename
+     * karena "Agility" bikin orang ngira ini evasion (padahal Evasion udah ada
+     * stat sendiri).
+     */
+    public function getEffectiveAccuracyAttribute(): int
     {
-        return $this->effective_physical_damage + $this->effective_magic_damage + $this->bonus_agility;
+        return $this->effective_physical_damage + $this->effective_magic_damage + $this->bonus_accuracy;
     }
 
     public function getEffectiveEvasionAttribute(): int
@@ -176,8 +184,9 @@ class Character extends Model
     }
 
     /**
-     * Biaya EXP buat nambah 1 poin ke stat tertentu. Formula: (bonus_saat_ini + 1) * 15.
-     * Stat critical (persentase, lebih powerful per poin) dikali biaya 25.
+     * Biaya EXP buat nambah 1 poin ke stat tertentu (dipakai kalau stat_points
+     * abis). Formula: (bonus_saat_ini + 1) * 15. Stat critical (persentase,
+     * lebih powerful per poin) dikali biaya 25.
      */
     public function upgradeCost(string $stat): int
     {
@@ -229,6 +238,30 @@ class Character extends Model
         }
 
         return false;
+    }
+
+    /**
+     * Stat point GRATIS yang didapat pas naik level (beda dari EXP yang bisa
+     * dipotong). +5 per level biasa, +10 kalau level-nya kelipatan 5 (5,10,15,dst).
+     * Dipakai buat nambah Bonus Stats tanpa perlu bayar EXP.
+     */
+    public static function statPointsForLevel(int $level): int
+    {
+        return $level % 5 === 0 ? 10 : 5;
+    }
+
+    /**
+     * Total stat point yang didapat dari naik level $fromLevel -> $toLevel
+     * (bisa lompat lebih dari 1 level kalau EXP reward-nya gede).
+     */
+    public function statPointsEarnedBetween(int $fromLevel, int $toLevel): int
+    {
+        $total = 0;
+        for ($lvl = $fromLevel + 1; $lvl <= $toLevel; $lvl++) {
+            $total += self::statPointsForLevel($lvl);
+        }
+
+        return $total;
     }
 
     public function getExpForCurrentLevelAttribute(): int
