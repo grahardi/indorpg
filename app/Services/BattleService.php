@@ -35,12 +35,20 @@ class BattleService
         $characters = Character::with('subclass.skills')->whereIn('id', $characterIds)->get();
 
         foreach ($characters as $character) {
+            // Ultimate (tier 3) sengaja di-set udah "dipakai" di ronde 0, jadi dari
+            // awal battle langsung cooldown - gak bisa langsung ultimate di ronde 1.
+            $initialCooldowns = $character->subclass->skills
+                ->where('tier', 3)
+                ->mapWithKeys(fn ($skill) => [$skill->id => 0])
+                ->toArray();
+
             BattleParticipant::create([
                 'battle_id' => $battle->id,
                 'character_id' => $character->id,
                 'current_hp' => $character->current_hp,
                 'current_stamina' => $character->current_stamina,
                 'current_mana' => $character->current_mana,
+                'skill_cooldowns' => $initialCooldowns,
                 'is_alive' => true,
             ]);
         }

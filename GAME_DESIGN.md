@@ -274,6 +274,9 @@ Ditemukan pas audit kesesuaian skill vs gamestyle baru — `cooldown_seconds` di
 - `cooldown_seconds` ditranslate ke "berapa ronde terkunci" pakai asumsi ~2.5 detik/ronde (`ceil(cooldown_seconds / 2.5)`), sesuai pacing animasi playback di frontend.
 - Efeknya: Ultimate (cooldown 30 detik ≈ 12 ronde) sekarang beneran jarang kepake, skill tier 1 lain jadi ikut kepake pas Ultimate lagi cooldown.
 
+### Update v2.2: Ultimate mulai battle dalam kondisi cooldown
+Sebelumnya Ultimate baru kena cooldown SETELAH dipakai pertama kali, jadi masih bisa langsung dipakai di ronde 1. Sekarang tiap `BattleParticipant` dibuat dengan Ultimate (tier 3) langsung di-set "udah dipakai di ronde 0" — jadi dari awal battle Ultimate udah cooldown, gak bisa langsung nge-ultimate di ronde pertama. Selaras juga sama cost mana/stamina Ultimate yang emang udah didesain besar (contoh: Murka Tanpa Ampun butuh 40 mana — persis pool penuh Warrior — jadi natural cuma sekali pakai per battle pun tanpa cooldown).
+
 ### Masih belum diselesaikan (butuh keputusan desain, sengaja belum saya ubah sepihak)
 - **Resource gak regen antar ronde** — sekali stamina/mana abis, karakter kejebak pakai skill termurah/gratis doang sampe battle selesai. Bisa ditambah regen kecil per-ronde kalau battle mulai kerasa monoton di late-game.
 - **2 pilihan Ultimate (fisik & magic) per subclass jadi gak ada bedanya secara build** — karena AI cuma pilih skill ber-multiplier tertinggi yang usable, bukan player yang milih sesuai gaya main. Kalau mau balikin makna "pilihan build", butuh salah satu dari: (a) UI buat player pre-set loadout 3 skill+1 ultimate sebelum battle (baru AI pilih dari situ aja, bukan dari 8 skill penuh), atau (b) AI dikasih preferensi/personality biar konsisten pilih 1 ultimate tertentu per karakter.
