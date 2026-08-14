@@ -19,6 +19,6 @@ class ImageResizer
         $image = $manager->read($sourcePath);
         $image->cover($width, $height, $position);
 
-        return (string) $image->encode(new PngEncoder(quality: 90));
+        return (string) $image->encode(new PngEncoder());
     }
 }
