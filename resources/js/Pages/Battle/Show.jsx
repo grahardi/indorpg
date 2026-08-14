@@ -303,30 +303,16 @@ export default function Show({ battle }) {
                     </button>
                 </div>
 
-                {/* Grid 2x2: [2 party member | Monster] baris atas, [Main Player | Battle Log] baris bawah -
-                    party & monster sticky bareng biar tetap kelihatan pas battle log discroll. */}
-                <div
-                    style={{
-                        display: 'grid',
-                        gridTemplateColumns: '116px 1fr',
-                        gridTemplateAreas: `"players monster" "main log"`,
-                        gap: '0.5rem',
-                        alignItems: 'start',
-                    }}
-                >
-                    <div
-                        style={{
-                            gridArea: 'players', position: 'sticky', top: 64, zIndex: 15,
-                            display: 'flex', flexDirection: 'column', gap: '0.5rem',
-                        }}
-                    >
-                        {otherParticipants.map((p) => renderPartyCard(p, false))}
-                    </div>
+                {/* Grid: [Party B | Party C | Monster] baris atas, [KAMU | Battle Log (ngelebar)] baris bawah.
+                    Responsive natural (gak sticky) - battle log udah auto-scroll sendiri ke baris terbaru. */}
+                <div className="battle-grid">
+                    <div style={{ gridArea: 'partyB' }}>{otherParticipants[0] && renderPartyCard(otherParticipants[0], false)}</div>
+                    <div style={{ gridArea: 'partyC' }}>{otherParticipants[1] && renderPartyCard(otherParticipants[1], false)}</div>
 
-                    <div style={{ gridArea: 'monster', position: 'sticky', top: 64, zIndex: 15 }}>
+                    <div style={{ gridArea: 'monster' }}>
                         <div
                             className="rpg-card text-center"
-                            style={{ '--accent': MONSTER_COLOR, padding: '0.75rem', boxShadow: '0 8px 20px -8px rgba(0,0,0,0.6)' }}
+                            style={{ '--accent': MONSTER_COLOR, padding: '0.75rem' }}
                         >
                             {monster.full_body_path ? (
                                 <img
@@ -348,13 +334,13 @@ export default function Show({ battle }) {
                         </div>
                     </div>
 
-                    <div style={{ gridArea: 'main' }}>
+                    <div style={{ gridArea: 'kamu' }}>
                         {renderPartyCard(mainBattleParticipant, true)}
                     </div>
 
                     <div style={{ gridArea: 'log' }}>
                         <div className="rpg-skill-group-title">Battle Log</div>
-                        <div className="rpg-card" style={{ '--accent': '#8890a4', maxHeight: 320, overflowY: 'auto', fontSize: '0.85rem' }}>
+                        <div className="rpg-card" style={{ '--accent': '#8890a4', fontSize: '0.85rem' }}>
                             {visibleLog.map((entry, i) => (
                                 <p key={i} className="mb-1" style={{ color: logLineColor(entry.text) }}>{entry.text}</p>
                             ))}

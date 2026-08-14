@@ -269,3 +269,25 @@ body {
     padding-left: 0.75rem;
     margin: 1.5rem 0 2rem;
 }
+
+/* ---- Battle grid layout ---- */
+.battle-grid {
+    display: grid;
+    grid-template-columns: 108px 108px 1fr;
+    grid-template-areas:
+        "partyB partyC monster"
+        "kamu log log";
+    gap: 0.5rem;
+    align-items: start;
+}
+
+@media (max-width: 560px) {
+    .battle-grid {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "monster monster"
+            "partyB partyC"
+            "kamu kamu"
+            "log log";
+    }
+}
