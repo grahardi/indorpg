@@ -39,16 +39,15 @@ class CharacterController extends Controller
         ]);
 
         $subclass = Subclass::with('gameClass')->findOrFail($data['subclass_id']);
-        $gameClass = $subclass->gameClass;
 
         $character = Character::create([
             'subclass_id' => $subclass->id,
             'name' => $data['name'],
             'level' => 1,
             'exp' => 0,
-            'current_hp' => $gameClass->base_hp,
-            'current_stamina' => $gameClass->base_stamina,
-            'current_mana' => $gameClass->base_mana,
+            'current_hp' => $subclass->base_hp,
+            'current_stamina' => $subclass->base_sp,
+            'current_mana' => $subclass->base_mp,
         ]);
 
         return redirect()->route('characters.show', $character->id);

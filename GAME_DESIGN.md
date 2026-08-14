@@ -314,3 +314,35 @@ Cuma berlaku buat **serangan karakter ke monster** (monster gak crit, biar gak b
 
 ### Regen
 Dijalankan di **awal tiap ronde**, sebelum siapapun bertindak — HP gak regen (cuma lewat item/skill heal nanti), SP & MP aja.
+
+---
+
+## 12. Base Stats jadi "Computed" dari 4 Stat Inti (v2.4)
+
+Perombakan besar — hampir semua secondary stat sekarang **dihitung otomatis** dari `base_physical_damage`, `base_physical_defense`, `base_magic_damage`, `base_magic_defense` yang udah ada di tiap subclass, bukan angka manual baru. Prinsipnya: "base stats ambil dari char yang udah kita bikin", gak nambah data baru yang gak nyambung ke apa yang udah ada.
+
+### Formula (`Subclass` model, computed accessor via `$appends`)
+| Stat | Formula | Catatan |
+|---|---|---|
+| Base HP | Physical Defense + Magic Defense | Gantiin `GameClass.base_hp` yang lama |
+| Base MP | Magic Attack + Magic Defense | Gantiin `GameClass.base_mana` |
+| Base SP | Physical Attack + Physical Defense | Gantiin `GameClass.base_stamina` |
+| Mana Regeneration | 10% dari Base MP (dibulatkan, min 1) | Angka 10% keputusan saya sendiri, belum ada instruksi pasti — gampang diubah di `Subclass::getManaRegenAttribute()` |
+| Stamina Regeneration | 10% dari Base SP (dibulatkan, min 1) | Sama, lihat `getStaminaRegenAttribute()` |
+| Agility | Physical Attack + Magic Attack | Sisi **ofensif** — dipakai pas karakter nyerang monster |
+| Evasion | Physical Defense + Magic Defense | Sisi **defensif** — dipakai pas monster nyerang karakter. Kebetulan formulanya sama kayak Base HP, jadi 2 stat ini akan selalu senilai per subclass |
+| Critical Hit | flat 20% semua subclass | Kolom asli (bukan computed), disamain semua ke 20% |
+| Critical Luck | flat 10% semua subclass | Kolom asli, disamain semua ke 10% |
+
+`GameClass.base_hp/base_stamina/base_mana` **udah gak dipakai lagi** buat pool resource (jadi vestigial/gak berfungsi) — semua yang dulu baca dari situ (character creation, battle regen cap, display bar) sekarang baca dari `Subclass::base_hp/base_mp/base_sp`. Kolomnya sengaja gak saya hapus (masih ada di tabel `classes`), cuma udah gak dipakai di logic manapun.
+
+### Battle formula update
+- Karakter nyerang monster: hit chance pakai **Agility** karakter vs **agility** (evasion) monster.
+- Monster nyerang karakter: hit chance pakai **accuracy** monster vs **Evasion** karakter.
+- Monster tetap pakai kolom `agility`/`accuracy` yang lama (gak ikut berubah, itu udah jalan baik).
+
+### "Bisa ditambah exp" — belum diimplementasikan
+Semua stat di tabel yang "bisa ditambah exp" itu baru **niat desain**, belum ada sistem level-up/spend-exp buat nambah stat. `character.exp` sekarang cuma numpuk angka doang dari menang battle, belum ngefek ke stat manapun. Ini next milestone kalau mau bikin progression system beneran.
+
+### UI: Characters/Show — model "FIFA stat bar"
+Base Stats section dipindah **langsung di bawah Resource** (bukan section terpisah jauh), dan model tampilannya diganti dari kartu kotak jadi **bar horizontal** (label kiri, bar isi warna, angka kanan) — mirip tampilan stat pemain di game FIFA. HP/SP/MP di Resource juga masing-masing dikasih warna beda (merah/oranye/ungu) dengan progress bar sendiri, font diperbesar, dan line-spacing dirapiin.

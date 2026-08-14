@@ -72,16 +72,16 @@ class BattleService
         $round = 1;
 
         while ($battle->monster_current_hp > 0 && $this->anyAlive($battle) && $round <= self::MAX_ROUNDS) {
-            // Regen stamina/mana tiap awal ronde, dibatasi pool max dari GameClass.
+            // Regen stamina/mana tiap awal ronde, dibatasi pool max dari Subclass
+            // (base_sp/base_mp, computed dari physical/magic attack+defense).
             foreach ($battle->participants as $participant) {
                 if (! $participant->is_alive) {
                     continue;
                 }
                 $subclass = $participant->character->subclass;
-                $gameClass = $subclass->gameClass;
 
-                $participant->current_stamina = min($gameClass->base_stamina, $participant->current_stamina + $subclass->stamina_regen);
-                $participant->current_mana = min($gameClass->base_mana, $participant->current_mana + $subclass->mana_regen);
+                $participant->current_stamina = min($subclass->base_sp, $participant->current_stamina + $subclass->stamina_regen);
+                $participant->current_mana = min($subclass->base_mp, $participant->current_mana + $subclass->mana_regen);
             }
 
             foreach ($battle->participants as $participant) {
@@ -100,8 +100,8 @@ class BattleService
                 $participant->current_stamina = max(0, $participant->current_stamina - $skill->stamina_cost);
                 $participant->current_mana = max(0, $participant->current_mana - $skill->mana_cost);
 
-                // Cek akurasi vs agility (evasion) monster - bisa meleset total.
-                $hitChance = max(50, min(99, 100 + $subclass->accuracy - 90 - $monster->agility));
+                // Cek Agility (ofensif) karakter vs evasion bawaan monster - bisa meleset total.
+                $hitChance = max(50, min(99, 100 + $subclass->agility - 90 - $monster->agility));
                 if (random_int(1, 100) > $hitChance) {
                     $participant->save();
                     $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!");
@@ -150,8 +150,8 @@ class BattleService
                     $target = $alive->random();
                     $subclass = $target->character->subclass;
 
-                    // Cek akurasi monster vs agility karakter.
-                    $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $subclass->agility));
+                    // Cek akurasi monster vs Evasion (defensif) karakter.
+                    $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $subclass->evasion));
                     if (random_int(1, 100) > $hitChance) {
                         $log[] = $this->snapshot($battle, "{$monster->name} menyerang {$target->character->name}: MELESET!");
                     } else {

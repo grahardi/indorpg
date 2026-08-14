@@ -29,14 +29,17 @@ function ResourceRow({ label, current, max, color }) {
     );
 }
 
-function StatCard({ label, value, color }) {
+// Model "FIFA card" - label kiri, bar horizontal isi proporsional, angka kanan.
+function FifaStatBar({ label, value, max = 100, color, suffix = '' }) {
+    const pct = Math.max(0, Math.min(100, (value / max) * 100));
     return (
-        <div className="col-6 col-md-4 col-lg-3">
-            <div className="rpg-card text-center h-100" style={{ '--accent': color, padding: '1.1rem 0.8rem' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.7rem', fontWeight: 700, color, lineHeight: 1 }}>
-                    {value}
-                </div>
-                <div className="rpg-power-type mt-2" style={{ fontSize: '0.85rem', lineHeight: 1.4 }}>{label}</div>
+        <div className="d-flex align-items-center gap-3 mb-3">
+            <div style={{ width: 170, fontSize: '0.95rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{label}</div>
+            <div className="flex-grow-1 rpg-stat-track" style={{ height: 12 }}>
+                <div className="rpg-stat-fill" style={{ width: `${pct}%`, background: color }} />
+            </div>
+            <div style={{ width: 56, textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1.05rem', color, flexShrink: 0 }}>
+                {value}{suffix}
             </div>
         </div>
     );
@@ -45,7 +48,6 @@ function StatCard({ label, value, color }) {
 export default function Show({ character }) {
     const accent = CLASS_ACCENT[character.subclass?.game_class?.slug] ?? '#8890a4';
     const subclass = character.subclass;
-    const gameClass = subclass?.game_class;
 
     return (
         <Layout>
@@ -70,7 +72,7 @@ export default function Show({ character }) {
                     <div>
                         <h1 className="rpg-class-title mb-1" style={{ fontSize: '2.3rem' }}>{character.name}</h1>
                         <p className="rpg-power-type mb-0" style={{ fontSize: '1rem', lineHeight: 1.6 }}>
-                            Level {character.level} &middot; {subclass?.name} &middot; {gameClass?.name}
+                            Level {character.level} &middot; {subclass?.name} &middot; {subclass?.game_class?.name}
                         </p>
                     </div>
                 </div>
@@ -87,33 +89,35 @@ export default function Show({ character }) {
                         </div>
                     )}
                     <div className={subclass?.full_body_path ? 'col-md-8' : 'col-12'}>
+                        {/* Resources */}
                         <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Resource</div>
-                        <div className="rpg-card" style={{ '--accent': accent, padding: '1.5rem' }}>
-                            <ResourceRow label="HP" current={character.current_hp} max={gameClass?.base_hp ?? character.current_hp} color="#b8433a" />
-                            <ResourceRow label="SP (Stamina)" current={character.current_stamina} max={gameClass?.base_stamina ?? character.current_stamina} color="#c98a3a" />
-                            <ResourceRow label="MP (Mana)" current={character.current_mana} max={gameClass?.base_mana ?? character.current_mana} color="#7269d1" />
+                        <div className="rpg-card mb-4" style={{ '--accent': accent, padding: '1.5rem' }}>
+                            <ResourceRow label="HP" current={character.current_hp} max={subclass?.base_hp ?? character.current_hp} color="#b8433a" />
+                            <ResourceRow label="SP (Stamina)" current={character.current_stamina} max={subclass?.base_sp ?? character.current_stamina} color="#c98a3a" />
+                            <ResourceRow label="MP (Mana)" current={character.current_mana} max={subclass?.base_mp ?? character.current_mana} color="#7269d1" />
                             <p className="mb-0 mt-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
                                 EXP: {character.exp}
                             </p>
                         </div>
-                    </div>
-                </div>
 
-                <div className="rpg-skill-group-title mb-3" style={{ fontSize: '0.85rem' }}>Base Stats</div>
-                <div className="row g-3 mb-5">
-                    <StatCard label="Base HP" value={gameClass?.base_hp} color="#b8433a" />
-                    <StatCard label="Base MP" value={gameClass?.base_mana} color="#7269d1" />
-                    <StatCard label="Base SP" value={gameClass?.base_stamina} color="#c98a3a" />
-                    <StatCard label="Physical Attack" value={subclass?.base_physical_damage} color="#b8433a" />
-                    <StatCard label="Physical Defense" value={subclass?.base_physical_defense} color="#c98a3a" />
-                    <StatCard label="Magic Attack" value={subclass?.base_magic_damage} color="#7269d1" />
-                    <StatCard label="Magic Defense" value={subclass?.base_magic_defense} color="#3f8c94" />
-                    <StatCard label="Mana Regen /ronde" value={subclass?.mana_regen} color="#7269d1" />
-                    <StatCard label="Stamina Regen /ronde" value={subclass?.stamina_regen} color="#c98a3a" />
-                    <StatCard label="Agility (Evasion)" value={`${subclass?.agility}%`} color="#3f8c94" />
-                    <StatCard label="Accuracy" value={`${subclass?.accuracy}%`} color="#c9a24b" />
-                    <StatCard label="Critical Hit" value={`+${subclass?.critical_hit_bonus}%`} color="#b8433a" />
-                    <StatCard label="Critical Luck" value={`${subclass?.critical_luck}%`} color="#c9a24b" />
+                        {/* Base Stats - langsung di bawah Resource, model bar ala FIFA */}
+                        <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Base Stats</div>
+                        <div className="rpg-card" style={{ '--accent': accent, padding: '1.5rem' }}>
+                            <FifaStatBar label="Base HP" value={subclass?.base_hp} max={100} color="#b8433a" />
+                            <FifaStatBar label="Base MP" value={subclass?.base_mp} max={100} color="#7269d1" />
+                            <FifaStatBar label="Base SP" value={subclass?.base_sp} max={100} color="#c98a3a" />
+                            <FifaStatBar label="Physical Attack" value={subclass?.base_physical_damage} max={100} color="#b8433a" />
+                            <FifaStatBar label="Physical Defense" value={subclass?.base_physical_defense} max={100} color="#c98a3a" />
+                            <FifaStatBar label="Magic Attack" value={subclass?.base_magic_damage} max={100} color="#7269d1" />
+                            <FifaStatBar label="Magic Defense" value={subclass?.base_magic_defense} max={100} color="#3f8c94" />
+                            <FifaStatBar label="Mana Regeneration" value={subclass?.mana_regen} max={20} color="#7269d1" />
+                            <FifaStatBar label="Stamina Regeneration" value={subclass?.stamina_regen} max={20} color="#c98a3a" />
+                            <FifaStatBar label="Agility" value={subclass?.agility} max={100} color="#3f8c94" />
+                            <FifaStatBar label="Evasion" value={subclass?.evasion} max={100} color="#3f8c94" />
+                            <FifaStatBar label="Critical Hit" value={subclass?.critical_hit_bonus} max={100} color="#c9a24b" suffix="%" />
+                            <FifaStatBar label="Critical Luck" value={subclass?.critical_luck} max={100} color="#c9a24b" suffix="%" />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="rpg-skill-group-title mb-3" style={{ fontSize: '0.85rem' }}>Skill Terbuka</div>

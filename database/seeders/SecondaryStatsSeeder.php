@@ -3,56 +3,18 @@
 namespace Database\Seeders;
 
 use App\Models\Monster;
-use App\Models\Subclass;
 use Illuminate\Database\Seeder;
 
 class SecondaryStatsSeeder extends Seeder
 {
     /**
-     * Isi mana_regen/stamina_regen/agility/accuracy/critical_hit_bonus/critical_luck
-     * buat subclass, dan agility/accuracy buat monster. Dipisah dari SubclassSeeder/
-     * MonsterSeeder biar gak perlu ubah file yang udah besar.
+     * Isi agility/accuracy buat monster. Stat subclass (mana_regen, stamina_regen,
+     * agility, evasion) sekarang computed accessor di model Subclass, bukan kolom -
+     * gak perlu di-seed lagi. critical_hit_bonus/critical_luck subclass di-set
+     * flat 20%/10% lewat migration.
      */
     public function run(): void
     {
-        // Baseline per class (mana_regen, stamina_regen, agility, accuracy, crit_bonus%, crit_luck%)
-        $classBaseline = [
-            'warrior' => [3, 10, 8, 88, 50, 12],
-            'tanker' => [4, 7, 4, 85, 30, 5],
-            'mage' => [9, 3, 7, 92, 60, 10],
-            'saint' => [8, 4, 6, 90, 40, 7],
-        ];
-
-        // Override per subclass tertentu (flavor): [field => value]
-        $subclassOverrides = [
-            'Berserker' => ['critical_luck' => 18, 'agility' => 6],
-            'Aeromancer' => ['agility' => 14],
-            'Cleric' => ['mana_regen' => 11],
-            'Bulwark' => ['agility' => 3],
-            'Harpy' => [], // placeholder, monster bukan subclass - diabaikan
-        ];
-
-        foreach (Subclass::with('gameClass')->get() as $subclass) {
-            $classSlug = $subclass->gameClass->slug;
-            [$manaRegen, $staminaRegen, $agility, $accuracy, $critBonus, $critLuck] = $classBaseline[$classSlug] ?? [5, 5, 5, 90, 30, 8];
-
-            $values = [
-                'mana_regen' => $manaRegen,
-                'stamina_regen' => $staminaRegen,
-                'agility' => $agility,
-                'accuracy' => $accuracy,
-                'critical_hit_bonus' => $critBonus,
-                'critical_luck' => $critLuck,
-            ];
-
-            if (isset($subclassOverrides[$subclass->name])) {
-                $values = array_merge($values, $subclassOverrides[$subclass->name]);
-            }
-
-            $subclass->update($values);
-        }
-
-        // Monster: agility & accuracy per monster (flavor based - makhluk gesit vs lambat)
         $monsterStats = [
             'Slime Api' => [5, 80],
             'Slime Air' => [5, 80],

@@ -105,9 +105,9 @@ export default function Show({ battle }) {
                             hp: p.current_hp, stamina: p.current_stamina, mana: p.current_mana, is_alive: p.is_alive,
                         };
                         const subclass = p.character.subclass;
-                        const maxHp = subclass?.game_class?.base_hp ?? live.hp;
-                        const maxStamina = subclass?.game_class?.base_stamina ?? live.stamina;
-                        const maxMana = subclass?.game_class?.base_mana ?? live.mana;
+                        const maxHp = subclass?.base_hp ?? live.hp;
+                        const maxStamina = subclass?.base_sp ?? live.stamina;
+                        const maxMana = subclass?.base_mp ?? live.mana;
 
                         return (
                             <div className="col-md-4" key={p.id}>
