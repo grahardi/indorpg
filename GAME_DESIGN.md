@@ -280,3 +280,37 @@ Sebelumnya Ultimate baru kena cooldown SETELAH dipakai pertama kali, jadi masih 
 ### Masih belum diselesaikan (butuh keputusan desain, sengaja belum saya ubah sepihak)
 - **Resource gak regen antar ronde** — sekali stamina/mana abis, karakter kejebak pakai skill termurah/gratis doang sampe battle selesai. Bisa ditambah regen kecil per-ronde kalau battle mulai kerasa monoton di late-game.
 - **2 pilihan Ultimate (fisik & magic) per subclass jadi gak ada bedanya secara build** — karena AI cuma pilih skill ber-multiplier tertinggi yang usable, bukan player yang milih sesuai gaya main. Kalau mau balikin makna "pilihan build", butuh salah satu dari: (a) UI buat player pre-set loadout 3 skill+1 ultimate sebelum battle (baru AI pilih dari situ aja, bukan dari 8 skill penuh), atau (b) AI dikasih preferensi/personality biar konsisten pilih 1 ultimate tertentu per karakter.
+
+---
+
+## 11. Secondary Stats (v2.3) — Regen, Evasion, Accuracy, Critical
+
+Ditambah biar battle lebih "smooth" dan gak cuma damage-race lurus. Semua di level **subclass** (karakter) dan **monster**.
+
+### Stat baru per subclass
+| Stat | Fungsi |
+|---|---|
+| `mana_regen` | MP pulih tiap awal ronde (dibatasi max pool dari GameClass) |
+| `stamina_regen` | SP pulih tiap awal ronde |
+| `agility` | % evasion — makin tinggi, makin sering musuh meleset nyerang karakter ini |
+| `accuracy` | % akurasi dasar nyerang — dikurangi `agility` musuh buat nentuin hit chance |
+| `critical_hit_bonus` | % bonus damage pas critical hit kena |
+| `critical_luck` | % chance critical hit kejadian tiap serangan |
+
+Baseline per class (Warrior/Tanker/Mage/Saint), dengan beberapa override flavor (Berserker crit_luck lebih tinggi, Aeromancer agility lebih tinggi karena elemen angin, Cleric mana_regen lebih tinggi, dst) — liat `SecondaryStatsSeeder`.
+
+### Stat baru per monster
+`agility` dan `accuracy` — sama fungsinya, dipakai buat hit-chance monster nyerang balik. Nilai per monster disesuaikan flavor (Kelelawar Gua/Harpy Muda gesit tinggi agility, Zombie Reyot/Golem Batu Kecil lambat rendah agility).
+
+### Formula Hit Chance
+```
+hitChance = clamp(100 + attacker.accuracy - 90 - defender.agility, 50, 99)
+roll 1-100 > hitChance => MELESET (0 damage)
+```
+Base accuracy 90 dipakai sebagai titik nol biar subclass/monster dengan accuracy persis 90 dan lawan agility 0 itu ~100% hit — makin tinggi agility lawan, makin gede kemungkinan meleset. Di-clamp 50-99% biar gak pernah "pasti kena" atau "pasti meleset" total.
+
+### Critical Hit
+Cuma berlaku buat **serangan karakter ke monster** (monster gak crit, biar gak berasa gak adil buat player). Roll `critical_luck`%, kalau kena, damage dikali `(1 + critical_hit_bonus/100)`.
+
+### Regen
+Dijalankan di **awal tiap ronde**, sebelum siapapun bertindak — HP gak regen (cuma lewat item/skill heal nanti), SP & MP aja.

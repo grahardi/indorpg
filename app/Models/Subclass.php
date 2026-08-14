@@ -16,6 +16,8 @@ class Subclass extends Model
         'description', 'flavor_bonus', 'avatar_path', 'full_body_path',
         'base_physical_damage', 'base_physical_defense',
         'base_magic_damage', 'base_magic_defense',
+        'mana_regen', 'stamina_regen', 'agility', 'accuracy',
+        'critical_hit_bonus', 'critical_luck',
     ];
 
     public function gameClass(): BelongsTo

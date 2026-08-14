@@ -14,6 +14,7 @@ class Monster extends Model
         'name', 'slug', 'level', 'type', 'element_id',
         'strong_against', 'weak_against',
         'hp', 'physical_damage', 'physical_defense', 'magic_damage', 'magic_defense',
+        'agility', 'accuracy',
         'exp_reward', 'min_party_level',
         'special_skill_name', 'special_skill_description',
         'description', 'avatar_path', 'full_body_path',

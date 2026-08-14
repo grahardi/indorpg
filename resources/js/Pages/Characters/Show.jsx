@@ -8,9 +8,44 @@ const CLASS_ACCENT = {
     saint: '#c9a24b',
 };
 
+function Bar({ current, max, color }) {
+    const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
+    return (
+        <div className="rpg-stat-track" style={{ height: 10 }}>
+            <div className="rpg-stat-fill" style={{ width: `${pct}%`, background: color }} />
+        </div>
+    );
+}
+
+function ResourceRow({ label, current, max, color }) {
+    return (
+        <div className="mb-3">
+            <div className="d-flex justify-content-between mb-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color }}>
+                <span style={{ fontWeight: 600 }}>{label}</span>
+                <span>{current} / {max}</span>
+            </div>
+            <Bar current={current} max={max} color={color} />
+        </div>
+    );
+}
+
+function StatCard({ label, value, color }) {
+    return (
+        <div className="col-6 col-md-4 col-lg-3">
+            <div className="rpg-card text-center h-100" style={{ '--accent': color, padding: '1.1rem 0.8rem' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.7rem', fontWeight: 700, color, lineHeight: 1 }}>
+                    {value}
+                </div>
+                <div className="rpg-power-type mt-2" style={{ fontSize: '0.85rem', lineHeight: 1.4 }}>{label}</div>
+            </div>
+        </div>
+    );
+}
+
 export default function Show({ character }) {
     const accent = CLASS_ACCENT[character.subclass?.game_class?.slug] ?? '#8890a4';
     const subclass = character.subclass;
+    const gameClass = subclass?.game_class;
 
     return (
         <Layout>
@@ -20,22 +55,22 @@ export default function Show({ character }) {
                     &larr; Roster
                 </Link>
 
-                <div className="d-flex align-items-center gap-3 mt-4 mb-4">
+                <div className="d-flex align-items-center gap-3 mt-4 mb-5">
                     {subclass?.avatar_path ? (
                         <img
                             src={subclass.avatar_path}
                             alt={character.name}
-                            style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${accent}` }}
+                            style={{ width: 76, height: 76, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}` }}
                         />
                     ) : (
-                        <div className="rpg-badge-hex" style={{ '--accent': accent, width: 64, height: 64, fontSize: '1.6rem' }}>
+                        <div className="rpg-badge-hex" style={{ '--accent': accent, width: 76, height: 76, fontSize: '1.9rem' }}>
                             {character.name.charAt(0)}
                         </div>
                     )}
                     <div>
-                        <h1 className="rpg-class-title mb-0" style={{ fontSize: '2rem' }}>{character.name}</h1>
-                        <p className="rpg-power-type mb-0">
-                            Level {character.level} &middot; {subclass?.name} &middot; {subclass?.game_class?.name}
+                        <h1 className="rpg-class-title mb-1" style={{ fontSize: '2.3rem' }}>{character.name}</h1>
+                        <p className="rpg-power-type mb-0" style={{ fontSize: '1rem', lineHeight: 1.6 }}>
+                            Level {character.level} &middot; {subclass?.name} &middot; {gameClass?.name}
                         </p>
                     </div>
                 </div>
@@ -43,7 +78,7 @@ export default function Show({ character }) {
                 <div className="row g-4 mb-5">
                     {subclass?.full_body_path && (
                         <div className="col-md-4">
-                            <div className="rpg-skill-group-title">Full View</div>
+                            <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Full View</div>
                             <img
                                 src={subclass.full_body_path}
                                 alt={subclass.name}
@@ -52,25 +87,41 @@ export default function Show({ character }) {
                         </div>
                     )}
                     <div className={subclass?.full_body_path ? 'col-md-8' : 'col-12'}>
-                        <div className="rpg-skill-group-title">Resource</div>
-                        <div className="rpg-card" style={{ '--accent': accent }}>
-                            {[
-                                ['HP', character.current_hp, '#b8433a'],
-                                ['Stamina', character.current_stamina, '#c98a3a'],
-                                ['Mana', character.current_mana, '#7269d1'],
-                            ].map(([label, val, color]) => (
-                                <div key={label} className="rpg-stat-row">
-                                    <div className="rpg-stat-label"><span>{label}</span><span>{val}</span></div>
-                                </div>
-                            ))}
-                            <p className="small text-secondary mt-2 mb-0">EXP: {character.exp}</p>
+                        <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Resource</div>
+                        <div className="rpg-card" style={{ '--accent': accent, padding: '1.5rem' }}>
+                            <ResourceRow label="HP" current={character.current_hp} max={gameClass?.base_hp ?? character.current_hp} color="#b8433a" />
+                            <ResourceRow label="SP (Stamina)" current={character.current_stamina} max={gameClass?.base_stamina ?? character.current_stamina} color="#c98a3a" />
+                            <ResourceRow label="MP (Mana)" current={character.current_mana} max={gameClass?.base_mana ?? character.current_mana} color="#7269d1" />
+                            <p className="mb-0 mt-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                                EXP: {character.exp}
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="rpg-skill-group-title">Skill Terbuka</div>
+                <div className="rpg-skill-group-title mb-3" style={{ fontSize: '0.85rem' }}>Base Stats</div>
+                <div className="row g-3 mb-5">
+                    <StatCard label="Base HP" value={gameClass?.base_hp} color="#b8433a" />
+                    <StatCard label="Base MP" value={gameClass?.base_mana} color="#7269d1" />
+                    <StatCard label="Base SP" value={gameClass?.base_stamina} color="#c98a3a" />
+                    <StatCard label="Physical Attack" value={subclass?.base_physical_damage} color="#b8433a" />
+                    <StatCard label="Physical Defense" value={subclass?.base_physical_defense} color="#c98a3a" />
+                    <StatCard label="Magic Attack" value={subclass?.base_magic_damage} color="#7269d1" />
+                    <StatCard label="Magic Defense" value={subclass?.base_magic_defense} color="#3f8c94" />
+                    <StatCard label="Mana Regen /ronde" value={subclass?.mana_regen} color="#7269d1" />
+                    <StatCard label="Stamina Regen /ronde" value={subclass?.stamina_regen} color="#c98a3a" />
+                    <StatCard label="Agility (Evasion)" value={`${subclass?.agility}%`} color="#3f8c94" />
+                    <StatCard label="Accuracy" value={`${subclass?.accuracy}%`} color="#c9a24b" />
+                    <StatCard label="Critical Hit" value={`+${subclass?.critical_hit_bonus}%`} color="#b8433a" />
+                    <StatCard label="Critical Luck" value={`${subclass?.critical_luck}%`} color="#c9a24b" />
+                </div>
+
+                <div className="rpg-skill-group-title mb-3" style={{ fontSize: '0.85rem' }}>Skill Terbuka</div>
                 {character.skills.length === 0 ? (
-                    <p className="text-secondary small">Belum ada skill yang di-assign ke karakter ini.</p>
+                    <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
+                        Belum ada skill yang di-assign ke karakter ini. Fitur assign skill per-karakter belum dibangun —
+                        battle sekarang otomatis pakai seluruh skill pool subclass.
+                    </p>
                 ) : (
                     <div className="row g-3">
                         {character.skills.map((s) => (
