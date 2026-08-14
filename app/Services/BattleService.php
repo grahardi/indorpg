@@ -290,7 +290,15 @@ class BattleService
         $expReward = $battle->monster->exp_reward;
 
         foreach ($battle->participants as $participant) {
-            $participant->character->increment('exp', $expReward);
+            $character = $participant->character;
+            $character->increment('exp', $expReward);
+            $character->increment('total_exp', $expReward);
+            $character->refresh();
+
+            if ($character->syncLevel()) {
+                $character->save();
+                $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}!");
+            }
         }
 
         $log[] = $this->snapshot($battle, "Party dapat {$expReward} EXP masing-masing karakter!");

@@ -457,3 +457,27 @@ Section baru "Loadout Battle" di `/characters/{id}` — cuma muncul editable bua
 
 ### Layout Battle — Monster Selalu Kelihatan
 Panel monster sekarang **sticky** (nempel di atas layar, di bawah nav) selama scroll — gak akan ilang dari pandangan pas scroll ke party/skill/log, di PC maupun mobile. Semua card di battle (party, monster) dibikin lebih compact (avatar lebih kecil, padding dikurangi, font-size diperkecil) biar muat rapi di layar sempit tanpa perlu scroll horizontal.
+
+---
+
+## 18. Filter Karakter, NPC "On Mission", & Sistem Level-Up (v3.5)
+
+### Filter visibilitas karakter
+- **Roster (`/characters`)**: sekarang cuma nampilin karakter **milik sendiri** (query `where('user_id', auth()->id())`). Halaman ini juga dipindah ke grup `auth` — gak masuk akal diakses kalau belum login karena isinya personal.
+- **Guild & Battle Select**: nampilin karakter **milik sendiri + semua NPC**, karakter milik pemain lain **disembunyikan sementara** (`where('user_id', auth()->id())->orWhere('is_npc', true)`).
+
+### NPC "On Mission" (random unavailable)
+Kolom baru `characters.busy_until` (nullable timestamp). Tiap buka Guild/Battle Select, NPC yang lagi gak busy punya **25% kemungkinan** ke-roll jadi "on mission" selama 3-15 menit acak (`RollsNpcAvailability` trait). NPC yang lagi busy:
+- Badge merah "Sedang Misi" di kartu pilihannya
+- Gak bisa diklik/dipilih (disabled di frontend)
+- Divalidasi juga di server (`ValidatesPartyOwnership::ensureNoBusyNpcInParty()`) — jaga-jaga ada yang coba submit NPC busy lewat request manual
+
+NPC yang udah busy dibiarkan gitu aja sampe `busy_until` lewat sendiri (gak di-roll ulang selama masih on mission).
+
+### Sistem Level-Up (akhirnya beneran naik level)
+Sebelumnya `character.level` statis dari awal bikin karakter, gak pernah naik walau EXP numpuk. Sekarang:
+- Kolom baru `characters.total_exp` — akumulasi EXP **seumur hidup**, gak pernah berkurang (beda dari `exp` yang bisa dipotong buat upgrade stat).
+- Formula: `totalExpRequiredForLevel(level) = round(100 * (level-1)^1.6)`. Level 2 = 100 XP, Level 3 = ~303 XP, Level 4 = ~580 XP, Level 5 = ~919 XP — **naik makin curam tiap level**, sesuai instruksi "semakin tinggi semakin susah".
+- Tiap menang battle: `exp` DAN `total_exp` sama-sama nambah dari `monster.exp_reward`. Abis itu `Character::syncLevel()` ngecek apakah `total_exp` udah lewatin threshold level berikutnya — kalau iya, level naik (bisa lompat lebih dari 1 level kalau EXP reward-nya gede banget), dicatat di battle log ("X naik ke Level Y!").
+- Monster level tinggi udah otomatis kasih EXP lebih banyak dari desain awal (Slime Api lv1 = 15 EXP, Golem Batu Kecil lv5 = 50 EXP, Harpy Muda lv6 = 60 EXP) — jadi "monster tingkat tinggi EXP gain banyak" udah otomatis kepenuhi dari data yang udah ada, gak perlu tuning tambahan.
+- Halaman karakter (`/characters/{id}`) sekarang nampilin progress bar "Menuju Level X" (total_exp saat ini vs threshold level berikutnya).

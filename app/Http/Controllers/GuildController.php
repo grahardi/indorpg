@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RollsNpcAvailability;
 use App\Http\Controllers\Concerns\ValidatesPartyOwnership;
 use App\Models\Character;
 use App\Models\Encounter;
@@ -14,13 +15,22 @@ use Inertia\Response;
 
 class GuildController extends Controller
 {
-    use ValidatesPartyOwnership;
+    use RollsNpcAvailability, ValidatesPartyOwnership;
 
     public function __construct(private BattleService $battleService) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $characters = Character::with(['subclass.gameClass', 'user'])->get();
+        // Sementara sembunyikan karakter milik pemain lain di Guild - cuma
+        // tampilin karakter sendiri + NPC (yang non-NPC punya orang lain gak
+        // ditampilkan dulu di tahap ini).
+        $characters = Character::with(['subclass.gameClass', 'user'])
+            ->where(function ($q) use ($request) {
+                $q->where('user_id', $request->user()->id)->orWhere('is_npc', true);
+            })
+            ->get();
+
+        $this->rollNpcAvailability($characters);
 
         return Inertia::render('Guild/Index', [
             'characters' => $characters,
@@ -40,6 +50,7 @@ class GuildController extends Controller
         ]);
 
         $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
+        $this->ensureNoBusyNpcInParty($data['character_ids']);
 
         session(['guild_party' => $data['character_ids']]);
 
@@ -58,6 +69,7 @@ class GuildController extends Controller
         ]);
 
         $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
+        $this->ensureNoBusyNpcInParty($data['character_ids']);
 
         $characters = Character::whereIn('id', $data['character_ids'])->get();
 

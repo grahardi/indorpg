@@ -14,7 +14,8 @@ export default function Select({ encounter, characters, preselected = [] }) {
         character_ids: preselected,
     });
 
-    function toggle(id) {
+    function toggle(id, isBusy) {
+        if (isBusy) return;
         setData('character_ids', data.character_ids.includes(id)
             ? data.character_ids.filter((c) => c !== id)
             : data.character_ids.length < 3 ? [...data.character_ids, id] : data.character_ids);
@@ -56,12 +57,13 @@ export default function Select({ encounter, characters, preselected = [] }) {
                         return (
                             <div className="col-md-4" key={c.id}>
                                 <div
-                                    onClick={() => toggle(c.id)}
+                                    onClick={() => toggle(c.id, c.is_busy)}
                                     className="rpg-card"
                                     style={{
                                         '--accent': accent,
-                                        cursor: 'pointer',
+                                        cursor: c.is_busy ? 'not-allowed' : 'pointer',
                                         outline: selected ? `2px solid ${accent}` : 'none',
+                                        opacity: c.is_busy ? 0.45 : 1,
                                     }}
                                 >
                                     <div className="d-flex align-items-center gap-2">
@@ -80,6 +82,9 @@ export default function Select({ encounter, characters, preselected = [] }) {
                                                 )}
                                                 {isMine && (
                                                     <span className="rpg-element-badge" style={{ '--accent': '#c9a24b', color: '#c9a24b', fontSize: '0.58rem' }}>Milikmu</span>
+                                                )}
+                                                {c.is_busy && (
+                                                    <span className="rpg-element-badge" style={{ '--accent': '#b8433a', color: '#b8433a', fontSize: '0.58rem' }}>Sedang Misi</span>
                                                 )}
                                             </div>
                                             <div className="rpg-power-type">Lv.{c.level} &middot; {c.subclass?.name}</div>

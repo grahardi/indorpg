@@ -73,6 +73,25 @@ function FifaStatBar({ label, value, max = 100, color, suffix = '', statKey, cha
     );
 }
 
+function LevelProgress({ character, accent }) {
+    const current = character.exp_for_current_level;
+    const next = character.exp_for_next_level;
+    const total = character.total_exp;
+    const pct = next > current ? Math.max(0, Math.min(100, ((total - current) / (next - current)) * 100)) : 100;
+
+    return (
+        <div style={{ maxWidth: 280 }}>
+            <div className="d-flex justify-content-between mb-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                <span>Menuju Level {character.level + 1}</span>
+                <span>{total} / {next} XP</span>
+            </div>
+            <div className="rpg-stat-track" style={{ height: 6 }}>
+                <div className="rpg-stat-fill" style={{ width: `${pct}%`, background: accent }} />
+            </div>
+        </div>
+    );
+}
+
 export default function Show({ character }) {
     const { props } = usePage();
     const accent = CLASS_ACCENT[character.subclass?.game_class?.slug] ?? '#8890a4';
@@ -110,9 +129,10 @@ export default function Show({ character }) {
                     )}
                     <div>
                         <h1 className="rpg-class-title mb-1" style={{ fontSize: '2.3rem' }}>{character.name}</h1>
-                        <p className="rpg-power-type mb-0" style={{ fontSize: '1rem', lineHeight: 1.6 }}>
+                        <p className="rpg-power-type mb-2" style={{ fontSize: '1rem', lineHeight: 1.6 }}>
                             Level {character.level} &middot; {subclass?.name} &middot; {subclass?.game_class?.name}
                         </p>
+                        <LevelProgress character={character} accent={accent} />
                     </div>
                 </div>
 
@@ -135,7 +155,7 @@ export default function Show({ character }) {
                             <ResourceRow label="SP (Stamina)" current={character.current_stamina} max={character.effective_base_sp} color="#c98a3a" />
                             <ResourceRow label="MP (Mana)" current={character.current_mana} max={character.effective_base_mp} color="#7269d1" />
                             <p className="mb-0 mt-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                                EXP: {character.exp}{isOwner && ' — klik tombol + di stat buat upgrade'}
+                                EXP (bisa dipakai upgrade): {character.exp}{isOwner && ' — klik tombol + di stat buat upgrade'}
                             </p>
                         </div>
 

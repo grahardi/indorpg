@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RollsNpcAvailability;
 use App\Http\Controllers\Concerns\ValidatesPartyOwnership;
 use App\Models\Battle;
 use App\Models\Character;
@@ -14,17 +15,24 @@ use Inertia\Response;
 
 class BattleController extends Controller
 {
-    use ValidatesPartyOwnership;
+    use RollsNpcAvailability, ValidatesPartyOwnership;
 
     public function __construct(private BattleService $battleService) {}
 
     /**
      * Halaman pilih 2-3 karakter buat lawan monster dari suatu encounter.
      */
-    public function select(Encounter $encounter): Response
+    public function select(Request $request, Encounter $encounter): Response
     {
         $encounter->load('monster');
-        $characters = Character::with(['subclass.gameClass', 'user'])->get();
+
+        $characters = Character::with(['subclass.gameClass', 'user'])
+            ->where(function ($q) use ($request) {
+                $q->where('user_id', $request->user()->id)->orWhere('is_npc', true);
+            })
+            ->get();
+
+        $this->rollNpcAvailability($characters);
 
         return Inertia::render('Battle/Select', [
             'encounter' => $encounter,
@@ -41,6 +49,7 @@ class BattleController extends Controller
         ]);
 
         $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
+        $this->ensureNoBusyNpcInParty($data['character_ids']);
 
         $battle = $this->battleService->startBattle($encounter, $data['character_ids']);
 

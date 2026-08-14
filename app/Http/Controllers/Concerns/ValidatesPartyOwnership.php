@@ -25,4 +25,23 @@ trait ValidatesPartyOwnership
             ]);
         }
     }
+
+    /**
+     * Pastikan gak ada NPC yang lagi "on mission" (busy_until masih di masa depan)
+     * ikut kepilih di party - jaga-jaga request curang di luar UI normal.
+     */
+    protected function ensureNoBusyNpcInParty(array $characterIds): void
+    {
+        $busy = Character::whereIn('id', $characterIds)
+            ->where('is_npc', true)
+            ->whereNotNull('busy_until')
+            ->where('busy_until', '>', now())
+            ->exists();
+
+        if ($busy) {
+            throw ValidationException::withMessages([
+                'character_ids' => 'Ada NPC di party yang lagi on mission, gak bisa dipilih sekarang.',
+            ]);
+        }
+    }
 }

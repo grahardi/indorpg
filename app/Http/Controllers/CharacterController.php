@@ -11,9 +11,10 @@ use Inertia\Response;
 
 class CharacterController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $characters = Character::with(['subclass.gameClass', 'subclass.element', 'user'])
+            ->where('user_id', $request->user()?->id)
             ->latest()
             ->get();
 
