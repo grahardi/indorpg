@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             ElementSeeder::class,
             SubclassSeeder::class,
             SkillSeeder::class,
+            CombatRangeSeeder::class,
             MonsterSeeder::class,
             MapSeeder::class,
         ]);

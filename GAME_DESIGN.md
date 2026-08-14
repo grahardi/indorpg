@@ -191,3 +191,45 @@ Slime Api, Slime Air, Tikus Raksasa, Kelelawar Gua, Bandit Pemula, Laba-laba Ber
 - Battle system beneran — `explore()` sekarang cuma nge-roll monster dan nampilin hasilnya, belum lempar ke battle screen.
 - EXP/reward belum kepotong ke karakter (karena battle belum ada).
 - Level scaling: monster levelnya masih fix dari seeder, belum random dalam suatu range.
+
+---
+
+## 9. Battle Engine (v1)
+
+### Alur
+1. `spawn_point.explore()` roll monster (sistem lama) -> bikin `Encounter` (status pending).
+2. Player buka `/encounters/{id}/select` -> pilih 2-3 karakter dari roster.
+3. `BattleService::startBattle()` -> bikin `Battle` + snapshot `BattleParticipant` per karakter
+   (HP/stamina/mana disalin dari karakter saat battle dimulai, biar battle gak ganggu state
+   asli karakter kalau di-refresh/reload).
+4. Layar battle (`/battles/{id}`): tiap karakter hidup pilih 1 skill dari skill pool subclass-nya,
+   klik "Jalankan Ronde" -> submit semua aksi sekaligus.
+5. `BattleService::resolveRound()`:
+   - Tiap karakter hidup (urut) pakai skill -> hitung damage -> potong HP monster.
+   - Kalau monster masih hidup setelah semua karakter jalan -> monster balas 1 karakter hidup
+     acak dengan physical/magic attack (pilih yang stat-nya lebih tinggi).
+   - Cek menang (monster HP 0) / kalah (semua karakter is_alive=false) / lanjut ronde berikutnya.
+   - Menang -> `spawn_point.last_defeated_at` di-set (mulai cooldown), `encounter` jadi won,
+     tiap karakter dapat full `exp_reward` dari monster.
+
+### Damage Formula
+```
+raw = offense_stat * skill.base_multiplier
+mitigated = max(raw - defense_stat * 0.5, raw * 0.1)   // minimal 10% chip damage tetap masuk
+pattern = "{skill.combat_range}_{skill.scaling_stat}"    // e.g. close_physical
+if pattern == monster.weak_against:   mitigated *= 1.5   // "(Efektif!)"
+if pattern == monster.strong_against: mitigated *= 0.5   // "(Kurang efektif...)"
+damage = round(mitigated), minimal 1
+```
+Monster nyerang balik pakai formula yang sama tapi tanpa skill (base stat monster vs defense stat subclass karakter), gak ada pattern matching (monster gak "strong/weak lawan" pola serangan player, cuma sebaliknya).
+
+### combat_range di Skill
+Kolom baru `skills.combat_range` (close/range/area) di-backfill otomatis dari nama skill pakai keyword matching (`CombatRangeSeeder`) — bukan diklasifikasi manual satu-satu. Kalau ada yang salah klasifikasi, tinggal edit langsung row-nya atau tambah keyword baru di seeder lalu re-run.
+
+### Simplifikasi v1 (belum akurat/lengkap)
+- **Skill pool per battle** = seluruh skill subclass karakter (bukan 3 skill+1 ultimate yang "dipilih" sesuai konsep awal) — karena fitur assign/pilih loadout ke karakter belum dibangun.
+- **Special skill monster** (regen HP, poison, dst) belum ada efeknya sama sekali di battle — kolom `special_skill_name/description` masih flavor text doang.
+- **Stamina/mana** dipotong tapi gak ada validasi cukup/enggak — kalau minus, di-clamp ke 0, skill tetap jalan tanpa penalti.
+- **EXP** dikasih full ke semua karakter yang ikut battle (bukan dibagi), belum ada level-up logic (exp numpuk doang di kolom `characters.exp`, belum ada threshold naik level).
+- **Turn order** simplistic: semua karakter jalan duluan tiap ronde (gak ada speed stat), baru monster.
+- **Party bisa "Kabur"** kapan aja tanpa penalti apapun.

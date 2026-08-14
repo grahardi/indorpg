@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BattleController;
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\GameDataController;
 use App\Http\Controllers\MapController;
@@ -17,6 +18,12 @@ Route::get('/monsters/{monster}', [MonsterController::class, 'show'])->name('mon
 Route::get('/maps', [MapController::class, 'index'])->name('maps.index');
 Route::get('/maps/{map}', [MapController::class, 'show'])->name('maps.show');
 Route::post('/spawn-points/{spawnPoint}/explore', [MapController::class, 'explore'])->name('spawn-points.explore');
+
+Route::get('/encounters/{encounter}/select', [BattleController::class, 'select'])->name('encounters.select');
+Route::post('/encounters/{encounter}/start', [BattleController::class, 'start'])->name('encounters.start');
+Route::get('/battles/{battle}', [BattleController::class, 'show'])->name('battles.show');
+Route::post('/battles/{battle}/action', [BattleController::class, 'action'])->name('battles.action');
+Route::post('/battles/{battle}/flee', [BattleController::class, 'flee'])->name('battles.flee');
 
 Route::get('/characters', [CharacterController::class, 'index'])->name('characters.index');
 Route::get('/characters/create', [CharacterController::class, 'create'])->name('characters.create');

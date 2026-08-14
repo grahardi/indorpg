@@ -49,8 +49,8 @@ export default function Show({ map, spawnPoints }) {
                                         Lv.{result.monster.level} &middot; {result.monster.type} &middot; HP {result.monster.hp}
                                     </div>
                                 </div>
-                                <Link href={route('monsters.show', result.monster.id)} className="rpg-back-link ms-auto">
-                                    Lihat Detail
+                                <Link href={route('encounters.select', result.encounter_id)} className="rpg-back-link ms-auto">
+                                    Mulai Battle
                                 </Link>
                             </div>
                         ) : (
