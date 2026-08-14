@@ -35,28 +35,37 @@ function ResourceRow({ label, current, max, color }) {
     );
 }
 
-// Model "FIFA card" - label kiri, bar horizontal isi proporsional, angka kanan.
-// Kalau `statKey` dikasih dan karakter ini milik user yang login, muncul tombol "+".
-function FifaStatBar({ label, value, totalValue, max = 100, color, suffix = '', statKey, character, isOwner, upgrading, onUpgrade }) {
-    const pct = Math.max(0, Math.min(100, (value / max) * 100));
+// Bar gabungan: segmen "base" (warna utama) + segmen "bonus" (emas) dalam 1 bar,
+// angka format "base + bonus = total". Kalau statKey gak dikasih (stat auto tanpa
+// bonus, misal Base HP/Regen), tampil bar polos + angka tunggal.
+function StatBar({ label, baseValue, max = 100, color, suffix = '', statKey, character, isOwner, upgrading, onUpgrade }) {
     const bonusValue = statKey ? (character[`bonus_${statKey}`] ?? 0) : 0;
+    const total = baseValue + bonusValue;
+    const basePct = Math.max(0, Math.min(100, (baseValue / max) * 100));
+    const bonusPct = Math.max(0, Math.min(100 - basePct, (bonusValue / max) * 100));
     const cost = statKey ? (bonusValue + 1) * UPGRADE_MULTIPLIER[statKey] : 0;
     const canAfford = statKey && character.exp >= cost;
+    const bonusColor = '#c9a24b';
 
     return (
         <div className="d-flex align-items-center gap-3 mb-3">
-            <div style={{ width: 170, fontSize: '0.95rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{label}</div>
-            <div className="flex-grow-1 rpg-stat-track" style={{ height: 12 }}>
-                <div className="rpg-stat-fill" style={{ width: `${pct}%`, background: color }} />
+            <div style={{ width: 150, fontSize: '0.92rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{label}</div>
+            <div className="flex-grow-1 rpg-stat-track" style={{ height: 12, display: 'flex', overflow: 'hidden' }}>
+                <div style={{ width: `${basePct}%`, background: color }} />
+                {bonusValue > 0 && <div style={{ width: `${bonusPct}%`, background: bonusColor }} />}
             </div>
-            <div style={{ width: 90, textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1.05rem', color }}>
-                    {value}{suffix}
-                </div>
-                {totalValue !== undefined && (
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                        Total: {totalValue}{suffix}
-                    </div>
+            <div
+                style={{
+                    width: bonusValue > 0 ? 118 : 60, textAlign: 'right', flexShrink: 0,
+                    fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: bonusValue > 0 ? '0.85rem' : '1.05rem', color,
+                }}
+            >
+                {bonusValue > 0 ? (
+                    <>
+                        {baseValue} <span style={{ color: bonusColor }}>+{bonusValue}</span> = {total}{suffix}
+                    </>
+                ) : (
+                    <>{total}{suffix}</>
                 )}
             </div>
             {statKey && isOwner && (
@@ -68,8 +77,8 @@ function FifaStatBar({ label, value, totalValue, max = 100, color, suffix = '', 
                     style={{
                         width: 30, height: 30, padding: 0, flexShrink: 0,
                         background: canAfford ? 'var(--bg-panel-hover)' : 'transparent',
-                        border: `1px solid ${canAfford ? color : 'var(--border-subtle)'}`,
-                        color: canAfford ? color : 'var(--text-muted)',
+                        border: `1px solid ${canAfford ? bonusColor : 'var(--border-subtle)'}`,
+                        color: canAfford ? bonusColor : 'var(--text-muted)',
                         borderRadius: 6, fontSize: '0.9rem', lineHeight: 1,
                     }}
                 >
@@ -166,57 +175,48 @@ export default function Show({ character }) {
                             </p>
                         </div>
 
-                        {/* Base Stats - naik otomatis dari level, GAK bisa di-upgrade manual */}
-                        <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Base Stats</div>
-                        <p className="text-secondary small mb-2">Naik otomatis tiap level, sesuai profil {subclass?.name} — stat yang tinggi naik cepat, yang rendah naik lambat.</p>
-                        <div className="rpg-card mb-4" style={{ '--accent': accent, padding: '1.5rem' }}>
-                            <FifaStatBar label="Base HP" value={character.effective_base_hp} max={150} color="#b8433a" />
-                            <FifaStatBar label="Base MP" value={character.effective_base_mp} max={150} color="#7269d1" />
-                            <FifaStatBar label="Base SP" value={character.effective_base_sp} max={150} color="#c98a3a" />
-                            <FifaStatBar label="Physical Attack" value={character.leveled_physical_damage} max={100} color="#b8433a" />
-                            <FifaStatBar label="Physical Defense" value={character.leveled_physical_defense} max={100} color="#c98a3a" />
-                            <FifaStatBar label="Magic Attack" value={character.leveled_magic_damage} max={100} color="#7269d1" />
-                            <FifaStatBar label="Magic Defense" value={character.leveled_magic_defense} max={100} color="#3f8c94" />
-                            <FifaStatBar label="Mana Regeneration" value={character.effective_mana_regen} max={20} color="#7269d1" />
-                            <FifaStatBar label="Stamina Regeneration" value={character.effective_stamina_regen} max={20} color="#c98a3a" />
-                        </div>
-
-                        {/* Bonus Stats - hasil upgrade pakai EXP. Total di battle = Base Stats + Bonus ini. */}
-                        <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Bonus Stats</div>
+                        {/* Stats gabungan - base (naik otomatis dari level) + bonus (upgrade EXP) dalam 1 bar */}
+                        <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Stats</div>
                         <p className="text-secondary small mb-2">
-                            Ditambah pakai EXP (klik +). Total dipakai di battle = Base Stats + Bonus.
+                            Physical/Magic Attack &amp; Defense naik otomatis tiap level (sesuai profil {subclass?.name}).
+                            Semua stat bisa ditambah lagi pakai EXP (klik +) — bar emas nunjukkin bagian dari upgrade.
                         </p>
                         <div className="rpg-card" style={{ '--accent': accent, padding: '1.5rem' }}>
-                            <FifaStatBar
-                                label="Bonus Physical Attack" value={character.bonus_physical_damage} totalValue={character.effective_physical_damage} max={50} color="#b8433a"
+                            <StatBar label="Base HP" baseValue={character.effective_base_hp} max={150} color="#b8433a" character={character} />
+                            <StatBar label="Base MP" baseValue={character.effective_base_mp} max={150} color="#7269d1" character={character} />
+                            <StatBar label="Base SP" baseValue={character.effective_base_sp} max={150} color="#c98a3a" character={character} />
+                            <StatBar
+                                label="Physical Attack" baseValue={character.effective_physical_damage - character.bonus_physical_damage} max={80} color="#b8433a"
                                 statKey="physical_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
-                            <FifaStatBar
-                                label="Bonus Physical Defense" value={character.bonus_physical_defense} totalValue={character.effective_physical_defense} max={50} color="#c98a3a"
+                            <StatBar
+                                label="Physical Defense" baseValue={character.effective_physical_defense - character.bonus_physical_defense} max={80} color="#c98a3a"
                                 statKey="physical_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
-                            <FifaStatBar
-                                label="Bonus Magic Attack" value={character.bonus_magic_damage} totalValue={character.effective_magic_damage} max={50} color="#7269d1"
+                            <StatBar
+                                label="Magic Attack" baseValue={character.effective_magic_damage - character.bonus_magic_damage} max={80} color="#7269d1"
                                 statKey="magic_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
-                            <FifaStatBar
-                                label="Bonus Magic Defense" value={character.bonus_magic_defense} totalValue={character.effective_magic_defense} max={50} color="#3f8c94"
+                            <StatBar
+                                label="Magic Defense" baseValue={character.effective_magic_defense - character.bonus_magic_defense} max={80} color="#3f8c94"
                                 statKey="magic_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
-                            <FifaStatBar
-                                label="Bonus Agility" value={character.bonus_agility} totalValue={character.effective_agility} max={50} color="#3f8c94"
+                            <StatBar label="Mana Regeneration" baseValue={character.effective_mana_regen} max={20} color="#7269d1" character={character} />
+                            <StatBar label="Stamina Regeneration" baseValue={character.effective_stamina_regen} max={20} color="#c98a3a" character={character} />
+                            <StatBar
+                                label="Agility" baseValue={character.effective_agility - character.bonus_agility} max={80} color="#3f8c94"
                                 statKey="agility" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
-                            <FifaStatBar
-                                label="Bonus Evasion" value={character.bonus_evasion} totalValue={character.effective_evasion} max={50} color="#3f8c94"
+                            <StatBar
+                                label="Evasion" baseValue={character.effective_evasion - character.bonus_evasion} max={80} color="#3f8c94"
                                 statKey="evasion" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
-                            <FifaStatBar
-                                label="Bonus Critical Hit" value={character.bonus_critical_hit} totalValue={character.effective_critical_hit} max={50} color="#c9a24b" suffix="%"
+                            <StatBar
+                                label="Critical Hit" baseValue={character.effective_critical_hit - character.bonus_critical_hit} max={60} color="#c9a24b" suffix="%"
                                 statKey="critical_hit" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
-                            <FifaStatBar
-                                label="Bonus Critical Luck" value={character.bonus_critical_luck} totalValue={character.effective_critical_luck} max={50} color="#c9a24b" suffix="%"
+                            <StatBar
+                                label="Critical Luck" baseValue={character.effective_critical_luck - character.bonus_critical_luck} max={60} color="#c9a24b" suffix="%"
                                 statKey="critical_luck" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                         </div>
