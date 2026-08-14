@@ -11,7 +11,7 @@ const CLASS_ACCENT = {
 
 function ImageUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect }) {
     const inputRef = useRef(null);
-    const { setData, post, progress, errors } = useForm({ [fieldName]: null });
+    const { setData, progress, errors } = useForm({ [fieldName]: null });
 
     function handleFile(file) {
         if (!file) return;
@@ -22,6 +22,11 @@ function ImageUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect
         });
     }
 
+    function openPicker(e) {
+        e.stopPropagation();
+        inputRef.current?.click();
+    }
+
     return (
         <div>
             <div className="rpg-skill-group-title d-flex justify-content-between">
@@ -29,26 +34,61 @@ function ImageUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect
                 <span style={{ color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>{spec}</span>
             </div>
             <div
-                onClick={() => inputRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                     e.preventDefault();
                     handleFile(e.dataTransfer.files[0]);
                 }}
                 style={{
+                    position: 'relative',
                     aspectRatio: aspect,
                     background: currentUrl ? `#000 url(${currentUrl}) center/cover no-repeat` : 'var(--bg-panel)',
-                    border: '1px dashed var(--border-subtle)',
+                    border: currentUrl ? '1px solid var(--border-subtle)' : '1px dashed var(--border-subtle)',
                     borderRadius: 10,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.8rem',
+                    overflow: 'hidden',
                 }}
             >
-                {!currentUrl && <span>Klik atau drop gambar di sini</span>}
+                {!currentUrl && (
+                    <div
+                        onClick={openPicker}
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                            fontSize: '0.8rem',
+                        }}
+                    >
+                        Klik atau drop gambar di sini
+                    </div>
+                )}
+                {currentUrl && (
+                    <button
+                        type="button"
+                        onClick={openPicker}
+                        className="btn btn-sm"
+                        style={{
+                            position: 'absolute',
+                            bottom: 10,
+                            right: 10,
+                            background: 'rgba(11,12,18,0.85)',
+                            border: '1px solid var(--border-subtle)',
+                            color: 'var(--text-primary)',
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.72rem',
+                            padding: '5px 12px',
+                            borderRadius: 6,
+                        }}
+                    >
+                        ✎ Ganti Gambar
+                    </button>
+                )}
             </div>
             <input
                 ref={inputRef}
