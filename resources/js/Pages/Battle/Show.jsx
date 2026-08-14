@@ -304,7 +304,7 @@ export default function Show({ battle }) {
                 </div>
 
                 {/* Grid: [Party B | Party C | Monster] baris atas, [KAMU | Battle Log (ngelebar)] baris bawah.
-                    Responsive natural (gak sticky) - battle log udah auto-scroll sendiri ke baris terbaru. */}
+                    Responsive natural (gak sticky) - Battle Log tinggi fix, scroll internal, auto-scroll ke baris terbaru. */}
                 <div className="battle-grid">
                     <div style={{ gridArea: 'partyB' }}>{otherParticipants[0] && renderPartyCard(otherParticipants[0], false)}</div>
                     <div style={{ gridArea: 'partyC' }}>{otherParticipants[1] && renderPartyCard(otherParticipants[1], false)}</div>
@@ -340,7 +340,7 @@ export default function Show({ battle }) {
 
                     <div style={{ gridArea: 'log' }}>
                         <div className="rpg-skill-group-title">Battle Log</div>
-                        <div className="rpg-card" style={{ '--accent': '#8890a4', fontSize: '0.85rem' }}>
+                        <div className="rpg-card" style={{ '--accent': '#8890a4', fontSize: '0.85rem', height: 300, overflowY: 'auto' }}>
                             {visibleLog.map((entry, i) => (
                                 <p key={i} className="mb-1" style={{ color: logLineColor(entry.text) }}>{entry.text}</p>
                             ))}
