@@ -21,10 +21,9 @@ function patternLabel(pattern) {
     return `${rangeLabel} · ${dmgLabel}`;
 }
 
-function ArtUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect, accent }) {
+function ArtUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect, background }) {
     const inputRef = useRef(null);
     const { setData, progress, errors } = useForm({ [fieldName]: null });
-    const background = `radial-gradient(circle at 50% 30%, ${accent}2e, var(--bg-panel) 75%)`;
 
     function handleFile(file) {
         if (!file) return;
@@ -81,8 +80,13 @@ function ArtUploadSlot({ label, spec, currentUrl, fieldName, uploadUrl, aspect, 
     );
 }
 
-export default function Show({ monster }) {
+export default function Show({ monster, mapName }) {
     const accent = TYPE_ACCENT[monster.type] ?? '#8890a4';
+
+    const theme = mapName?.includes('Reruntuhan') ? 'ruins' : mapName?.includes('Hutan') ? 'forest' : null;
+    const fallbackBg = `radial-gradient(circle at 50% 30%, ${accent}2e, var(--bg-panel) 75%)`;
+    const avatarBackground = theme ? `url('/images/monsters/backgrounds/${theme}-avatar-bg.jpg') center/cover no-repeat` : fallbackBg;
+    const fullViewBackground = theme ? `url('/images/monsters/backgrounds/${theme}-fullview-bg.jpg') center/cover no-repeat` : fallbackBg;
 
     return (
         <Layout>
@@ -123,7 +127,7 @@ export default function Show({ monster }) {
                         fieldName="full_body"
                         uploadUrl={route('monsters.fullbody', monster.id)}
                         aspect="1 / 1"
-                        accent={accent}
+                        background={fullViewBackground}
                     />
                 </div>
 
@@ -178,7 +182,7 @@ export default function Show({ monster }) {
                             fieldName="avatar"
                             uploadUrl={route('monsters.avatar', monster.id)}
                             aspect="1 / 1"
-                            accent={accent}
+                            background={avatarBackground}
                         />
                     </div>
                     <div className="col-md-8">

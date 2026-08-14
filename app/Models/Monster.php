@@ -31,4 +31,11 @@ class Monster extends Model
     {
         return $this->belongsTo(Element::class);
     }
+
+    public function spawnPoints(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(SpawnPoint::class, 'spawn_point_monster')
+            ->withPivot('weight')
+            ->withTimestamps();
+    }
 }

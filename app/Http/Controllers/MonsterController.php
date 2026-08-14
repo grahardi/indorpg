@@ -25,10 +25,13 @@ class MonsterController extends Controller
 
     public function show(Monster $monster): Response
     {
-        $monster->load('element');
+        $monster->load(['element', 'spawnPoints.map']);
+
+        $mapName = $monster->spawnPoints->first()?->map?->name;
 
         return Inertia::render('Monsters/Show', [
             'monster' => $monster,
+            'mapName' => $mapName,
         ]);
     }
 
