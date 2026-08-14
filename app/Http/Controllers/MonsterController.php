@@ -54,13 +54,18 @@ class MonsterController extends Controller
         return back();
     }
 
+    /**
+     * Upload full view monster. Beda dari karakter/subclass (portrait 1:2),
+     * monster pakai 1:1 (square) dengan monster di tengah frame, karena
+     * banyak monster (slime, laba-laba, dll) gak cocok framing tinggi.
+     */
     public function uploadFullBody(Request $request, Monster $monster): RedirectResponse
     {
         $request->validate([
             'full_body' => ['required', 'image', 'max:10240', 'dimensions:min_width=100,min_height=100'],
         ]);
 
-        $binary = ImageResizer::coverResizePng($request->file('full_body')->getRealPath(), 512, 1024, 'bottom');
+        $binary = ImageResizer::coverResizePng($request->file('full_body')->getRealPath(), 512, 512, 'center');
 
         $filename = $monster->slug.'-fullbody.png';
         $relativePath = 'images/monsters/'.$filename;

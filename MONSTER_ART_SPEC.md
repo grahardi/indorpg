@@ -17,9 +17,9 @@ Cara aman:
 
 ## Spesifikasi Ukuran
 
-Sama kayak subclass:
+Beda dari subclass/karakter (portrait 1:2), monster pakai:
 - **Avatar**: 256×256, crop dari kepala/wajah ke atas (buat bestiary card & badge)
-- **Full Body**: 512×1024, anchor bawah (telapak kaki/dasar tubuh gak boleh kepotong)
+- **Full View**: 512×512 (1:1, bukan 1:2), monster di tengah frame — karena banyak monster (slime, laba-laba, dll) gak cocok framing tinggi ala karakter humanoid.
 
 ## Style Guide (konsisten dengan subclass yang udah ada)
 
@@ -140,7 +140,7 @@ Digital painting semi-realistic fantasy, sapuan kuas kelihatan (painterly, bukan
 1. Copy prompt salah satu monster di atas ke image generator favorit lo (Gemini, Midjourney, dll).
 2. Generate 2 versi: satu buat **avatar** (framing close-up/bust), satu lagi **full body** (framing seluruh badan, pose lebih dinamis).
 3. Kalau hasilnya background checkerboard/abu-abu (bukan transparent asli), upload ke saya — saya proses jadi transparent PNG.
-4. Atau langsung upload lewat halaman `/monsters/{id}` di web — sistem bakal auto crop+resize ke 256×256 / 512×1024.
+4. Atau langsung upload lewat halaman `/monsters/{id}` di web — sistem bakal auto crop+resize ke 256×256 (avatar) / 512×512 (full view).
 
 ---
 
@@ -156,16 +156,16 @@ Background ini **BUKAN** gambar karakter (jangan minta AI gambar monsternya di s
 ### Tema Hutan (avatar — framing dekat/bokeh)
 > Blurred bokeh forest atmosphere, soft dappled sunlight filtering through dense green leaves, warm golden-green tones, shallow depth of field, no characters or creatures, atmospheric fantasy background art, no text, no watermark
 
-### Tema Hutan (full body — framing lebih luas)
+### Tema Hutan (full view — framing lebih luas, tetap akan di-crop 1:1)
 > Wide fantasy forest clearing, tall ancient trees with mossy roots, soft sunbeams breaking through the canopy, dirt path scattered with fallen leaves, misty and serene atmosphere, no characters or creatures, atmospheric fantasy background art, vertical composition, no text, no watermark
 
 ### Tema Reruntuhan (avatar — framing dekat/bokeh)
 > Blurred bokeh ancient ruins atmosphere, weathered stone carvings, moss-covered broken pillars, dim golden light rays through cracks, shallow depth of field, no characters or creatures, atmospheric dark fantasy background art, no text, no watermark
 
-### Tema Reruntuhan (full body — framing lebih luas)
+### Tema Reruntuhan (full view — framing lebih luas, tetap akan di-crop 1:1)
 > Wide ancient temple ruins interior, crumbling stone pillars covered in moss and vines, cracked floor tiles, dim shafts of light piercing through a collapsed roof, dust particles in the air, eerie and abandoned atmosphere, no characters or creatures, atmospheric dark fantasy background art, vertical composition, no text, no watermark
 
 ### Catatan
 - Background gak perlu transparent — ini justru harus **opaque penuh** (dia lapisan paling belakang, monster transparan ditaruh di atasnya).
-- Setelah digenerate, kirim ke saya biar saya proses jadi ukuran yang pas (256×256 buat avatar-bg, 512×1024 buat fullbody-bg) dan saya sambungkan ke sistem — sekarang avatar/full body monster masih pakai warna solid sementara, sama kayak yang tadinya dipakai avatar subclass sebelum lo kasih background beneran.
+- Setelah digenerate, kirim ke saya biar saya proses jadi ukuran yang pas (256×256 buat avatar-bg, 512×512 buat fullbody-bg) dan saya sambungkan ke sistem — sekarang avatar/full body monster masih pakai warna solid sementara, sama kayak yang tadinya dipakai avatar subclass sebelum lo kasih background beneran.
 

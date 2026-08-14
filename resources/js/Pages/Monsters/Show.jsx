@@ -114,29 +114,17 @@ export default function Show({ monster }) {
                 </div>
                 <p className="rpg-class-desc mt-3">{monster.description}</p>
 
-                <div className="row g-4 my-4">
-                    <div className="col-md-4">
-                        <ArtUploadSlot
-                            label="Avatar"
-                            spec="256×256"
-                            currentUrl={monster.avatar_path}
-                            fieldName="avatar"
-                            uploadUrl={route('monsters.avatar', monster.id)}
-                            aspect="1 / 1"
-                            accent={accent}
-                        />
-                    </div>
-                    <div className="col-md-4">
-                        <ArtUploadSlot
-                            label="Full Body"
-                            spec="512×1024"
-                            currentUrl={monster.full_body_path}
-                            fieldName="full_body"
-                            uploadUrl={route('monsters.fullbody', monster.id)}
-                            aspect="1 / 2"
-                            accent={accent}
-                        />
-                    </div>
+                {/* Full View - 1:1, monster di tengah frame */}
+                <div className="mx-auto my-4" style={{ maxWidth: 360 }}>
+                    <ArtUploadSlot
+                        label="Full View"
+                        spec="512×512"
+                        currentUrl={monster.full_body_path}
+                        fieldName="full_body"
+                        uploadUrl={route('monsters.fullbody', monster.id)}
+                        aspect="1 / 1"
+                        accent={accent}
+                    />
                 </div>
 
                 <div className="row g-3 my-4">
@@ -180,20 +168,41 @@ export default function Show({ monster }) {
                     </div>
                 </div>
 
-                {monster.special_skill_name && (
-                    <div className="rpg-skill-card is-ultimate mb-4">
-                        <div
-                            className="rpg-skill-icon d-flex align-items-center justify-content-center"
-                            style={{ background: 'var(--bg-panel-hover)', color: accent, fontFamily: 'var(--font-display)' }}
-                        >
-                            ★
-                        </div>
-                        <div>
-                            <div className="rpg-skill-name">{monster.special_skill_name}</div>
-                            <p className="rpg-skill-desc mb-0">{monster.special_skill_description}</p>
-                        </div>
+                {/* Avatar bersebelahan dengan Special Skill */}
+                <div className="row g-4 align-items-stretch mb-4">
+                    <div className="col-md-4">
+                        <ArtUploadSlot
+                            label="Avatar"
+                            spec="256×256"
+                            currentUrl={monster.avatar_path}
+                            fieldName="avatar"
+                            uploadUrl={route('monsters.avatar', monster.id)}
+                            aspect="1 / 1"
+                            accent={accent}
+                        />
                     </div>
-                )}
+                    <div className="col-md-8">
+                        <div className="rpg-skill-group-title">Special Skill</div>
+                        {monster.special_skill_name ? (
+                            <div className="rpg-skill-card is-ultimate h-100">
+                                <div
+                                    className="rpg-skill-icon d-flex align-items-center justify-content-center"
+                                    style={{ background: 'var(--bg-panel-hover)', color: accent, fontFamily: 'var(--font-display)' }}
+                                >
+                                    ★
+                                </div>
+                                <div>
+                                    <div className="rpg-skill-name">{monster.special_skill_name}</div>
+                                    <p className="rpg-skill-desc mb-0">{monster.special_skill_description}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="rpg-card h-100 d-flex align-items-center justify-content-center text-secondary" style={{ '--accent': '#5b6178' }}>
+                                Monster ini gak punya special skill.
+                            </div>
+                        )}
+                    </div>
+                </div>
 
                 <p className="rpg-loadout-note" style={{ '--accent': accent, borderColor: accent }}>
                     Disarankan melawan monster ini dengan party level {monster.min_party_level}+ (pilih 2-3 karakter).
