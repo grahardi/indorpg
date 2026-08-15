@@ -270,22 +270,7 @@ body {
     margin: 1.5rem 0 2rem;
 }
 
-/* ---- Battle layout ----
-   Baris atas (party lain + monster): auto-fit, browser yang atur reflow-nya
-   sendiri sesuai lebar layar - gak gantung ke breakpoint pixel yang bisa
-   ketinggalan/gak kepake kalau CSS lama ke-cache.
-   Baris bawah (KAMU + Battle Log): kolom tetap 116px + sisa ruang, karena
-   selalu muat berdampingan di layar HP manapun (>=320px). */
-.battle-top-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.battle-bottom-row {
-    display: grid;
-    grid-template-columns: 116px 1fr;
-    gap: 0.5rem;
-    align-items: start;
-}
+/* ---- Battle arena scene ----
+   Layout lama (card grid) diganti scene arena background+full body di
+   Battle/Show.jsx - style-nya inline (posisi persen dinamis per jumlah party),
+   gak butuh class terpisah di sini lagi. */

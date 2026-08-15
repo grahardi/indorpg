@@ -71,10 +71,16 @@ class BattleController extends Controller
             $battle->update(['viewed_at' => now()]);
         }
 
-        $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'monster.element']);
+        $battle->load([
+            'participants.character.subclass.gameClass',
+            'participants.character.subclass.skills',
+            'monster.element',
+            'monster.spawnPoints.map',
+        ]);
 
         return Inertia::render('Battle/Show', [
             'battle' => $battle,
+            'battleBackground' => $battle->monster->battleBackgroundPath(),
         ]);
     }
 

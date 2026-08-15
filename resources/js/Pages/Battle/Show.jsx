@@ -14,7 +14,7 @@ function Bar({ current, max, color }) {
     );
 }
 
-export default function Show({ battle }) {
+export default function Show({ battle, battleBackground }) {
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
     const monster = battle.monster;
@@ -241,54 +241,56 @@ export default function Show({ battle }) {
         );
     }
 
-    // ===== LAYAR BATTLE BERJALAN (animasi playback) =====
-    const otherParticipants = battle.participants.filter((p) => p.character.user_id !== currentUserId);
-    const mainBattleParticipant = battle.participants.find((p) => p.character.user_id === currentUserId) || battle.participants[0];
+    // ===== LAYAR BATTLE BERJALAN (animasi playback) - arena scene =====
+    const participantCount = battle.participants.length;
 
-    function renderPartyCard(p, isMain) {
-        const i = battle.participants.indexOf(p);
+    function renderArenaFighter(p, index, isMain) {
         const live = current.participants[p.character_id] || {
-            hp: p.current_hp, stamina: p.current_stamina, mana: p.current_mana, is_alive: p.is_alive,
+            hp: p.current_hp, is_alive: p.is_alive,
         };
         const subclass = p.character.subclass;
         const maxHp = p.character.effective_base_hp ?? live.hp;
-        const maxStamina = p.character.effective_base_sp ?? live.stamina;
-        const maxMana = p.character.effective_base_mp ?? live.mana;
-        const pColor = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
+        const pColor = PARTICIPANT_COLORS[index % PARTICIPANT_COLORS.length];
+        const leftPct = ((index + 1) / (participantCount + 1)) * 100;
 
         return (
             <div
                 key={p.id}
-                className="rpg-card text-center"
-                style={{ '--accent': pColor, opacity: live.is_alive ? 1 : 0.45, padding: '0.6rem', width: 108, margin: '0 auto' }}
+                style={{
+                    position: 'absolute', bottom: '3%', left: `${leftPct}%`, transform: 'translateX(-50%)',
+                    width: '24%', textAlign: 'center', opacity: live.is_alive ? 1 : 0.4,
+                }}
             >
                 {isMain && (
-                    <span className="rpg-element-badge d-block mb-1" style={{ '--accent': '#c9a24b', color: '#c9a24b', fontSize: '0.55rem' }}>
+                    <span
+                        className="rpg-element-badge d-inline-block mb-1"
+                        style={{ '--accent': '#c9a24b', color: '#c9a24b', fontSize: '0.55rem', background: 'rgba(11,12,18,0.75)' }}
+                    >
                         KAMU
                     </span>
                 )}
+                <div style={{ width: '75%', margin: '0 auto 3px' }}>
+                    <Bar current={live.hp} max={maxHp} color="#b8433a" />
+                </div>
+                <div
+                    style={{
+                        fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: pColor,
+                        textShadow: '0 1px 3px rgba(0,0,0,0.9)', marginBottom: 2,
+                    }}
+                >
+                    {p.character.name} {!live.is_alive && '☠'}
+                </div>
                 {subclass?.full_body_path ? (
                     <img
                         src={subclass.full_body_path}
                         alt={p.character.name}
-                        style={{ width: 46, height: 92, objectFit: 'contain', background: 'var(--bg-panel)', borderRadius: 6, margin: '0 auto' }}
+                        style={{ width: '100%', maxHeight: 110, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
                     />
                 ) : (
-                    <div className="rpg-badge-hex mx-auto" style={{ '--accent': pColor, width: 46, height: 46, fontSize: '1rem' }}>
+                    <div className="rpg-badge-hex mx-auto" style={{ '--accent': pColor, width: 44, height: 44, fontSize: '1rem' }}>
                         {p.character.name.charAt(0)}
                     </div>
                 )}
-                <div className="rpg-subclass-name text-truncate mt-1" style={{ fontSize: '0.72rem', color: pColor }}>
-                    {p.character.name} {!live.is_alive && '☠'}
-                </div>
-                <div style={{ width: 80, margin: '0 auto' }}>
-                    <Bar current={live.hp} max={maxHp} color="#b8433a" />
-                    <div className="rpg-stat-label mt-1" style={{ fontSize: '0.55rem' }}><span>HP</span><span>{live.hp}</span></div>
-                    <Bar current={live.stamina} max={maxStamina} color="#c98a3a" />
-                    <div className="rpg-stat-label mt-1" style={{ fontSize: '0.55rem' }}><span>SP</span><span>{live.stamina}</span></div>
-                    <Bar current={live.mana} max={maxMana} color="#7269d1" />
-                    <div className="rpg-stat-label mt-1" style={{ fontSize: '0.55rem' }}><span>MP</span><span>{live.mana}</span></div>
-                </div>
             </div>
         );
     }
@@ -304,46 +306,51 @@ export default function Show({ battle }) {
             </div>
 
             <div className="container py-4" style={{ maxWidth: 700 }}>
-                {/* Baris atas: Party lain + Monster (auto-fit, reflow otomatis sesuai lebar layar).
-                    Baris bawah: KAMU + Battle Log (selalu berdampingan, log tinggi fix + scroll internal). */}
-                <div className="battle-top-row">
-                    {otherParticipants.map((p) => renderPartyCard(p, false))}
-
-                    <div
-                        className="rpg-card text-center"
-                        style={{ '--accent': MONSTER_COLOR, padding: '0.75rem', maxWidth: 220, margin: '0 auto' }}
-                    >
+                {/* Arena: background scene sesuai tema map, monster gede di belakang,
+                    party di depan dikroyok - cuma 1 bar (HP) per karakter/monster. */}
+                <div
+                    style={{
+                        position: 'relative', width: '100%', aspectRatio: '1024 / 571',
+                        backgroundImage: `url('${battleBackground}')`, backgroundSize: 'cover', backgroundPosition: 'center',
+                        borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-subtle)', marginBottom: '1rem',
+                    }}
+                >
+                    {/* Monster - lebih besar, di belakang/tengah */}
+                    <div style={{ position: 'absolute', top: '6%', left: '50%', transform: 'translateX(-50%)', width: '42%', textAlign: 'center' }}>
+                        <div style={{ width: '65%', margin: '0 auto 3px' }}>
+                            <Bar current={current.monster_hp} max={monster.hp} color={MONSTER_COLOR} />
+                        </div>
+                        <div
+                            style={{
+                                fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: MONSTER_COLOR,
+                                textShadow: '0 1px 3px rgba(0,0,0,0.9)', marginBottom: 2,
+                            }}
+                        >
+                            {monster.name} · Lv.{monster.level}
+                        </div>
                         {monster.full_body_path ? (
                             <img
                                 src={monster.full_body_path}
                                 alt={monster.name}
-                                style={{ width: 84, height: 84, borderRadius: 10, objectFit: 'contain', background: 'var(--bg-panel)', margin: '0 auto' }}
+                                style={{ width: '100%', maxHeight: 190, objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }}
                             />
                         ) : (
                             <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
                                 {monster.name.charAt(0)}
                             </div>
                         )}
-                        <div className="rpg-subclass-name text-truncate mt-1" style={{ fontSize: '0.88rem' }}>{monster.name}</div>
-                        <div className="rpg-power-type mb-1">Lv.{monster.level}</div>
-                        <div style={{ width: 150, margin: '0 auto' }}>
-                            <Bar current={current.monster_hp} max={monster.hp} color={MONSTER_COLOR} />
-                            <div className="rpg-stat-label mt-1" style={{ fontSize: '0.6rem' }}><span>HP</span><span>{current.monster_hp}/{monster.hp}</span></div>
-                        </div>
                     </div>
+
+                    {/* Party - lebih kecil, di depan/bawah, dikroyok ke arah monster */}
+                    {battle.participants.map((p, i) => renderArenaFighter(p, i, p.character.user_id === currentUserId))}
                 </div>
 
-                <div className="battle-bottom-row">
-                    <div>{renderPartyCard(mainBattleParticipant, true)}</div>
-
-                    <div>
-                        <div className="rpg-skill-group-title">Battle Log</div>
-                        <div ref={logBoxRef} className="rpg-card" style={{ '--accent': '#8890a4', fontSize: '0.85rem', height: 300, overflowY: 'auto' }}>
-                            {visibleLog.map((entry, i) => (
-                                <p key={i} className="mb-1" style={{ color: logLineColor(entry.text) }}>{entry.text}</p>
-                            ))}
-                        </div>
-                    </div>
+                {/* Battle Log */}
+                <div className="rpg-skill-group-title">Battle Log</div>
+                <div ref={logBoxRef} className="rpg-card" style={{ '--accent': '#8890a4', fontSize: '0.85rem', height: 300, overflowY: 'auto' }}>
+                    {visibleLog.map((entry, i) => (
+                        <p key={i} className="mb-1" style={{ color: logLineColor(entry.text) }}>{entry.text}</p>
+                    ))}
                 </div>
 
                 {/* Toolbar di bawah - bukan di atas, biar gak ketutup pas battle log auto-scroll */}

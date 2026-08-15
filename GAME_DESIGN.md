@@ -545,3 +545,28 @@ User kasih 2 sketsa layout, pilih yang lebih mobile-friendly (desain #2 — Main
 - Monster+Party masih satu blok sticky bareng (dari v3.4), battle log di bawahnya gak berubah.
 
 Prinsip desain: bar pendek & fixed-width (bukan `flex-grow` full-width) di semua tempat, biar keliatan rapi baik di HP kecil maupun desktop tanpa perlu breakpoint khusus.
+
+---
+
+## 22. Battle Arena Scene — background asli + monster dikroyok party (v4.0)
+
+Perubahan besar: battle screen bukan lagi kartu-kartu stat, tapi **scene arena beneran** — background asli, monster gede di belakang, party di depan "ngeroyok" dari bawah, cuma 1 bar (HP) per karakter/monster (bukan HP+SP+MP tiga-tiganya).
+
+### Background per tema map + varian boss
+4 background disiapkan (`public/images/battle-backgrounds/`): `forest-regular.jpg`, `forest-boss.jpg`, `ruins-regular.jpg`, `ruins-boss.jpg`. Ditentukan otomatis lewat `Monster::battleBackgroundPath()`:
+- **Tema**: dari map tempat monster itu muncul (relasi `spawnPoints->map`, sama pola kayak background avatar monster sebelumnya) — nama map mengandung "Reruntuhan" → tema ruins, selain itu → forest.
+- **Varian**: kalau `monster.level >= map.max_level` (monster paling kuat di map itu) → pakai varian **boss** (lebih gelap/dramatis), selain itu → **regular**.
+
+### Layout Arena
+- Container `position: relative`, `aspect-ratio: 1024/571` (rasio asli background), `background-size: cover`.
+- **Monster**: `position: absolute`, di atas-tengah (`top: 6%`), lebar **42%** dari arena (jauh lebih besar dari party), HP bar tipis + nama di atasnya, `drop-shadow` biar nyatu sama scene.
+- **Party (2-3 orang)**: `position: absolute` di bawah, tersebar merata horizontal (`left` dihitung otomatis dari jumlah party: `(index+1)/(jumlah+1) * 100%`), lebar **24%** masing-masing (jauh lebih kecil dari monster) — visual "dikroyok dari depan".
+- Karakter yang login (KAMU) dikasih badge kecil di atas gambarnya.
+- Semua full body (karakter & monster) transparent PNG, jadi nempel natural di atas background tanpa kotak/border yang keliatan.
+
+### Simplifikasi tampilan stat
+Sebelumnya tiap karakter nampilin HP+SP+MP (3 bar). Sekarang di scene arena **cuma HP** yang ditampilin (paling penting buat "sekilas liat siapa kritis"). SP/MP tetap dipakai penuh di balik layar buat kalkulasi battle (`BattleService` gak berubah sama sekali), cuma gak ditampilin di UI arena ini.
+
+### Yang belum diimplementasikan
+- Background buat map selain Hutan Awal & Reruntuhan Kuno (kalau nanti nambah map baru, perlu background baru + update `battleBackgroundPath()`).
+- Animasi gerak (serang maju-mundur, efek partikel pas hit/crit) — sekarang statis, cuma HP bar & battle log yang update per step.

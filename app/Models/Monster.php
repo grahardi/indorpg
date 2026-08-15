@@ -39,4 +39,26 @@ class Monster extends Model
             ->withPivot('weight')
             ->withTimestamps();
     }
+
+    /**
+     * Background arena battle: tema (forest/ruins) diambil dari map tempat
+     * monster ini muncul (sama kayak background avatar/full view), varian
+     * "boss" dipakai kalau level monster ini level TERTINGGI di map itu.
+     */
+    public function battleBackgroundPath(): string
+    {
+        $map = $this->relationLoaded('spawnPoints')
+            ? $this->spawnPoints->first()?->map
+            : $this->spawnPoints()->with('map')->first()?->map;
+
+        $theme = 'forest';
+        if ($map && str_contains($map->name, 'Reruntuhan')) {
+            $theme = 'ruins';
+        }
+
+        $isBoss = $map && $this->level >= $map->max_level;
+        $variant = $isBoss ? 'boss' : 'regular';
+
+        return "/images/battle-backgrounds/{$theme}-{$variant}.jpg";
+    }
 }
