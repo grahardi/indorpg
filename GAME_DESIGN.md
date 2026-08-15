@@ -585,8 +585,15 @@ Kolom baru `skills.animation_path` — subclass lain masih `null` sampai ada ase
 `BattleService::snapshot()` sebelumnya cuma nyimpen teks + HP semua orang per step. Sekarang ditambah 3 field: `actor_character_id`, `skill_id`, `is_monster_actor` — dicatat tiap kali ada aksi pakai skill (hit maupun MELESET). Ini yang bikin frontend bisa presisi tau "step ini karakter mana pakai skill apa", **tanpa perlu nebak dari teks log** (lebih robust daripada parsing string).
 
 ### Overlay animasi di Arena
-`Battle/Show.jsx`: tiap `step` berubah, dihitung `activeAnimation` — cari skill yang dipakai di step itu, cek `animation_path`-nya ada apa enggak. Kalau ada, GIF ditampilkan **overlay di atas posisi karakter yang makai** di arena (absolute, lebih besar dari karakter itu sendiri biar keliatan jelas, drop-shadow biar nyatu). Otomatis ilang begitu step ganti (gak perlu logic timer terpisah, React re-render ngikutin `activeAnimation` yang recompute tiap step).
+`Battle/Show.jsx`: tiap `step` berubah, dihitung `activeAnimation` — cari skill yang dipakai di step itu, cek `animation_path`-nya ada apa enggak. Kalau ada, GIF **gantiin** pose idle karakter (bukan numpuk di atasnya) selama step itu berlangsung, otomatis balik ke pose idle pas step ganti.
+
+### Pose Idle khusus arena (`battle_idle_path`)
+Full body yang dipakai di halaman lain (roster, profil karakter) kanvasnya beda (512×1024, portrait tinggi) dari kanvas GIF skill (364×360). Kalau dipaksa pakai `full_body_path` yang sama buat idle di arena, karakter bakal "lompat" ukuran/posisi tiap kali animasi GIF mulai/berhenti.
+
+Solusinya: kolom baru `subclasses.battle_idle_path` — pose idle **khusus arena**, di-resize ke kanvas 364×360 (persis sama kayak GIF-nya) biar transisi idle↔animasi mulus, gak ada lompatan ukuran/posisi. Kalau subclass belum punya `battle_idle_path`, fallback ke `full_body_path` biasa (kemungkinan masih agak "lompat" dikit, tapi tetap ada gambar daripada kosong).
+
+Blade Knight udah punya (`blade-knight-idle.png`), subclass lain nyusul kalau ada asetnya.
 
 ### Belum ada
 - Animasi buat monster nyerang (`is_monster_actor` udah dicatat, tapi belum ada aset GIF/logic overlay-nya).
-- Subclass lain selain Blade Knight belum ada animasinya sama sekali.
+- Subclass lain selain Blade Knight belum ada animasi atau idle pose khusus arena.

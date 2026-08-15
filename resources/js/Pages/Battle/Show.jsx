@@ -276,6 +276,7 @@ export default function Show({ battle, battleBackground }) {
         const leftPct = ((index + 1) / (participantCount + 1)) * 100;
 
         const isAnimating = activeAnimation?.characterId === p.character_id;
+        const idleImage = subclass?.battle_idle_path || subclass?.full_body_path;
 
         return (
             <div
@@ -285,17 +286,6 @@ export default function Show({ battle, battleBackground }) {
                     width: '24%', textAlign: 'center', opacity: live.is_alive ? 1 : 0.4,
                 }}
             >
-                {isAnimating && (
-                    <img
-                        src={activeAnimation.path}
-                        alt="skill"
-                        style={{
-                            position: 'absolute', bottom: '30%', left: '50%', transform: 'translateX(-50%)',
-                            width: '170%', maxWidth: 220, pointerEvents: 'none', zIndex: 5,
-                            filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.6))',
-                        }}
-                    />
-                )}
                 {isMain && (
                     <span
                         className="rpg-element-badge d-inline-block mb-1"
@@ -315,9 +305,17 @@ export default function Show({ battle, battleBackground }) {
                 >
                     {p.character.name} {!live.is_alive && '☠'}
                 </div>
-                {subclass?.full_body_path ? (
+                {/* GIF gantiin pose idle pas skill dipakai (bukan numpuk) - ukuran &
+                    posisi udah di-sync sama kanvas 364x360 yang sama. */}
+                {isAnimating ? (
                     <img
-                        src={subclass.full_body_path}
+                        src={activeAnimation.path}
+                        alt="skill"
+                        style={{ width: '100%', maxHeight: 110, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
+                    />
+                ) : idleImage ? (
+                    <img
+                        src={idleImage}
                         alt={p.character.name}
                         style={{ width: '100%', maxHeight: 110, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
                     />

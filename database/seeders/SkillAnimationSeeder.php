@@ -37,5 +37,8 @@ class SkillAnimationSeeder extends Seeder
                 ->where('name', $skillName)
                 ->update(['animation_path' => '/images/skills/animations/'.$filename]);
         }
+
+        // Pose idle khusus arena battle (kanvas 364x360, sync sama GIF di atas).
+        $subclass->update(['battle_idle_path' => '/images/subclasses/blade-knight-idle.png']);
     }
 }
