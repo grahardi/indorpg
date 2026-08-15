@@ -1,6 +1,5 @@
 import { Link, Head, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import Layout from '../../Layout';
 import { battleAudio } from '../../battleAudio';
 
 const MONSTER_COLOR = '#b8433a';
@@ -118,7 +117,7 @@ export default function Show({ battle }) {
     // ===== LAYAR HASIL (battle selesai) - tampilan baru, gak ada lagi scene battle-nya =====
     if (finished && battle.status !== 'ongoing') {
         return (
-            <Layout>
+            <div style={{ minHeight: '100vh', background: 'var(--bg-deep)' }}>
                 <Head title={battle.status === 'won' ? 'Menang!' : battle.status === 'lost' ? 'Kalah' : 'Mundur'} />
                 <div className="container py-5" style={{ maxWidth: 560 }}>
                     <div className="rpg-card text-center" style={{ '--accent': battle.status === 'won' ? '#c9a24b' : battle.status === 'lost' ? '#5b6178' : '#8890a4', padding: '2rem 1.5rem' }}>
@@ -233,7 +232,7 @@ export default function Show({ battle }) {
                         </div>
                     </div>
                 </div>
-            </Layout>
+            </div>
         );
     }
 
@@ -290,19 +289,45 @@ export default function Show({ battle }) {
     }
 
     return (
-        <Layout>
+        <div style={{ minHeight: '100vh', background: 'var(--bg-deep)' }}>
             <Head title={`Battle vs ${monster.name}`} />
-            <div className="container py-5" style={{ maxWidth: 700 }}>
-                <div className="text-end mb-2">
-                    <button
-                        className="rpg-back-link"
-                        onClick={() => setSoundOn((s) => !s)}
-                        style={{ background: 'none' }}
-                    >
-                        {soundOn ? '🔊 Suara On' : '🔇 Suara Off'}
-                    </button>
-                </div>
 
+            {/* Toolbar - full screen battle, gak ada nav sama sekali. Cuma 2 kontrol
+                ini yang dibutuhkan: toggle suara & skip animasi. */}
+            <div
+                className="d-flex justify-content-between align-items-center"
+                style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-subtle)' }}
+            >
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', fontSize: '1rem' }}>
+                    IndoRPG
+                </span>
+                <div className="d-flex gap-2">
+                    <button
+                        onClick={() => setSoundOn((s) => !s)}
+                        className="btn btn-sm"
+                        style={{
+                            background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',
+                            color: 'var(--text-secondary)', borderRadius: 6, fontSize: '0.8rem', padding: '0.35rem 0.7rem',
+                        }}
+                    >
+                        {soundOn ? '🔊' : '🔇'}
+                    </button>
+                    {!finished && (
+                        <button
+                            onClick={skipToEnd}
+                            className="btn btn-sm"
+                            style={{
+                                background: 'var(--bg-panel)', border: `1px solid ${MONSTER_COLOR}`,
+                                color: MONSTER_COLOR, borderRadius: 6, fontSize: '0.8rem', padding: '0.35rem 0.9rem', fontWeight: 600,
+                            }}
+                        >
+                            Lewati ▶▶
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            <div className="container py-4" style={{ maxWidth: 700 }}>
                 {/* Baris atas: Party lain + Monster (auto-fit, reflow otomatis sesuai lebar layar).
                     Baris bawah: KAMU + Battle Log (selalu berdampingan, log tinggi fix + scroll internal). */}
                 <div className="battle-top-row">
@@ -345,13 +370,7 @@ export default function Show({ battle }) {
                         </div>
                     </div>
                 </div>
-
-                <div className="text-end mt-3">
-                    <button className="rpg-back-link" onClick={skipToEnd} style={{ background: 'none' }}>
-                        Lewati ▶▶
-                    </button>
-                </div>
             </div>
-        </Layout>
+        </div>
     );
 }
