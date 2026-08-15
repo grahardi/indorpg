@@ -270,24 +270,22 @@ body {
     margin: 1.5rem 0 2rem;
 }
 
-/* ---- Battle grid layout ---- */
-.battle-grid {
+/* ---- Battle layout ----
+   Baris atas (party lain + monster): auto-fit, browser yang atur reflow-nya
+   sendiri sesuai lebar layar - gak gantung ke breakpoint pixel yang bisa
+   ketinggalan/gak kepake kalau CSS lama ke-cache.
+   Baris bawah (KAMU + Battle Log): kolom tetap 116px + sisa ruang, karena
+   selalu muat berdampingan di layar HP manapun (>=320px). */
+.battle-top-row {
     display: grid;
-    grid-template-columns: 108px 108px 1fr;
-    grid-template-areas:
-        "partyB partyC monster"
-        "kamu log log";
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 0.5rem;
-    align-items: start;
+    margin-bottom: 0.5rem;
 }
 
-@media (max-width: 560px) {
-    .battle-grid {
-        grid-template-columns: 1fr 1fr;
-        grid-template-areas:
-            "monster monster"
-            "partyB partyC"
-            "kamu kamu"
-            "log log";
-    }
+.battle-bottom-row {
+    display: grid;
+    grid-template-columns: 116px 1fr;
+    gap: 0.5rem;
+    align-items: start;
 }

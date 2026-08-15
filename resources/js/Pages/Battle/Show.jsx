@@ -303,42 +303,39 @@ export default function Show({ battle }) {
                     </button>
                 </div>
 
-                {/* Grid: [Party B | Party C | Monster] baris atas, [KAMU | Battle Log (ngelebar)] baris bawah.
-                    Responsive natural (gak sticky) - Battle Log tinggi fix, scroll internal, auto-scroll ke baris terbaru. */}
-                <div className="battle-grid">
-                    <div style={{ gridArea: 'partyB' }}>{otherParticipants[0] && renderPartyCard(otherParticipants[0], false)}</div>
-                    <div style={{ gridArea: 'partyC' }}>{otherParticipants[1] && renderPartyCard(otherParticipants[1], false)}</div>
+                {/* Baris atas: Party lain + Monster (auto-fit, reflow otomatis sesuai lebar layar).
+                    Baris bawah: KAMU + Battle Log (selalu berdampingan, log tinggi fix + scroll internal). */}
+                <div className="battle-top-row">
+                    {otherParticipants.map((p) => renderPartyCard(p, false))}
 
-                    <div style={{ gridArea: 'monster' }}>
-                        <div
-                            className="rpg-card text-center"
-                            style={{ '--accent': MONSTER_COLOR, padding: '0.75rem', maxWidth: 220, margin: '0 auto' }}
-                        >
-                            {monster.full_body_path ? (
-                                <img
-                                    src={monster.full_body_path}
-                                    alt={monster.name}
-                                    style={{ width: 84, height: 84, borderRadius: 10, objectFit: 'contain', background: 'var(--bg-panel)', margin: '0 auto' }}
-                                />
-                            ) : (
-                                <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
-                                    {monster.name.charAt(0)}
-                                </div>
-                            )}
-                            <div className="rpg-subclass-name text-truncate mt-1" style={{ fontSize: '0.88rem' }}>{monster.name}</div>
-                            <div className="rpg-power-type mb-1">Lv.{monster.level}</div>
-                            <div style={{ width: 150, margin: '0 auto' }}>
-                                <Bar current={current.monster_hp} max={monster.hp} color={MONSTER_COLOR} />
-                                <div className="rpg-stat-label mt-1" style={{ fontSize: '0.6rem' }}><span>HP</span><span>{current.monster_hp}/{monster.hp}</span></div>
+                    <div
+                        className="rpg-card text-center"
+                        style={{ '--accent': MONSTER_COLOR, padding: '0.75rem', maxWidth: 220, margin: '0 auto' }}
+                    >
+                        {monster.full_body_path ? (
+                            <img
+                                src={monster.full_body_path}
+                                alt={monster.name}
+                                style={{ width: 84, height: 84, borderRadius: 10, objectFit: 'contain', background: 'var(--bg-panel)', margin: '0 auto' }}
+                            />
+                        ) : (
+                            <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
+                                {monster.name.charAt(0)}
                             </div>
+                        )}
+                        <div className="rpg-subclass-name text-truncate mt-1" style={{ fontSize: '0.88rem' }}>{monster.name}</div>
+                        <div className="rpg-power-type mb-1">Lv.{monster.level}</div>
+                        <div style={{ width: 150, margin: '0 auto' }}>
+                            <Bar current={current.monster_hp} max={monster.hp} color={MONSTER_COLOR} />
+                            <div className="rpg-stat-label mt-1" style={{ fontSize: '0.6rem' }}><span>HP</span><span>{current.monster_hp}/{monster.hp}</span></div>
                         </div>
                     </div>
+                </div>
 
-                    <div style={{ gridArea: 'kamu' }}>
-                        {renderPartyCard(mainBattleParticipant, true)}
-                    </div>
+                <div className="battle-bottom-row">
+                    <div>{renderPartyCard(mainBattleParticipant, true)}</div>
 
-                    <div style={{ gridArea: 'log' }}>
+                    <div>
                         <div className="rpg-skill-group-title">Battle Log</div>
                         <div className="rpg-card" style={{ '--accent': '#8890a4', fontSize: '0.85rem', height: 300, overflowY: 'auto' }}>
                             {visibleLog.map((entry, i) => (
