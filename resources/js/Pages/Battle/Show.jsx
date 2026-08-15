@@ -26,6 +26,7 @@ export default function Show({ battle }) {
     const [redirectIn, setRedirectIn] = useState(null);
     const timerRef = useRef(null);
     const finishedSoundPlayed = useRef(false);
+    const logBoxRef = useRef(null);
 
     // Target total durasi animasi 15-30 detik, interval per baris log disesuaikan
     // biar totalnya masuk range itu (dibatasi biar gak terlalu cepat/lambat per baris).
@@ -44,9 +45,13 @@ export default function Show({ battle }) {
         return () => clearTimeout(timerRef.current);
     }, [step, log.length, intervalMs]);
 
+    // Auto-scroll KE DALAM box log doang (bukan scrollIntoView, yang ternyata
+    // ikut nge-scroll seluruh halaman kalau box-nya deket tepi viewport) -
+    // biar posisi halaman/toolbar gak ikut geser tiap baris log baru muncul.
     useEffect(() => {
-        const logEnd = document.getElementById('battle-log-end');
-        logEnd?.scrollIntoView({ behavior: 'smooth' });
+        if (logBoxRef.current) {
+            logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
+        }
     }, [step]);
 
     // Trigger efek suara sesuai isi baris log yang baru muncul.
@@ -292,39 +297,10 @@ export default function Show({ battle }) {
         <div style={{ minHeight: '100vh', background: 'var(--bg-deep)' }}>
             <Head title={`Battle vs ${monster.name}`} />
 
-            {/* Toolbar - full screen battle, gak ada nav sama sekali. Cuma 2 kontrol
-                ini yang dibutuhkan: toggle suara & skip animasi. */}
-            <div
-                className="d-flex justify-content-between align-items-center"
-                style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-subtle)' }}
-            >
+            <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', fontSize: '1rem' }}>
                     IndoRPG
                 </span>
-                <div className="d-flex gap-2">
-                    <button
-                        onClick={() => setSoundOn((s) => !s)}
-                        className="btn btn-sm"
-                        style={{
-                            background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',
-                            color: 'var(--text-secondary)', borderRadius: 6, fontSize: '0.8rem', padding: '0.35rem 0.7rem',
-                        }}
-                    >
-                        {soundOn ? '🔊' : '🔇'}
-                    </button>
-                    {!finished && (
-                        <button
-                            onClick={skipToEnd}
-                            className="btn btn-sm"
-                            style={{
-                                background: 'var(--bg-panel)', border: `1px solid ${MONSTER_COLOR}`,
-                                color: MONSTER_COLOR, borderRadius: 6, fontSize: '0.8rem', padding: '0.35rem 0.9rem', fontWeight: 600,
-                            }}
-                        >
-                            Lewati ▶▶
-                        </button>
-                    )}
-                </div>
             </div>
 
             <div className="container py-4" style={{ maxWidth: 700 }}>
@@ -362,13 +338,38 @@ export default function Show({ battle }) {
 
                     <div>
                         <div className="rpg-skill-group-title">Battle Log</div>
-                        <div className="rpg-card" style={{ '--accent': '#8890a4', fontSize: '0.85rem', height: 300, overflowY: 'auto' }}>
+                        <div ref={logBoxRef} className="rpg-card" style={{ '--accent': '#8890a4', fontSize: '0.85rem', height: 300, overflowY: 'auto' }}>
                             {visibleLog.map((entry, i) => (
                                 <p key={i} className="mb-1" style={{ color: logLineColor(entry.text) }}>{entry.text}</p>
                             ))}
-                            <div id="battle-log-end" />
                         </div>
                     </div>
+                </div>
+
+                {/* Toolbar di bawah - bukan di atas, biar gak ketutup pas battle log auto-scroll */}
+                <div className="d-flex justify-content-center gap-2 mt-3">
+                    <button
+                        onClick={() => setSoundOn((s) => !s)}
+                        className="btn btn-sm"
+                        style={{
+                            background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',
+                            color: 'var(--text-secondary)', borderRadius: 6, fontSize: '0.8rem', padding: '0.4rem 0.9rem',
+                        }}
+                    >
+                        {soundOn ? '🔊 Suara' : '🔇 Suara'}
+                    </button>
+                    {!finished && (
+                        <button
+                            onClick={skipToEnd}
+                            className="btn btn-sm"
+                            style={{
+                                background: 'var(--bg-panel)', border: `1px solid ${MONSTER_COLOR}`,
+                                color: MONSTER_COLOR, borderRadius: 6, fontSize: '0.8rem', padding: '0.4rem 1rem', fontWeight: 600,
+                            }}
+                        >
+                            Lewati ▶▶
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
