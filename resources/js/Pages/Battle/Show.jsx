@@ -24,9 +24,17 @@ export default function Show({ battle, battleBackground }) {
     const [finished, setFinished] = useState(log.length <= 1);
     const [soundOn, setSoundOn] = useState(true);
     const [redirectIn, setRedirectIn] = useState(null);
+    const [userSkipped, setUserSkipped] = useState(false);
     const timerRef = useRef(null);
     const finishedSoundPlayed = useRef(false);
     const logBoxRef = useRef(null);
+
+    // Status yang beneran ditampilin - kalau user klik Lewati, dianggap
+    // "menyerah" (gak nunggu hasil), TERLEPAS dari status asli battle di
+    // database. Catatan: EXP/reward battle yang sebenarnya udah kepotong dari
+    // awal (battle di-resolve penuh di server sebelum halaman ini kebuka),
+    // jadi ini murni override tampilan doang - reward yang beneran gak berubah.
+    const displayStatus = userSkipped ? 'fled' : battle.status;
 
     // Target total durasi animasi 15-30 detik, interval per baris log disesuaikan
     // biar totalnya masuk range itu (dibatasi biar gak terlalu cepat/lambat per baris).
@@ -67,9 +75,10 @@ export default function Show({ battle, battleBackground }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step]);
 
-    // Suara menang/kalah, sekali doang pas animasi kelar.
+    // Suara menang/kalah, sekali doang pas animasi kelar. Gak bunyi kalau
+    // user nge-skip (dianggap menyerah, gak ada suara menang/kalah).
     useEffect(() => {
-        if (!finished || finishedSoundPlayed.current || !soundOn) return;
+        if (!finished || finishedSoundPlayed.current || !soundOn || userSkipped) return;
         if (battle.status === 'won') battleAudio.victory();
         else if (battle.status === 'lost') battleAudio.defeat();
         finishedSoundPlayed.current = true;
@@ -99,6 +108,7 @@ export default function Show({ battle, battleBackground }) {
         clearTimeout(timerRef.current);
         setStep(log.length - 1);
         setFinished(true);
+        setUserSkipped(true);
     }
 
     const current = log[step] || { monster_hp: battle.monster_current_hp, participants: {} };
@@ -123,10 +133,10 @@ export default function Show({ battle, battleBackground }) {
     if (finished && battle.status !== 'ongoing') {
         return (
             <div style={{ minHeight: '100vh', background: 'var(--bg-deep)' }}>
-                <Head title={battle.status === 'won' ? 'Menang!' : battle.status === 'lost' ? 'Kalah' : 'Mundur'} />
+                <Head title={displayStatus === 'won' ? 'Menang!' : displayStatus === 'lost' ? 'Kalah' : 'Mundur'} />
                 <div className="container py-5" style={{ maxWidth: 560 }}>
-                    <div className="rpg-card text-center" style={{ '--accent': battle.status === 'won' ? '#c9a24b' : battle.status === 'lost' ? '#5b6178' : '#8890a4', padding: '2rem 1.5rem' }}>
-                        {(battle.status === 'won' || battle.status === 'lost') && (
+                    <div className="rpg-card text-center" style={{ '--accent': displayStatus === 'won' ? '#c9a24b' : displayStatus === 'lost' ? '#5b6178' : '#8890a4', padding: '2rem 1.5rem' }}>
+                        {(displayStatus === 'won' || displayStatus === 'lost') && (
                             <div className="d-flex align-items-center justify-content-center gap-3 gap-md-4 mb-4 flex-wrap">
                                 <div style={{ width: 130, position: 'relative' }}>
                                     {mainSubclass?.full_body_path ? (
@@ -136,19 +146,19 @@ export default function Show({ battle, battleBackground }) {
                                             style={{
                                                 width: '100%', aspectRatio: '1 / 2', objectFit: 'contain',
                                                 background: 'var(--bg-panel)', borderRadius: 10,
-                                                border: `2px solid ${battle.status === 'lost' ? '#5b6178' : mainColor}`,
-                                                filter: battle.status === 'lost' ? 'grayscale(1) brightness(0.55)' : 'none',
+                                                border: `2px solid ${displayStatus === 'lost' ? '#5b6178' : mainColor}`,
+                                                filter: displayStatus === 'lost' ? 'grayscale(1) brightness(0.55)' : 'none',
                                             }}
                                         />
                                     ) : (
                                         <div
                                             className="rpg-badge-hex mx-auto"
-                                            style={{ '--accent': mainColor, width: 90, height: 90, fontSize: '2rem', filter: battle.status === 'lost' ? 'grayscale(1) brightness(0.6)' : 'none' }}
+                                            style={{ '--accent': mainColor, width: 90, height: 90, fontSize: '2rem', filter: displayStatus === 'lost' ? 'grayscale(1) brightness(0.6)' : 'none' }}
                                         >
                                             {mainParticipant.character.name.charAt(0)}
                                         </div>
                                     )}
-                                    {battle.status === 'lost' && (
+                                    {displayStatus === 'lost' && (
                                         <div
                                             style={{
                                                 position: 'absolute', top: '38%', left: '50%', transform: 'translate(-50%, -50%) rotate(-8deg)',
@@ -159,7 +169,7 @@ export default function Show({ battle, battleBackground }) {
                                             TUMBANG
                                         </div>
                                     )}
-                                    <div className="mt-2" style={{ color: battle.status === 'lost' ? 'var(--text-muted)' : mainColor, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.9rem' }}>
+                                    <div className="mt-2" style={{ color: displayStatus === 'lost' ? 'var(--text-muted)' : mainColor, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.9rem' }}>
                                         {mainParticipant.character.name}
                                     </div>
                                 </div>
@@ -176,19 +186,19 @@ export default function Show({ battle, battleBackground }) {
                                             style={{
                                                 width: '100%', aspectRatio: '1 / 1', objectFit: 'contain',
                                                 background: 'var(--bg-panel)', borderRadius: 10,
-                                                border: `2px solid ${battle.status === 'won' ? '#5b6178' : MONSTER_COLOR}`,
-                                                filter: battle.status === 'won' ? 'grayscale(1) brightness(0.55)' : 'none',
+                                                border: `2px solid ${displayStatus === 'won' ? '#5b6178' : MONSTER_COLOR}`,
+                                                filter: displayStatus === 'won' ? 'grayscale(1) brightness(0.55)' : 'none',
                                             }}
                                         />
                                     ) : (
                                         <div
                                             className="rpg-badge-hex mx-auto"
-                                            style={{ '--accent': MONSTER_COLOR, width: 90, height: 90, fontSize: '2rem', filter: battle.status === 'won' ? 'grayscale(1) brightness(0.6)' : 'none' }}
+                                            style={{ '--accent': MONSTER_COLOR, width: 90, height: 90, fontSize: '2rem', filter: displayStatus === 'won' ? 'grayscale(1) brightness(0.6)' : 'none' }}
                                         >
                                             {monster.name.charAt(0)}
                                         </div>
                                     )}
-                                    {battle.status === 'won' && (
+                                    {displayStatus === 'won' && (
                                         <div
                                             style={{
                                                 position: 'absolute', top: '38%', left: '50%', transform: 'translate(-50%, -50%) rotate(-8deg)',
@@ -199,27 +209,27 @@ export default function Show({ battle, battleBackground }) {
                                             K.O.
                                         </div>
                                     )}
-                                    <div className="mt-2" style={{ color: battle.status === 'won' ? 'var(--text-muted)' : MONSTER_COLOR, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.9rem' }}>
+                                    <div className="mt-2" style={{ color: displayStatus === 'won' ? 'var(--text-muted)' : MONSTER_COLOR, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.9rem' }}>
                                         {monster.name}
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {battle.status === 'fled' && (
+                        {displayStatus === 'fled' && (
                             <div className="mb-3" style={{ fontSize: '3.5rem', lineHeight: 1 }}>🏳️</div>
                         )}
 
                         <div className="rpg-subclass-name" style={{ fontSize: '1.5rem' }}>
-                            {battle.status === 'won' && '🏆 Menang!'}
-                            {battle.status === 'lost' && '💀 Kalah...'}
-                            {battle.status === 'fled' && 'Party Menyerah'}
+                            {displayStatus === 'won' && '🏆 Menang!'}
+                            {displayStatus === 'lost' && '💀 Kalah...'}
+                            {displayStatus === 'fled' && 'Party Menyerah'}
                         </div>
-                        {battle.status === 'fled' && (
+                        {displayStatus === 'fled' && (
                             <p className="text-secondary small mt-1 mb-0">Pertarungan kelamaan, party mundur teratur.</p>
                         )}
 
-                        {battle.status === 'won' && (
+                        {displayStatus === 'won' && (
                             <div className="mt-3">
                                 <div className="rpg-skill-group-title mb-1" style={{ fontSize: '0.75rem' }}>Hadiah</div>
                                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 700, color: '#c9a24b' }}>
