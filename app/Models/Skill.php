@@ -14,7 +14,7 @@ class Skill extends Model
     protected $fillable = [
         'subclass_id', 'element_id', 'name', 'description', 'tier', 'branch',
         'scaling_stat', 'combat_range', 'stamina_cost', 'mana_cost', 'cooldown_seconds',
-        'base_multiplier', 'icon_path', 'required_level',
+        'base_multiplier', 'icon_path', 'animation_path', 'required_level',
     ];
 
     public function subclass(): BelongsTo

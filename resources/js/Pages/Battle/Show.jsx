@@ -114,6 +114,18 @@ export default function Show({ battle, battleBackground }) {
     const current = log[step] || { monster_hp: battle.monster_current_hp, participants: {} };
     const visibleLog = log.slice(0, step + 1);
 
+    // Skill animation (GIF) yang lagi aktif di step ini, kalau skill yang dipakai
+    // punya animation_path. Ilang otomatis pas step ganti (gak di-track manual).
+    const activeAnimation = useMemo(() => {
+        if (!current.skill_id || !current.actor_character_id) return null;
+        const participant = battle.participants.find((p) => p.character_id === current.actor_character_id);
+        if (!participant) return null;
+        const skill = participant.character.subclass?.skills?.find((s) => s.id === current.skill_id);
+        if (!skill?.animation_path) return null;
+        return { path: skill.animation_path, characterId: current.actor_character_id };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [step]);
+
     function logLineColor(text) {
         const map = { [monster.name]: MONSTER_COLOR };
         battle.participants.forEach((p, i) => {
@@ -263,6 +275,8 @@ export default function Show({ battle, battleBackground }) {
         const pColor = PARTICIPANT_COLORS[index % PARTICIPANT_COLORS.length];
         const leftPct = ((index + 1) / (participantCount + 1)) * 100;
 
+        const isAnimating = activeAnimation?.characterId === p.character_id;
+
         return (
             <div
                 key={p.id}
@@ -271,6 +285,17 @@ export default function Show({ battle, battleBackground }) {
                     width: '24%', textAlign: 'center', opacity: live.is_alive ? 1 : 0.4,
                 }}
             >
+                {isAnimating && (
+                    <img
+                        src={activeAnimation.path}
+                        alt="skill"
+                        style={{
+                            position: 'absolute', bottom: '30%', left: '50%', transform: 'translateX(-50%)',
+                            width: '170%', maxWidth: 220, pointerEvents: 'none', zIndex: 5,
+                            filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.6))',
+                        }}
+                    />
+                )}
                 {isMain && (
                     <span
                         className="rpg-element-badge d-inline-block mb-1"

@@ -570,3 +570,23 @@ Sebelumnya tiap karakter nampilin HP+SP+MP (3 bar). Sekarang di scene arena **cu
 ### Yang belum diimplementasikan
 - Background buat map selain Hutan Awal & Reruntuhan Kuno (kalau nanti nambah map baru, perlu background baru + update `battleBackgroundPath()`).
 - Animasi gerak (serang maju-mundur, efek partikel pas hit/crit) — sekarang statis, cuma HP bar & battle log yang update per step.
+
+---
+
+## 23. Animasi GIF per Skill (v4.1)
+
+### Aset
+8 GIF moveset Blade Knight (8-16 frame per animasi) disimpan di `public/images/skills/animations/blade-knight-{slug-skill}.gif`, dipasang urut sesuai `SkillAnimationSeeder`:
+Tebasan Baja, Serangan Berantai, Hantam Perisai, Tebasan Berputar, Pedang Elemental, Gelombang Kejut (tier 1), Badai Bilah, Murka Ksatria (ultimate/tier 3).
+
+Kolom baru `skills.animation_path` — subclass lain masih `null` sampai ada asetnya nanti (tinggal tambah entry baru di `SkillAnimationSeeder`, gak perlu ubah kode lain).
+
+### Battle log sekarang "tau" skill & pelaku, bukan cuma teks
+`BattleService::snapshot()` sebelumnya cuma nyimpen teks + HP semua orang per step. Sekarang ditambah 3 field: `actor_character_id`, `skill_id`, `is_monster_actor` — dicatat tiap kali ada aksi pakai skill (hit maupun MELESET). Ini yang bikin frontend bisa presisi tau "step ini karakter mana pakai skill apa", **tanpa perlu nebak dari teks log** (lebih robust daripada parsing string).
+
+### Overlay animasi di Arena
+`Battle/Show.jsx`: tiap `step` berubah, dihitung `activeAnimation` — cari skill yang dipakai di step itu, cek `animation_path`-nya ada apa enggak. Kalau ada, GIF ditampilkan **overlay di atas posisi karakter yang makai** di arena (absolute, lebih besar dari karakter itu sendiri biar keliatan jelas, drop-shadow biar nyatu). Otomatis ilang begitu step ganti (gak perlu logic timer terpisah, React re-render ngikutin `activeAnimation` yang recompute tiap step).
+
+### Belum ada
+- Animasi buat monster nyerang (`is_monster_actor` udah dicatat, tapi belum ada aset GIF/logic overlay-nya).
+- Subclass lain selain Blade Knight belum ada animasinya sama sekali.

@@ -127,7 +127,7 @@ class BattleService
                 $hitChance = max(50, min(99, 100 + $character->effective_accuracy - 90 - $monster->agility));
                 if (random_int(1, 100) > $hitChance) {
                     $participant->save();
-                    $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!");
+                    $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!", $character->id, $skill->id);
                     continue;
                 }
 
@@ -158,7 +158,7 @@ class BattleService
                 $battle->monster_current_hp = max(0, $battle->monster_current_hp - $damage);
                 $participant->save();
 
-                $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: {$damage} damage ke {$monster->name}{$note}");
+                $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: {$damage} damage ke {$monster->name}{$note}", $character->id, $skill->id);
 
                 if ($battle->monster_current_hp <= 0) {
                     $log[] = $this->snapshot($battle, "{$monster->name} kalah!");
@@ -176,7 +176,7 @@ class BattleService
                     // Cek akurasi monster vs Evasion (defensif) karakter.
                     $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $character->effective_evasion));
                     if (random_int(1, 100) > $hitChance) {
-                        $log[] = $this->snapshot($battle, "{$monster->name} menyerang {$target->character->name}: MELESET!");
+                        $log[] = $this->snapshot($battle, "{$monster->name} menyerang {$target->character->name}: MELESET!", null, null, true);
                     } else {
                         $useMagic = $monster->magic_damage > $monster->physical_damage;
                         $offenseStat = $useMagic ? $monster->magic_damage : $monster->physical_damage;
@@ -198,7 +198,7 @@ class BattleService
                         if ($justFainted) {
                             $msg .= " {$target->character->name} tumbang!";
                         }
-                        $log[] = $this->snapshot($battle, $msg);
+                        $log[] = $this->snapshot($battle, $msg, null, null, true);
                     }
                 }
             }
@@ -271,11 +271,14 @@ class BattleService
         return $battle->participants->contains('is_alive', true);
     }
 
-    private function snapshot(Battle $battle, string $text): array
+    private function snapshot(Battle $battle, string $text, ?int $actorCharacterId = null, ?int $skillId = null, bool $isMonsterActor = false): array
     {
         return [
             'text' => $text,
             'monster_hp' => $battle->monster_current_hp,
+            'actor_character_id' => $actorCharacterId,
+            'skill_id' => $skillId,
+            'is_monster_actor' => $isMonsterActor,
             'participants' => $battle->participants->mapWithKeys(fn ($p) => [
                 $p->character_id => ['hp' => $p->current_hp, 'stamina' => $p->current_stamina, 'mana' => $p->current_mana, 'is_alive' => $p->is_alive],
             ])->toArray(),
