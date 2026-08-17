@@ -6,6 +6,7 @@ use App\Models\Battle;
 use App\Models\BattleParticipant;
 use App\Models\Character;
 use App\Models\Encounter;
+use App\Models\GameSetting;
 use App\Models\Monster;
 use App\Models\Skill;
 use Illuminate\Support\Collection;
@@ -22,17 +23,24 @@ class BattleService
     public function startBattle(Encounter $encounter, array $characterIds): Battle
     {
         $monster = $encounter->monster;
+        $characters = Character::with(['subclass.skills', 'skills'])->whereIn('id', $characterIds)->get();
+
+        // Level monster di-roll dinamis: max = level tertinggi party + bonus (setting
+        // admin, default +3). Stat monster di-scale sesuai level hasil roll ini pakai
+        // rasio kenaikan (setting admin, default x1.5 tiap level, kompon berlapis).
+        $encounterLevel = $this->rollMonsterLevel($monster, $characters);
+        $scaledStats = $this->scaledMonsterStats($monster, $encounterLevel);
 
         $battle = Battle::create([
             'encounter_id' => $encounter->id,
             'monster_id' => $monster->id,
-            'monster_current_hp' => $monster->hp,
+            'monster_level' => $encounterLevel,
+            'monster_stats' => $scaledStats,
+            'monster_current_hp' => $scaledStats['hp'],
             'status' => 'ongoing',
             'round_number' => 1,
             'battle_log' => [],
         ]);
-
-        $characters = Character::with(['subclass.skills', 'skills'])->whereIn('id', $characterIds)->get();
 
         foreach ($characters as $character) {
             $loadout = $this->resolveLoadout($character);
@@ -58,6 +66,42 @@ class BattleService
         }
 
         return $this->autoResolve($battle);
+    }
+
+    /**
+     * Level monster buat encounter ini: acak antara level dasar monster (di
+     * tabel monsters) sampai (level tertinggi party + bonus admin). Kalau
+     * level dasar monster udah lebih tinggi dari batas atas itu, ya pakai
+     * level dasarnya aja (gak pernah di-downgrade).
+     */
+    private function rollMonsterLevel(Monster $monster, Collection $characters): int
+    {
+        $partyMaxLevel = (int) $characters->max('level');
+        $bonus = GameSetting::getInt('monster_max_level_bonus', 3);
+        $maxLevel = max($monster->level, $partyMaxLevel + $bonus);
+
+        return random_int($monster->level, $maxLevel);
+    }
+
+    /**
+     * Scale stat monster (hp, damage, defense, exp_reward) dari level dasarnya
+     * ke level encounter, pakai rasio kompon berlapis: stat = base * ratio^(level-base).
+     * Agility/accuracy/strong-weak GAK di-scale (persentase/pola combat, bukan power).
+     */
+    public function scaledMonsterStats(Monster $monster, int $targetLevel): array
+    {
+        $ratio = GameSetting::getFloat('monster_level_growth_ratio', 1.5);
+        $factor = $ratio ** ($targetLevel - $monster->level);
+
+        return [
+            'level' => $targetLevel,
+            'hp' => max(1, (int) round($monster->hp * $factor)),
+            'physical_damage' => max(1, (int) round($monster->physical_damage * $factor)),
+            'physical_defense' => max(0, (int) round($monster->physical_defense * $factor)),
+            'magic_damage' => max(1, (int) round($monster->magic_damage * $factor)),
+            'magic_defense' => max(0, (int) round($monster->magic_defense * $factor)),
+            'exp_reward' => max(1, (int) round($monster->exp_reward * $factor)),
+        ];
     }
 
     /**
@@ -88,9 +132,10 @@ class BattleService
     {
         $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'monster']);
         $monster = $battle->monster;
+        $stats = $battle->monster_stats; // snapshot stat yang udah di-scale sesuai level encounter
 
         $log = [];
-        $log[] = $this->snapshot($battle, "{$monster->name} muncul menghadang!");
+        $log[] = $this->snapshot($battle, "{$monster->name} (Lv.{$battle->monster_level}) muncul menghadang!");
 
         $round = 1;
 
@@ -132,7 +177,7 @@ class BattleService
                 }
 
                 $offenseStat = $skill->scaling_stat === 'magic' ? $character->effective_magic_damage : $character->effective_physical_damage;
-                $defenseStat = $skill->scaling_stat === 'magic' ? $monster->magic_defense : $monster->physical_defense;
+                $defenseStat = $skill->scaling_stat === 'magic' ? $stats['magic_defense'] : $stats['physical_defense'];
 
                 $raw = $offenseStat * (float) $skill->base_multiplier;
                 $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
@@ -178,8 +223,8 @@ class BattleService
                     if (random_int(1, 100) > $hitChance) {
                         $log[] = $this->snapshot($battle, "{$monster->name} menyerang {$target->character->name}: MELESET!", null, null, true);
                     } else {
-                        $useMagic = $monster->magic_damage > $monster->physical_damage;
-                        $offenseStat = $useMagic ? $monster->magic_damage : $monster->physical_damage;
+                        $useMagic = $stats['magic_damage'] > $stats['physical_damage'];
+                        $offenseStat = $useMagic ? $stats['magic_damage'] : $stats['physical_damage'];
                         $defenseStat = $useMagic ? $character->effective_magic_defense : $character->effective_physical_defense;
 
                         $raw = $offenseStat;
@@ -290,7 +335,7 @@ class BattleService
         $battle->encounter->update(['status' => 'won']);
         $battle->encounter->spawnPoint->update(['last_defeated_at' => now()]);
 
-        $expReward = $battle->monster->exp_reward;
+        $expReward = $battle->monster_stats['exp_reward'];
 
         foreach ($battle->participants as $participant) {
             $character = $participant->character;
@@ -322,8 +367,9 @@ class BattleService
     }
 
     /**
-     * Cari monster yang cocok buat "Misi Cepat" - level mendekati rata-rata
-     * level party, diambil dari spawn point manapun secara acak.
+     * Cari SPESIES monster yang cocok buat "Misi Cepat" - level dasarnya
+     * mendekati rata-rata level party. Level ENCOUNTER-nya sendiri baru
+     * di-roll pas startBattle() (bisa lebih tinggi dari level dasar ini).
      */
     public function findQuickMissionMonster(Collection $characters): ?Monster
     {

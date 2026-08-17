@@ -20,6 +20,13 @@ export default function Show({ battle, battleBackground }) {
     const monster = battle.monster;
     const log = battle.battle_log || [];
 
+    // Level & stat monster yang beneran dipakai battle ini (udah di-scale
+    // sesuai level encounter) - fallback ke stat statis monster kalau battle
+    // lama (dibuat sebelum fitur level dinamis ada, monster_level-nya null).
+    const monsterLevel = battle.monster_level ?? monster.level;
+    const monsterMaxHp = battle.monster_stats?.hp ?? monster.hp;
+    const monsterExpReward = battle.monster_stats?.exp_reward ?? monster.exp_reward;
+
     const [step, setStep] = useState(0);
     const [finished, setFinished] = useState(log.length <= 1);
     const [soundOn, setSoundOn] = useState(true);
@@ -245,7 +252,7 @@ export default function Show({ battle, battleBackground }) {
                             <div className="mt-3">
                                 <div className="rpg-skill-group-title mb-1" style={{ fontSize: '0.75rem' }}>Hadiah</div>
                                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 700, color: '#c9a24b' }}>
-                                    +{monster.exp_reward} EXP <span className="rpg-power-type" style={{ fontSize: '0.85rem' }}>/ karakter</span>
+                                    +{monsterExpReward} EXP <span className="rpg-power-type" style={{ fontSize: '0.85rem' }}>/ karakter</span>
                                 </div>
                             </div>
                         )}
@@ -351,7 +358,7 @@ export default function Show({ battle, battleBackground }) {
                     {/* Monster - lebih besar, di belakang/tengah */}
                     <div style={{ position: 'absolute', top: '6%', left: '50%', transform: 'translateX(-50%)', width: '42%', textAlign: 'center' }}>
                         <div style={{ width: '65%', margin: '0 auto 3px' }}>
-                            <Bar current={current.monster_hp} max={monster.hp} color={MONSTER_COLOR} />
+                            <Bar current={current.monster_hp} max={monsterMaxHp} color={MONSTER_COLOR} />
                         </div>
                         <div
                             style={{
@@ -359,7 +366,7 @@ export default function Show({ battle, battleBackground }) {
                                 textShadow: '0 1px 3px rgba(0,0,0,0.9)', marginBottom: 2,
                             }}
                         >
-                            {monster.name} · Lv.{monster.level}
+                            {monster.name} · Lv.{monsterLevel}
                         </div>
                         {monster.full_body_path ? (
                             <img

@@ -13,12 +13,13 @@ class Battle extends Model
     use HasFactory;
 
     protected $fillable = [
-        'token', 'encounter_id', 'monster_id', 'monster_current_hp',
+        'token', 'encounter_id', 'monster_id', 'monster_level', 'monster_stats', 'monster_current_hp',
         'status', 'round_number', 'battle_log', 'viewed_at',
     ];
 
     protected $casts = [
         'battle_log' => 'array',
+        'monster_stats' => 'array',
         'viewed_at' => 'datetime',
     ];
 
