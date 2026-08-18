@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\MonsterController as AdminMonsterController;
+use App\Http\Controllers\Admin\SettingController as AdminSettingController;
+use App\Http\Controllers\Admin\SkillController as AdminSkillController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BattleController;
 use App\Http\Controllers\CharacterController;
@@ -56,4 +59,22 @@ Route::middleware('auth')->group(function () {
     Route::post('/encounters/{encounter}/start', [BattleController::class, 'start'])->name('encounters.start');
     Route::get('/battles/{battle}', [BattleController::class, 'show'])->name('battles.show');
     Route::post('/battles/{battle}/flee', [BattleController::class, 'flee'])->name('battles.flee');
+});
+
+// Admin - butuh login + is_admin=true (lihat middleware EnsureIsAdmin, grant
+// akses lewat `php artisan user:make-admin {username}`).
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/settings', [AdminSettingController::class, 'index'])->name('settings.index');
+    Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
+
+    Route::get('/monsters', [AdminMonsterController::class, 'index'])->name('monsters.index');
+    Route::get('/monsters/create', [AdminMonsterController::class, 'create'])->name('monsters.create');
+    Route::post('/monsters', [AdminMonsterController::class, 'store'])->name('monsters.store');
+    Route::get('/monsters/{monster}/edit', [AdminMonsterController::class, 'edit'])->name('monsters.edit');
+    Route::put('/monsters/{monster}', [AdminMonsterController::class, 'update'])->name('monsters.update');
+    Route::delete('/monsters/{monster}', [AdminMonsterController::class, 'destroy'])->name('monsters.destroy');
+
+    Route::get('/skills', [AdminSkillController::class, 'index'])->name('skills.index');
+    Route::get('/skills/{skill}/edit', [AdminSkillController::class, 'edit'])->name('skills.edit');
+    Route::put('/skills/{skill}', [AdminSkillController::class, 'update'])->name('skills.update');
 });

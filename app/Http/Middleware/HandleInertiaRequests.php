@@ -23,10 +23,12 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user() ? [
                     'id' => $request->user()->id,
                     'username' => $request->user()->username,
+                    'is_admin' => $request->user()->is_admin,
                 ] : null,
             ],
             'flash' => [
                 'explore_result' => fn () => $request->session()->get('explore_result'),
+                'success' => fn () => $request->session()->get('success'),
             ],
         ];
     }

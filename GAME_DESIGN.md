@@ -597,3 +597,27 @@ Blade Knight udah punya (`blade-knight-idle.png`), subclass lain nyusul kalau ad
 ### Belum ada
 - Animasi buat monster nyerang (`is_monster_actor` udah dicatat, tapi belum ada aset GIF/logic overlay-nya).
 - Subclass lain selain Blade Knight belum ada animasi atau idle pose khusus arena.
+
+---
+
+## 24. Admin Panel: Settings, Monster Editor, Skill Editor (v4.2, bagian 2)
+
+### Akses admin
+Kolom baru `users.is_admin` (default false, sengaja GAK di fillable biar gak bisa di-mass-assign lewat form manapun). Cara jadi admin:
+```bash
+php artisan user:make-admin {username}
+```
+Middleware `admin` (alias `EnsureIsAdmin`) proteksi semua route `/admin/*` — 403 kalau bukan admin. Link "Admin" di nav cuma keliatan buat user yang `is_admin=true`.
+
+### `/admin/settings` — atur rasio power monster
+Form sederhana buat edit `game_settings` (key-value, di-cache 60 detik biar gak query berkali-kali tiap battle). Dua setting default:
+- `monster_level_growth_ratio` (1.5) — rasio kenaikan stat monster tiap level
+- `monster_max_level_bonus` (3) — level monster maksimum = level tertinggi party + angka ini
+
+Ini yang dipakai buat "adjustment kalau monster OP" — tinggal turunin rasio dari halaman ini, gak perlu ubah kode/deploy ulang.
+
+### `/admin/monsters` — CRUD monster lengkap
+List + create + edit + delete. Form isi semua stat DASAR (level 1 baseline — stat aktual pas battle di-scale otomatis pakai rasio di atas, dijelasin di catatan form). **Peringatan delete**: relasi `monsters` ke `battles`/`encounters` pakai `cascadeOnDelete`, jadi hapus monster ikut ngehapus SEMUA battle history yang pernah lawan monster itu — dikasih warning jelas di dialog konfirmasi.
+
+### `/admin/skills` — edit skill (semua subclass)
+List semua skill (filter by subclass), edit tier/scaling_stat/combat_range/cost/cooldown/multiplier/required_level/deskripsi. **Belum ada create/delete skill** dari admin panel (skill baru masih lewat seeder) — scope dibatasi ke "adjustment" skill yang udah ada dulu, biar gak bikin data skill_id yang direferensikan di banyak tempat (character_skills, battle_participants.loadout_skill_ids) jadi berantakan.

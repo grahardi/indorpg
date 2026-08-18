@@ -46,6 +46,11 @@ export default function Layout({ children }) {
 
                         {user ? (
                             <>
+                                {user.is_admin && (
+                                    <Link href={route('admin.settings.index')} className="text-decoration-none" style={{ color: '#b8433a' }}>
+                                        Admin
+                                    </Link>
+                                )}
                                 <Link href={route('characters.create')} className="text-decoration-none" style={{ color: 'var(--accent-saint)' }}>
                                     + Karakter Baru
                                 </Link>

@@ -1,0 +1,56 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Skill;
+use App\Models\Subclass;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class SkillController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        $query = Skill::with('subclass.gameClass');
+
+        if ($request->filled('subclass_id')) {
+            $query->where('subclass_id', $request->input('subclass_id'));
+        }
+
+        return Inertia::render('Admin/Skills/Index', [
+            'skills' => $query->orderBy('subclass_id')->orderBy('tier')->orderBy('name')->get(),
+            'subclasses' => Subclass::orderBy('name')->get(['id', 'name']),
+            'filterSubclassId' => $request->input('subclass_id'),
+        ]);
+    }
+
+    public function edit(Skill $skill): Response
+    {
+        return Inertia::render('Admin/Skills/Form', [
+            'skill' => $skill,
+        ]);
+    }
+
+    public function update(Request $request, Skill $skill): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+            'tier' => ['required', 'integer', 'in:1,3'],
+            'scaling_stat' => ['required', 'string', 'in:physical,magic'],
+            'combat_range' => ['required', 'string', 'in:close,range,area'],
+            'stamina_cost' => ['required', 'integer', 'min:0'],
+            'mana_cost' => ['required', 'integer', 'min:0'],
+            'cooldown_seconds' => ['required', 'integer', 'min:0'],
+            'base_multiplier' => ['required', 'numeric', 'min:0'],
+            'required_level' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $skill->update($data);
+
+        return redirect()->route('admin.skills.index')->with('success', 'Skill diupdate.');
+    }
+}
