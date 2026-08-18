@@ -87,7 +87,7 @@ export default function Form({ skill, elements }) {
                                     <option value="nerf">Nerf (debuff monster)</option>
                                 </select>
                                 <p className="text-secondary small mt-1 mb-0">
-                                    {data.buff_type === 'heal' && 'Skill ini nyembuhin teman (bukan nyerang monster). Basis kekuatan = Magic Defense pemberi x Base Multiplier. Combat Range "Area" = kena semua teman yang hidup.'}
+                                    {data.buff_type === 'heal' && 'Skill ini nyembuhin teman (bukan nyerang monster). Basis kekuatan = Magic Attack pemberi x Base Multiplier. Combat Range "Area" = kena semua teman yang hidup.'}
                                     {data.buff_type === 'buff' && 'Skill ini nambah daya serang teman buat serangan BERIKUTNYA (one-shot, abis dipakai sekali). Basis = Magic Attack pemberi (45 Magic Attack x 100% Base Multiplier = +45% damage). Combat Range "Area" = semua teman yang hidup kebagian.'}
                                     {data.buff_type === 'nerf' && 'Skill ini debuff monster (bukan nyerang langsung). Base Multiplier jadi pengali damage serangan BERIKUTNYA ke monster (siapapun yang mukul duluan).'}
                                 </p>

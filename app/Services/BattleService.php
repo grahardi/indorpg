@@ -296,7 +296,7 @@ class BattleService
                 $participant->current_mana = max(0, $participant->current_mana - $skillStats['mana_cost']);
 
                 // === HEAL: gak nyerang monster sama sekali, nambah HP/MP/SP teman.
-                // Basis kekuatan heal = Magic Defense pemberi (bukan Magic Attack -
+                // Basis kekuatan heal = Magic Attack pemberi (sama kayak Buff -
                 // itu basis buff/serangan). combat_range='area' -> semua yang hidup
                 // ikut disembuhin, bukan cuma 1 target ===
                 if ($skill->buff_type === 'heal') {
@@ -311,7 +311,7 @@ class BattleService
                         continue;
                     }
 
-                    $healPower = $this->combatStat($participant, 'magic_defense') * $skillStats['multiplier'];
+                    $healPower = $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier'];
                     $healAmount = max(1, (int) round($healPower));
                     $resource = $skill->heal_resource ?? 'hp';
                     $resourceLabel = strtoupper($resource);

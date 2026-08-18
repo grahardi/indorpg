@@ -890,12 +890,11 @@ Contoh: 45 Magic Attack, Base Multiplier 100% (1.0) → target dapet **+45% dama
 
 `battle_participants.buff_multiplier` (kolom baru) — disimpen di target, dikonsumsi (dikali ke damage, terus di-reset null) pas si target beneran nyerang monster (skill `buff_type='none'`).
 
-### Fix formula Heal: dari Magic Defense (bukan Magic Attack)
-Sebelumnya (v5.8 draft awal) heal pakai Magic Attack sebagai basis — salah, ketuker sama Buff. Sekarang dibetulin:
+### Formula Heal: dari Magic Attack (sama basisnya kayak Buff)
 ```
-heal amount = Magic Defense pemberi × Base Multiplier skill
+heal amount = Magic Attack pemberi × Base Multiplier skill
 ```
-Magic Attack = basis offense/buff (nyerang & nge-buff), Magic Defense = basis heal — pembagian peran yang lebih jelas.
+Heal dan Buff sama-sama pakai Magic Attack sebagai basis kekuatan (user koreksi — awalnya sempat dicoba Magic Defense buat Heal, tapi dibalikin ke Magic Attack).
 
 ### Combat Range "Area" berlaku juga buat Heal & Buff
 Sebelumnya "Area" cuma dipakai buat serangan biasa (kena semua kalau monster area attack). Sekarang **Heal** dan **Buff** juga baca `skill->combat_range`:
