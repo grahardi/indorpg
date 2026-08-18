@@ -903,3 +903,26 @@ Sebelumnya "Area" cuma dipakai buat serangan biasa (kena semua kalau monster are
 
 ### Skill Point Allocation otomatis ikut ke Heal/Buff/Nerf juga
 Gak perlu logic tambahan — `skillCombatStats()['multiplier']` (yang udah termasuk level-scaling + allocation bonus per poin) dipakai SAMA di semua buff_type (heal/buff/nerf/none), jadi invest EXP ke skill heal/buff/nerf otomatis nambah kekuatannya juga, konsisten sama skill serangan biasa.
+
+---
+
+## 37. Rework Total 112 Skill (v5.9)
+
+`SkillReworkSeeder` — pass 2 (data), setelah infrastruktur `buff_stat` selesai (bagian 36). Semua 112 skill (14 subclass × 8) diklasifikasi ulang `buff_type`/`buff_stat`/`heal_resource`/`can_stun`/`combat_range` berdasarkan nama & deskripsi yang UDAH ADA di `SkillSeeder` (gak ngarang nama baru, cuma nge-set field yang belum pernah diisi).
+
+### Aturan minimum per subclass (tervalidasi semua 14 lolos)
+- **Minimal 1 skill `can_stun=true`** — biasanya nempel di skill tier-1 yang "berat" (hantaman/tebasan besar/ledakan)
+- **Minimal 1 skill `buff_type='none'`** (serangan biasa) — bahkan buat subclass paling support-heavy (Cleric cuma 1: "Pukulan Ringan", tapi tetap ada)
+
+### Saint (Cleric/Warlock/Enchanter) — porsi sesuai konsep karakter
+- **Cleric**: 7 dari 8 skill jadi `heal` (HP) — bener-bener condong penyembuh, cuma "Pukulan Ringan" yang attack biasa (+stun)
+- **Warlock**: 5 dari 8 skill jadi `nerf` (Tanda Kutukan, Sentuhan Layu, Rantai Kutukan, Bisikan Teror, Wabah Kutukan) — condong debuff, 3 sisanya attack
+- **Enchanter**: 5 dari 8 skill jadi `buff` (3 attack-buff, 2 defense-buff) + 1 `heal` (Not Penyemangat, resource MP) — condong support party, 2 sisanya attack
+
+### Contoh eksplisit dari instruksi: Warden "Gelombang Pelindung"
+> "Aura sihir yang menaikkan magic defense tim" → `buff_type='buff'`, `buff_stat='defense'`, `combat_range='area'` — persis kena SEMUA party, basis kekuatan dari Magic Attack pemberi (formula sama kayak buff/heal lain).
+
+### Subclass lain (Warrior/Tanker/Mage)
+Mayoritas tetap serangan biasa (`none`), tapi disisipin 1-2 skill support yang FLAVOR-nya emang udah ngarah ke situ dari deskripsi asli — misal Paladin "Cahaya Penyembuh" jadi heal, Bulwark/Warden/Sentinel/Spellblade/Geomancer punya 1 skill "perisai/tembok/kulit batu" jadi buff defense (self), Pyromancer/Hydromancer punya 1 skill "melemahkan/memperlambat musuh" jadi nerf.
+
+`combat_range` juga dipasang eksplisit di semua 112 skill di seeder ini (sebelumnya kolom itu gak pernah diisi eksplisit di `SkillSeeder` awal).
