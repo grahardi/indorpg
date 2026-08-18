@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Character;
+use App\Models\Skill;
 use App\Models\Subclass;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -139,6 +140,35 @@ class CharacterController extends Controller
         }
 
         $character->skills()->sync($data['skill_ids']);
+
+        return back();
+    }
+
+    /**
+     * "Skill point allocation" - invest EXP ke skill SPESIFIK (bukan stat
+     * karakter generik). Tiap poin: +1% damage & -1% cooldown skill itu.
+     * Cuma bisa buat skill yang ada di loadout manual karakter (character_skills).
+     */
+    public function allocateSkillPoint(Request $request, Character $character, Skill $skill): RedirectResponse
+    {
+        if ($character->user_id !== $request->user()->id) {
+            abort(403, 'Bukan karaktermu.');
+        }
+
+        $pivot = $character->skills()->where('skill_id', $skill->id)->first();
+        if (! $pivot) {
+            return back()->withErrors(['skill' => 'Skill ini belum ada di loadout manual karaktermu.']);
+        }
+
+        $currentBonus = $pivot->pivot->bonus_level;
+        $cost = ($currentBonus + 1) * 10;
+
+        if ($character->exp < $cost) {
+            return back()->withErrors(['skill' => 'EXP gak cukup buat allocate poin ke skill ini.']);
+        }
+
+        $character->decrement('exp', $cost);
+        $character->skills()->updateExistingPivot($skill->id, ['bonus_level' => $currentBonus + 1]);
 
         return back();
     }

@@ -754,3 +754,29 @@ php artisan characters:reset-level --force      # skip konfirmasi (misal buat sc
 ```
 
 Reset ke level 1, EXP/total_exp/stat_points/semua bonus stat ke 0, HP/SP/MP di-full-in lagi sesuai pool level 1. Ada konfirmasi y/n dulu sebelum eksekusi (kecuali pakai `--force`), soalnya ini gak bisa di-undo.
+
+---
+
+## 30. Skill Auto-Scale per Level + Skill Point Allocation (ganti stat point otomatis) (v5.2)
+
+### Fix: stat point gak lagi otomatis dikasih tiap naik level
+Sebelumnya tiap level-up dapat +5/+10 stat point otomatis (dipakai buat upgrade Bonus Stats karakter). Dihapus — `onVictory()` sekarang cuma log "naik ke Level X!" doang, gak nambah `stat_points` lagi. Stat point yang KEBETULAN udah kekumpul dari sebelumnya tetap bisa dipakai (mekanisme upgrade Bonus Stats yang lama gak dihapus, cuma sumber otomatisnya distop).
+
+### Skill auto-scale per level karakter (baru, otomatis - gak perlu aksi apapun)
+Damage & mana/stamina cost skill sekarang **naik otomatis** ngikutin level karakter yang makai, pakai rasio admin-tunable (`skill_level_growth_ratio`, default **1.3**, kompon berlapis dari level 1):
+```
+damage efektif = base_multiplier × 1.3^(level-1)
+mana/stamina cost efektif = base_cost × 1.3^(level-1)
+```
+Contoh: damage dasar 20 → level 2: 26 (20×1.3). **Cooldown TIDAK ikut naik** (tetap sesuai `cooldown_seconds` di skill). Ini berlaku ke SEMUA skill otomatis, gak perlu setting per-skill manual.
+
+### Skill Point Allocation (baru — pengganti destinasi stat point lama)
+Sistem baru buat invest EXP ke **skill spesifik** (bukan stat karakter generik lagi): tiap poin = **+1% damage & -1% cooldown** skill itu doang (cooldown di-floor 20% dari aslinya, biar gak pernah jadi instan 0 detik).
+
+- Cuma bisa buat skill yang ada di **loadout manual** karakter (character_skills pivot) — skill yang dipilih random per-battle gak punya slot allocation (gak ada tempat nyimpen progress-nya).
+- Kolom baru `character_skills.bonus_level` (per pasangan karakter-skill).
+- Biaya: `(bonus_level_saat_ini + 1) × 10 EXP` per poin — lebih murah dari upgrade stat karakter (15-25 EXP) karena scope-nya lebih sempit (1 skill doang, bukan efek ke semua battle).
+- UI baru di halaman detail karakter: section "Skill Point Allocation" (muncul kalau loadout udah diset 5 skill), tombol "+ Allocate (X EXP)" per skill, cuma keliatan buat pemilik karakter.
+
+### Kenapa desain ini (bukan literasi ke "kenapa dapat 1 poin tiap battle")
+User awalnya nanya kenapa stat point kayak dikasih tiap battle — root cause-nya BUKAN bug (kode udah bener cuma ngasih poin pas level beneran naik), tapi karena early-level EXP requirement kecil + monster EXP reward ikut ke-scale naik bareng level party, jadi level-up (dan dapat poin) emang KERASA sering banget di level rendah. Daripada cuma jelasin, saya redesign sesuai arah yang diminta: stat point otomatis dihapus, diganti sistem skill-specific yang lebih niche dan intentional.

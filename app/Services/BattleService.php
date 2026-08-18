@@ -208,13 +208,52 @@ class BattleService
     }
 
     /**
+     * Poin skill point allocation yang udah diinvest character ini ke skill
+     * tertentu (cuma ada kalau skill itu ada di loadout MANUAL-nya, character_skills
+     * pivot - skill random per-battle gak punya allocation, dianggap 0).
+     */
+    private function skillBonusLevel(Character $character, Skill $skill): int
+    {
+        $pivotSkill = $character->skills->firstWhere('id', $skill->id);
+
+        return $pivotSkill?->pivot?->bonus_level ?? 0;
+    }
+
+    /**
+     * Stat combat skill yang BENERAN dipakai di battle - base_multiplier/mana_cost/
+     * stamina_cost skill di-scale OTOMATIS sesuai level karakter (rasio admin,
+     * default 1.3, kompon berlapis dari level 1) - gak butuh aksi player.
+     * Cooldown TIDAK ikut naik dari level.
+     *
+     * DI ATAS itu, ada "skill point allocation" (manual, per-skill, lihat
+     * skillBonusLevel()): tiap poin nambah +1% damage & -1% cooldown skill itu
+     * (floor cooldown di 20% dari aslinya biar gak jadi instan 0 detik).
+     */
+    private function skillCombatStats(Character $character, Skill $skill): array
+    {
+        $levelRatio = GameSetting::getFloat('skill_level_growth_ratio', 1.3);
+        $levelFactor = $levelRatio ** ($character->level - 1);
+
+        $bonusLevel = $this->skillBonusLevel($character, $skill);
+        $allocFactor = 1 + ($bonusLevel * 0.01);
+        $cooldownFactor = max(0.2, 1 - ($bonusLevel * 0.01));
+
+        return [
+            'multiplier' => (float) $skill->base_multiplier * $levelFactor * $allocFactor,
+            'mana_cost' => max(0, (int) round($skill->mana_cost * $levelFactor)),
+            'stamina_cost' => max(0, (int) round($skill->stamina_cost * $levelFactor)),
+            'cooldown_seconds' => max(1, (int) round($skill->cooldown_seconds * $cooldownFactor)),
+        ];
+    }
+
+    /**
      * Jalankan seluruh battle otomatis dari awal sampai menang/kalah.
      * Tiap step dicatat sebagai snapshot (HP monster + semua participant saat itu)
      * biar frontend bisa "putar ulang" secara animasi.
      */
     public function autoResolve(Battle $battle): Battle
     {
-        $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'monster']);
+        $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'participants.character.skills', 'monster']);
         $monster = $battle->monster;
         $stats = $battle->monster_stats; // snapshot stat yang udah di-scale sesuai level encounter
 
@@ -248,9 +287,10 @@ class BattleService
                 }
 
                 $character = $participant->character;
+                $skillStats = $this->skillCombatStats($character, $skill);
 
-                $participant->current_stamina = max(0, $participant->current_stamina - $skill->stamina_cost);
-                $participant->current_mana = max(0, $participant->current_mana - $skill->mana_cost);
+                $participant->current_stamina = max(0, $participant->current_stamina - $skillStats['stamina_cost']);
+                $participant->current_mana = max(0, $participant->current_mana - $skillStats['mana_cost']);
 
                 // Cek Accuracy (ofensif) vs evasion bawaan monster - bisa meleset total.
                 // Accuracy/critical GAK di-scale NPC (sama kayak monster: cuma power
@@ -265,7 +305,7 @@ class BattleService
                 $offenseStat = $skill->scaling_stat === 'magic' ? $this->combatStat($participant, 'magic_damage') : $this->combatStat($participant, 'physical_damage');
                 $defenseStat = $skill->scaling_stat === 'magic' ? $stats['magic_defense'] : $stats['physical_defense'];
 
-                $raw = $offenseStat * (float) $skill->base_multiplier;
+                $raw = $offenseStat * $skillStats['multiplier'];
                 $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
 
                 $note = '';
@@ -381,10 +421,13 @@ class BattleService
         $loadoutIds = $participant->loadout_skill_ids ?? [];
         $skills = $participant->character->subclass->skills->whereIn('id', $loadoutIds);
         $cooldowns = $participant->skill_cooldowns ?? [];
+        $character = $participant->character;
 
-        $usable = $skills->filter(function (Skill $skill) use ($participant, $cooldowns, $currentRound) {
-            $affordable = $skill->stamina_cost <= $participant->current_stamina
-                && $skill->mana_cost <= $participant->current_mana;
+        $usable = $skills->filter(function (Skill $skill) use ($participant, $cooldowns, $currentRound, $character) {
+            $scaled = $this->skillCombatStats($character, $skill);
+
+            $affordable = $scaled['stamina_cost'] <= $participant->current_stamina
+                && $scaled['mana_cost'] <= $participant->current_mana;
 
             if (! $affordable) {
                 return false;
@@ -395,7 +438,7 @@ class BattleService
                 return true;
             }
 
-            $roundsLocked = max(1, (int) ceil($skill->cooldown_seconds / 2.5));
+            $roundsLocked = max(1, (int) ceil($scaled['cooldown_seconds'] / 2.5));
 
             return ($currentRound - $lastUsedRound) >= $roundsLocked;
         });
@@ -404,7 +447,7 @@ class BattleService
             return null;
         }
 
-        $chosen = $usable->sortByDesc(fn (Skill $s) => (float) $s->base_multiplier)->first();
+        $chosen = $usable->sortByDesc(fn (Skill $s) => $this->skillCombatStats($character, $s)['multiplier'])->first();
 
         $cooldowns[$chosen->id] = $currentRound;
         $participant->skill_cooldowns = $cooldowns;
@@ -451,12 +494,9 @@ class BattleService
             $character->increment('total_exp', $expReward);
             $character->refresh();
 
-            $oldLevel = $character->level;
             if ($character->syncLevel()) {
-                $points = $character->statPointsEarnedBetween($oldLevel, $character->level);
-                $character->stat_points += $points;
                 $character->save();
-                $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}! (+{$points} stat point)");
+                $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}!");
             }
         }
 

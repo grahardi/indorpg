@@ -64,7 +64,7 @@ class Character extends Model
     public function skills(): BelongsToMany
     {
         return $this->belongsToMany(Skill::class, 'character_skills')
-            ->withPivot('unlocked_at')
+            ->withPivot('unlocked_at', 'bonus_level')
             ->withTimestamps();
     }
 
