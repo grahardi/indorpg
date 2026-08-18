@@ -58,7 +58,7 @@ class CharacterController extends Controller
 
     public function show(Character $character): Response
     {
-        $character->load(['subclass.gameClass', 'subclass.element', 'subclass.skills', 'skills']);
+        $character->load(['subclass.gameClass', 'subclass.element', 'subclass.skills', 'skills', 'items']);
 
         return Inertia::render('Characters/Show', [
             'character' => $character,
@@ -169,6 +169,34 @@ class CharacterController extends Controller
 
         $character->decrement('exp', $cost);
         $character->skills()->updateExistingPivot($skill->id, ['bonus_level' => $currentBonus + 1]);
+
+        return back();
+    }
+
+    /**
+     * Toggle equip/unequip item - maks 4 item ke-equip sekaligus per karakter.
+     */
+    public function toggleEquipItem(Request $request, Character $character, \App\Models\Item $item): RedirectResponse
+    {
+        if ($character->user_id !== $request->user()->id) {
+            abort(403, 'Bukan karaktermu.');
+        }
+
+        $pivot = $character->items()->where('item_id', $item->id)->first();
+        if (! $pivot) {
+            return back()->withErrors(['item' => 'Item ini gak ada di inventory karaktermu.']);
+        }
+
+        $isEquipped = (bool) $pivot->pivot->is_equipped;
+
+        if (! $isEquipped) {
+            $equippedCount = $character->items()->wherePivot('is_equipped', true)->count();
+            if ($equippedCount >= 4) {
+                return back()->withErrors(['item' => 'Maksimal 4 item ke-equip sekaligus. Lepas salah satu dulu.']);
+            }
+        }
+
+        $character->items()->updateExistingPivot($item->id, ['is_equipped' => ! $isEquipped]);
 
         return back();
     }

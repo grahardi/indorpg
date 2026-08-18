@@ -23,7 +23,7 @@ class BattleService
     public function startBattle(Encounter $encounter, array $characterIds, ?int $frontmanCharacterId = null): Battle
     {
         $monster = $encounter->monster;
-        $characters = Character::with(['subclass.skills', 'skills'])->whereIn('id', $characterIds)->get();
+        $characters = Character::with(['subclass.skills', 'skills', 'items'])->whereIn('id', $characterIds)->get();
 
         // Level tertinggi PLAYER (bukan NPC) di party - jadi patokan level
         // monster MAUPUN level NPC (NPC gak punya level sendiri yang berarti,
@@ -123,6 +123,7 @@ class BattleService
             'magic_damage' => max(1, (int) round($monster->magic_damage * $factor)),
             'magic_defense' => max(0, (int) round($monster->magic_defense * $factor)),
             'exp_reward' => max(1, (int) round($monster->exp_reward * $factor)),
+            'gold_reward' => max(1, (int) round($monster->gold_reward * $factor)),
         ];
     }
 
@@ -248,7 +249,7 @@ class BattleService
      */
     public function autoResolve(Battle $battle): Battle
     {
-        $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'participants.character.skills', 'monster']);
+        $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'participants.character.skills', 'participants.character.items', 'monster']);
         $monster = $battle->monster;
         $stats = $battle->monster_stats; // snapshot stat yang udah di-scale sesuai level encounter
 
@@ -760,18 +761,20 @@ class BattleService
         $battle->encounter->spawnPoint->update(['last_defeated_at' => now()]);
 
         $expReward = $battle->monster_stats['exp_reward'];
+        $goldReward = $battle->monster_stats['gold_reward'];
 
         foreach ($battle->participants as $participant) {
             $character = $participant->character;
 
-            // NPC gak numpuk EXP/level permanen - "diset kayak monster", cuma
-            // player yang beneran progress dari battle ke battle.
+            // NPC gak numpuk EXP/level/gold/item permanen - "diset kayak monster",
+            // cuma player yang beneran progress dari battle ke battle.
             if ($character->is_npc) {
                 continue;
             }
 
             $character->increment('exp', $expReward);
             $character->increment('total_exp', $expReward);
+            $character->increment('gold', $goldReward);
             $character->refresh();
 
             $oldLevel = $character->level;
@@ -781,9 +784,33 @@ class BattleService
                 $character->save();
                 $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}! (+{$points} stat point)");
             }
+
+            $droppedItem = $this->rollItemDrop();
+            if ($droppedItem) {
+                $character->items()->attach($droppedItem->id, ['obtained_at' => now()]);
+                $rarityLabel = \App\Models\Item::RARITY_LABELS[$droppedItem->rarity] ?? $droppedItem->rarity;
+                $log[] = $this->snapshot($battle, "{$character->name} dapat item [{$rarityLabel}] {$droppedItem->name}!");
+            }
         }
 
-        $log[] = $this->snapshot($battle, "Party dapat {$expReward} EXP masing-masing karakter!");
+        $log[] = $this->snapshot($battle, "Party dapat {$expReward} EXP + {$goldReward} Gold masing-masing karakter!");
+    }
+
+    /**
+     * Roll drop item - tiap item di database punya drop_rate sendiri (persen),
+     * dicek satu-satu (urutan acak) sampai ada yang kena. Null kalau gak ada
+     * yang ke-roll (kemungkinan besar, biar item tetap berharga).
+     */
+    private function rollItemDrop(): ?\App\Models\Item
+    {
+        $items = \App\Models\Item::inRandomOrder()->get();
+        foreach ($items as $item) {
+            if ($item->drop_rate > 0 && random_int(1, 10000) <= $item->drop_rate * 100) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 
     public function flee(Battle $battle): Battle

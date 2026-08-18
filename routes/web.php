@@ -13,6 +13,7 @@ use App\Http\Controllers\GuideController;
 use App\Http\Controllers\GuildController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\MonsterController;
+use App\Http\Controllers\ShopController;
 use Illuminate\Support\Facades\Route;
 
 // Browsing publik - gak butuh login.
@@ -51,6 +52,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/characters/{character}/upgrade', [CharacterController::class, 'upgradeStat'])->name('characters.upgrade');
     Route::post('/characters/{character}/loadout', [CharacterController::class, 'updateLoadout'])->name('characters.loadout');
     Route::post('/characters/{character}/skills/{skill}/allocate', [CharacterController::class, 'allocateSkillPoint'])->name('characters.skills.allocate');
+    Route::post('/characters/{character}/items/{item}/toggle-equip', [CharacterController::class, 'toggleEquipItem'])->name('characters.items.toggle-equip');
+
+    Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
+    Route::post('/shop/buy', [ShopController::class, 'buy'])->name('shop.buy');
 
     Route::get('/guild', [GuildController::class, 'index'])->name('guild.index');
     Route::post('/guild/quick-mission', [GuildController::class, 'quickMission'])->name('guild.quick-mission');

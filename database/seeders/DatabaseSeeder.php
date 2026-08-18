@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             SecondaryStatsSeeder::class,
             MapSeeder::class,
             GameSettingSeeder::class,
+            ItemSeeder::class,
             NpcSeeder::class,
         ]);
     }

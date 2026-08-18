@@ -12,7 +12,7 @@ class Character extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'subclass_id', 'name', 'level', 'exp', 'total_exp', 'stat_points',
+        'user_id', 'subclass_id', 'name', 'level', 'exp', 'total_exp', 'stat_points', 'gold',
         'bonus_physical_damage', 'bonus_physical_defense',
         'bonus_magic_damage', 'bonus_magic_defense',
         'bonus_accuracy', 'bonus_evasion',
@@ -70,6 +70,24 @@ class Character extends Model
             ->withTimestamps();
     }
 
+    public function items(): BelongsToMany
+    {
+        return $this->belongsToMany(Item::class, 'character_items')
+            ->withPivot('is_equipped', 'obtained_at')
+            ->withTimestamps();
+    }
+
+    /**
+     * Total bonus dari SEMUA item yang lagi di-equip (maks 4 slot) buat 1 stat
+     * tertentu. Dijumlahin ke stat efektif karakter (lihat getEffectiveXAttribute).
+     */
+    public function itemBonus(string $stat): int
+    {
+        return $this->items
+            ->filter(fn (Item $item) => $item->pivot->is_equipped && $item->effect_stat === $stat)
+            ->sum('effect_value');
+    }
+
     public function getAvatarUrlAttribute(): ?string
     {
         return $this->avatar_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar_path) : null;
@@ -117,22 +135,22 @@ class Character extends Model
 
     public function getEffectivePhysicalDamageAttribute(): int
     {
-        return $this->leveled_physical_damage + $this->bonus_physical_damage;
+        return $this->leveled_physical_damage + $this->bonus_physical_damage + $this->itemBonus('physical_damage');
     }
 
     public function getEffectivePhysicalDefenseAttribute(): int
     {
-        return $this->leveled_physical_defense + $this->bonus_physical_defense;
+        return $this->leveled_physical_defense + $this->bonus_physical_defense + $this->itemBonus('physical_defense');
     }
 
     public function getEffectiveMagicDamageAttribute(): int
     {
-        return $this->leveled_magic_damage + $this->bonus_magic_damage;
+        return $this->leveled_magic_damage + $this->bonus_magic_damage + $this->itemBonus('magic_damage');
     }
 
     public function getEffectiveMagicDefenseAttribute(): int
     {
-        return $this->leveled_magic_defense + $this->bonus_magic_defense;
+        return $this->leveled_magic_defense + $this->bonus_magic_defense + $this->itemBonus('magic_defense');
     }
 
     public function getEffectiveBaseHpAttribute(): int
@@ -184,22 +202,22 @@ class Character extends Model
      */
     public function getEffectiveAccuracyAttribute(): int
     {
-        return $this->effective_physical_damage + $this->effective_magic_damage + $this->bonus_accuracy;
+        return $this->effective_physical_damage + $this->effective_magic_damage + $this->bonus_accuracy + $this->itemBonus('accuracy');
     }
 
     public function getEffectiveEvasionAttribute(): int
     {
-        return $this->effective_physical_defense + $this->effective_magic_defense + $this->bonus_evasion;
+        return $this->effective_physical_defense + $this->effective_magic_defense + $this->bonus_evasion + $this->itemBonus('evasion');
     }
 
     public function getEffectiveCriticalHitAttribute(): int
     {
-        return $this->subclass->critical_hit_bonus + $this->bonus_critical_hit;
+        return $this->subclass->critical_hit_bonus + $this->bonus_critical_hit + $this->itemBonus('critical_hit');
     }
 
     public function getEffectiveCriticalLuckAttribute(): int
     {
-        return $this->subclass->critical_luck + $this->bonus_critical_luck;
+        return $this->subclass->critical_luck + $this->bonus_critical_luck + $this->itemBonus('critical_luck');
     }
 
     /**
