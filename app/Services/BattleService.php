@@ -774,9 +774,12 @@ class BattleService
             $character->increment('total_exp', $expReward);
             $character->refresh();
 
+            $oldLevel = $character->level;
             if ($character->syncLevel()) {
+                $points = $character->statPointsEarnedBetween($oldLevel, $character->level);
+                $character->stat_points += $points;
                 $character->save();
-                $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}!");
+                $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}! (+{$points} stat point)");
             }
         }
 

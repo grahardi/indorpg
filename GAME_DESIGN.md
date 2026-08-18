@@ -762,8 +762,8 @@ Reset ke level 1, EXP/total_exp/stat_points/semua bonus stat ke 0, HP/SP/MP di-f
 
 ## 30. Skill Auto-Scale per Level + Skill Point Allocation (ganti stat point otomatis) (v5.2)
 
-### Fix: stat point gak lagi otomatis dikasih tiap naik level
-Sebelumnya tiap level-up dapat +5/+10 stat point otomatis (dipakai buat upgrade Bonus Stats karakter). Dihapus — `onVictory()` sekarang cuma log "naik ke Level X!" doang, gak nambah `stat_points` lagi. Stat point yang KEBETULAN udah kekumpul dari sebelumnya tetap bisa dipakai (mekanisme upgrade Bonus Stats yang lama gak dihapus, cuma sumber otomatisnya distop).
+### Stat point otomatis (v5.2: dihapus keliru, v6.0: dibalikin)
+Sebelumnya tiap level-up dapat +5/+10 stat point otomatis (dipakai buat upgrade Bonus Stats karakter). Di v5.2 ini sempat **dihapus** karena user ngira "dapat 1 poin tiap battle" itu bug. Setelah dicek, itu SEBENERNYA bukan bug — level rendah emang butuh sedikit EXP buat naik, jadi kerasa sering dapat poin. Di v6.0 user klarifikasi mereka emang MAU fitur ini, jadi **dipasang lagi** di `BattleService::onVictory()` — method `statPointsForLevel()`/`statPointsEarnedBetween()` di `Character` model gak pernah dihapus dari awal, cuma pemanggilannya yang sempat ilang.
 
 ### Skill auto-scale per level karakter (baru, otomatis - gak perlu aksi apapun)
 Damage & mana/stamina cost skill sekarang **naik otomatis** ngikutin level karakter yang makai, pakai rasio admin-tunable (`skill_level_growth_ratio`, default **1.3**, kompon berlapis dari level 1):
