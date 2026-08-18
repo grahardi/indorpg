@@ -840,3 +840,16 @@ Sebelumnya: preview di Guild kasih RENTANG (`Lv.2-6`), battle beneran roll ULANG
 - `BattleService::startBattle()`: manggil `$character->resolveNpcLevel($partyMaxLevel)` yang SAMA — kalau masih dalam window 300 detik dari waktu preview, dapet angka yang PERSIS SAMA kayak yang keliatan pas milih tadi
 
 Jadi sekarang player beneran bisa "milih NPC yang levelnya pas" — angka yang keliatan di Guild itu yang beneran dipakai di battle, bukan janji palsu yang berubah pas battle mulai.
+
+---
+
+## 34. Menu Nav jadi Dropdown (v5.6)
+
+`Layout.jsx` — nav sebelumnya flat (Guild, Codex, Karakter, Monster, Peta, Cara Main semua sejajar), sekarang dikelompokkan jadi 2 dropdown:
+
+- **Bermain** (klik teks = ke home/Codex, klik panah ▼ = buka dropdown) → Guild, Monster, Peta, Cara Main
+- **Karakter** (cuma muncul kalau login; klik teks = ke Roster, panah ▼ = dropdown) → Karaktermu, + Buat Karakter Baru, Admin (kalau `is_admin`)
+- **Logout** tetap tombol langsung (gak di-dropdown)
+- Guest (belum login): Login/Daftar tetap tampil sebagai link biasa, gak ada dropdown Karakter
+
+`NavDropdown` component baru (dipakai 2x) — pure React state (`useState` open/close + `useRef`+`useEffect` buat close-on-outside-click), sengaja gak pakai Bootstrap JS dropdown biar gak gantung sama bundle JS Bootstrap yang mungkin gak ke-load.
