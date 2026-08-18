@@ -20,7 +20,7 @@ class BattleService
      * langsung auto-resolve sampai selesai (semi-auto: player cuma pilih party,
      * pertarungan jalan otomatis).
      */
-    public function startBattle(Encounter $encounter, array $characterIds): Battle
+    public function startBattle(Encounter $encounter, array $characterIds, ?int $frontmanCharacterId = null): Battle
     {
         $monster = $encounter->monster;
         $characters = Character::with(['subclass.skills', 'skills'])->whereIn('id', $characterIds)->get();
@@ -37,6 +37,8 @@ class BattleService
         $battle = Battle::create([
             'encounter_id' => $encounter->id,
             'monster_id' => $monster->id,
+            // Cuma valid kalau beneran salah satu karakter yang dipilih di party ini.
+            'frontman_character_id' => in_array($frontmanCharacterId, $characterIds) ? $frontmanCharacterId : null,
             'monster_level' => $encounterLevel,
             'monster_stats' => $scaledStats,
             'monster_current_hp' => $scaledStats['hp'],
@@ -427,7 +429,7 @@ class BattleService
                         // ronde), atau fallback ke serangan dasar kalau gak ada yang ke-roll.
                         $monsterSkill = $this->pickMonsterSkill($monster);
                         $isArea = ($monsterSkill['effect'] ?? null) === 'area';
-                        $targets = $isArea ? $alive : collect([$alive->random()]);
+                        $targets = $isArea ? $alive : collect([$this->pickWeightedTarget($alive, $battle->frontman_character_id)]);
                         $skillName = $monsterSkill['name'] ?? null;
                         $damageRatio = $monsterSkill ? (float) ($monsterSkill['damage_ratio'] ?? 100) : 100;
                         $skillCanStun = (bool) ($monsterSkill['can_stun'] ?? false);
@@ -632,6 +634,29 @@ class BattleService
                 return $max > 0 ? $current / $max : 1;
             })
             ->first();
+    }
+
+    /**
+     * Pilih target monster - kalau ada frontman, dia dapet bobot 2x (jadi
+     * ~50% kena kalau party 3 orang: frontman 50%, 2 lainnya 25%/25%. Kalau
+     * party 2 orang: frontman ~67%, yang lain ~33%). Gak ada frontman -> random
+     * biasa (bobot rata semua).
+     */
+    private function pickWeightedTarget(\Illuminate\Support\Collection $alive, ?int $frontmanCharacterId): BattleParticipant
+    {
+        if (! $frontmanCharacterId) {
+            return $alive->random();
+        }
+
+        $weighted = [];
+        foreach ($alive as $p) {
+            $weight = $p->character_id === $frontmanCharacterId ? 2 : 1;
+            for ($i = 0; $i < $weight; $i++) {
+                $weighted[] = $p;
+            }
+        }
+
+        return $weighted[array_rand($weighted)];
     }
 
     private function anyAlive(Battle $battle): bool

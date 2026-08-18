@@ -853,3 +853,26 @@ Jadi sekarang player beneran bisa "milih NPC yang levelnya pas" — angka yang k
 - Guest (belum login): Login/Daftar tetap tampil sebagai link biasa, gak ada dropdown Karakter
 
 `NavDropdown` component baru (dipakai 2x) — pure React state (`useState` open/close + `useRef`+`useEffect` buat close-on-outside-click), sengaja gak pakai Bootstrap JS dropdown biar gak gantung sama bundle JS Bootstrap yang mungkin gak ke-load.
+
+---
+
+## 35. Fix Nav Dropdown + Fitur Lineup & Frontman (v5.7)
+
+### Fix nav dropdown
+Sebelumnya label & panah dropdown terpisah (klik teks = ke halaman, klik panah kecil ▼ = buka menu) — panahnya kekecilan, susah diklik. Sekarang: **seluruh tombol** (teks + panah) jadi satu trigger, klik DI MANA AJA buka/tutup dropdown. Ditambah **hover** (mouse mendekat) buat desktop — `onMouseEnter` buka langsung, `onMouseLeave` tutup dengan delay 150ms (biar gak keburu nutup pas mouse pindah dari label ke item menu). "Depan" (ke halaman utama/Codex) sekarang jadi **item pertama di dalam** dropdown "Bermain", bukan link terpisah lagi.
+
+### Lineup & Frontman (baru)
+Sebelum battle mulai, sekarang ada layar **"Lineup"** — nampilin full body semua karakter yang dipilih + monster berjejer dramatis (kayak poster tim), dan bisa pilih satu jadi **Frontman**.
+
+**Mekanisme**: Frontman dapet bobot target 2x dibanding yang lain:
+- Party 3 orang: Frontman ~50%, 2 lainnya ~25%/25%
+- Party 2 orang: Frontman ~67%, yang lain ~33%
+- Gak pilih Frontman: balik ke random rata (kayak sebelumnya)
+
+Ini bikin karakter tanky (HP/DEF tinggi) berguna buat "nutupin" teman yang lebih rapuh — taruh di depan biar lebih sering kena, sisanya lebih aman nyerang/heal dari belakang.
+
+**Implementasi**:
+- `battles.frontman_character_id` (nullable FK ke characters) — divalidasi harus salah satu dari party yang dipilih
+- `BattleService::pickWeightedTarget()` — frontman masuk pool target 2x lipat (bukan exact 50%, tapi mendekati tergantung ukuran party)
+- **Kedua jalur battle** (Misi Cepat di Guild MAUPUN explore-pilih-di-Peta) sekarang **konvergen** ke halaman `Battle/Select.jsx` yang sama — sebelumnya Misi Cepat langsung mulai battle tanpa layar konfirmasi, sekarang keduanya lewat Lineup dulu
+- Arena battle nampilin badge "🛡 Frontman" di karakter yang kepilih, biar kelihatan jelas pas nonton animasinya

@@ -1,9 +1,10 @@
 import { Link, usePage, router } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
 
-function NavDropdown({ label, labelHref, items, accent = 'var(--text-secondary)' }) {
+function NavDropdown({ label, items, accent = 'var(--text-secondary)' }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
+    const closeTimer = useRef(null);
 
     useEffect(() => {
         function handleClickOutside(e) {
@@ -15,20 +16,27 @@ function NavDropdown({ label, labelHref, items, accent = 'var(--text-secondary)'
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    function openNow() {
+        clearTimeout(closeTimer.current);
+        setOpen(true);
+    }
+
+    function closeSoon() {
+        // Delay dikit biar gak langsung nutup pas mouse pindah dari label ke menu-nya.
+        closeTimer.current = setTimeout(() => setOpen(false), 150);
+    }
+
     return (
-        <div ref={ref} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Link href={labelHref} className="text-decoration-none" style={{ color: accent, fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
-                {label}
-            </Link>
+        <div ref={ref} onMouseEnter={openNow} onMouseLeave={closeSoon} style={{ position: 'relative' }}>
             <button
                 onClick={() => setOpen((o) => !o)}
-                aria-label={`Buka menu ${label}`}
                 style={{
                     background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                    color: accent, fontSize: '0.55rem', lineHeight: 1,
+                    color: accent, fontFamily: 'var(--font-mono)', fontSize: '0.8rem',
+                    display: 'flex', alignItems: 'center', gap: 5,
                 }}
             >
-                {open ? '▲' : '▼'}
+                {label} <span style={{ fontSize: '0.55rem' }}>{open ? '▲' : '▼'}</span>
             </button>
             {open && (
                 <div
@@ -64,6 +72,7 @@ export default function Layout({ children }) {
     const user = props.auth?.user;
 
     const bermainItems = [
+        { href: route('classes.index'), label: 'Depan' },
         { href: route('guild.index'), label: 'Guild' },
         { href: route('monsters.index'), label: 'Monster' },
         { href: route('maps.index'), label: 'Peta' },
@@ -97,11 +106,11 @@ export default function Layout({ children }) {
                         IndoRPG
                     </Link>
                     <div className="d-flex align-items-center gap-4">
-                        <NavDropdown label="Bermain" labelHref={route('classes.index')} items={bermainItems} accent="var(--accent-saint)" />
+                        <NavDropdown label="Bermain" items={bermainItems} accent="var(--accent-saint)" />
 
                         {user ? (
                             <>
-                                <NavDropdown label="Karakter" labelHref={route('characters.index')} items={karakterItems} />
+                                <NavDropdown label="Karakter" items={karakterItems} />
                                 <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
                                     {user.username}
                                 </span>

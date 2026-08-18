@@ -12,19 +12,27 @@ export default function Select({ encounter, characters, preselected = [] }) {
     const { props } = usePage();
     const { data, setData, post, processing, errors } = useForm({
         character_ids: preselected,
+        frontman_character_id: null,
     });
 
     function toggle(id, isUnavailable) {
         if (isUnavailable) return;
-        setData('character_ids', data.character_ids.includes(id)
+        const next = data.character_ids.includes(id)
             ? data.character_ids.filter((c) => c !== id)
-            : data.character_ids.length < 3 ? [...data.character_ids, id] : data.character_ids);
+            : data.character_ids.length < 3 ? [...data.character_ids, id] : data.character_ids;
+        setData('character_ids', next);
+        // Kalau frontman yang dipilih ke-un-select, reset pilihan frontman.
+        if (!next.includes(data.frontman_character_id)) {
+            setData('frontman_character_id', null);
+        }
     }
 
     function submit(e) {
         e.preventDefault();
         post(route('encounters.start', encounter.id));
     }
+
+    const selectedCharacters = characters.filter((c) => data.character_ids.includes(c.id));
 
     return (
         <Layout>
@@ -105,6 +113,78 @@ export default function Select({ encounter, characters, preselected = [] }) {
                 </div>
 
                 {errors.character_ids && <div className="text-danger small mb-3">{errors.character_ids}</div>}
+
+                {/* Lineup - muncul begitu minimal 2 karakter dipilih. Tampilan party
+                    vs monster + pilih Frontman (kena target lebih sering, cocok
+                    buat tank yang mau "nutupin" teman). */}
+                {selectedCharacters.length >= 2 && (
+                    <div className="rpg-card mb-4" style={{ '--accent': '#c9a24b', padding: '1.5rem' }}>
+                        <div className="rpg-skill-group-title mb-1" style={{ fontSize: '0.85rem', color: '#c9a24b' }}>Lineup</div>
+                        <p className="text-secondary small mb-3">
+                            Pilih <strong>Frontman</strong> (opsional) — dia bakal kena target serangan monster{' '}
+                            <strong>{selectedCharacters.length === 3 ? '~50%' : '~67%'}</strong> ronde,
+                            sisanya dibagi rata ke {selectedCharacters.length === 3 ? '2 karakter lain (~25% masing-masing)' : '1 karakter lain'}.
+                            Cocok buat karakter tanky yang mau "nutupin" teman yang lebih rapuh. Gak pilih = target random rata semua.
+                        </p>
+
+                        <div className="d-flex justify-content-center align-items-end gap-3 flex-wrap mb-2" style={{ position: 'relative' }}>
+                            {selectedCharacters.map((c) => {
+                                const isFrontman = data.frontman_character_id === c.id;
+                                return (
+                                    <div key={c.id} style={{ textAlign: 'center', width: 100 }}>
+                                        {c.subclass?.full_body_path ? (
+                                            <img
+                                                src={c.subclass.full_body_path}
+                                                alt={c.name}
+                                                style={{
+                                                    width: '100%', aspectRatio: '1 / 2', objectFit: 'contain',
+                                                    background: 'var(--bg-panel)', borderRadius: 8,
+                                                    border: `2px solid ${isFrontman ? '#c9a24b' : 'var(--border-subtle)'}`,
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="rpg-badge-hex mx-auto" style={{ '--accent': '#8890a4', width: 70, height: 70 }}>
+                                                {c.name.charAt(0)}
+                                            </div>
+                                        )}
+                                        <div className="text-truncate mt-1" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{c.name}</div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setData('frontman_character_id', isFrontman ? null : c.id)}
+                                            className="rpg-back-link mt-1"
+                                            style={{
+                                                fontSize: '0.65rem', padding: '0.15rem 0.5rem', width: '100%',
+                                                color: isFrontman ? '#c9a24b' : 'var(--text-secondary)',
+                                                borderColor: isFrontman ? '#c9a24b' : 'var(--border-subtle)',
+                                            }}
+                                        >
+                                            {isFrontman ? '★ Frontman' : 'Jadi Frontman'}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+
+                            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', color: 'var(--text-muted)', fontWeight: 700, alignSelf: 'center' }}>
+                                VS
+                            </div>
+
+                            <div style={{ textAlign: 'center', width: 100 }}>
+                                {encounter.monster.full_body_path ? (
+                                    <img
+                                        src={encounter.monster.full_body_path}
+                                        alt={encounter.monster.name}
+                                        style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'contain', background: 'var(--bg-panel)', borderRadius: 8, border: '2px solid #b8433a' }}
+                                    />
+                                ) : (
+                                    <div className="rpg-badge-hex mx-auto" style={{ '--accent': '#b8433a', width: 70, height: 70 }}>
+                                        {encounter.monster.name.charAt(0)}
+                                    </div>
+                                )}
+                                <div className="text-truncate mt-1" style={{ fontSize: '0.78rem', color: '#b8433a' }}>{encounter.monster.name}</div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <button
                     onClick={submit}

@@ -312,6 +312,14 @@ export default function Show({ battle, battleBackground }) {
                         KAMU
                     </span>
                 )}
+                {battle.frontman_character_id === p.character_id && (
+                    <span
+                        className="rpg-element-badge d-inline-block mb-1 ms-1"
+                        style={{ '--accent': '#3f8c94', color: '#3f8c94', fontSize: '0.55rem', background: 'rgba(11,12,18,0.75)' }}
+                    >
+                        🛡 Frontman
+                    </span>
+                )}
                 <div style={{ width: '75%', margin: '0 auto 3px' }}>
                     <Bar current={live.hp} max={maxHp} color="#b8433a" />
                 </div>

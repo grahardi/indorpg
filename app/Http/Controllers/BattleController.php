@@ -57,13 +57,14 @@ class BattleController extends Controller
         $data = $request->validate([
             'character_ids' => ['required', 'array', 'min:2', 'max:3'],
             'character_ids.*' => ['exists:characters,id'],
+            'frontman_character_id' => ['nullable', 'integer', 'in:'.implode(',', $request->input('character_ids', []))],
         ]);
 
         $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
         $this->ensureNoBusyNpcInParty($data['character_ids']);
         $this->ensureNoFaintedCharacterInParty($data['character_ids']);
 
-        $battle = $this->battleService->startBattle($encounter, $data['character_ids']);
+        $battle = $this->battleService->startBattle($encounter, $data['character_ids'], $data['frontman_character_id'] ?? null);
 
         return redirect()->route('battles.show', $battle);
     }

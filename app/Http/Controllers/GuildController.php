@@ -112,8 +112,12 @@ class GuildController extends Controller
             'status' => 'pending',
         ]);
 
-        $battle = $this->battleService->startBattle($encounter, $data['character_ids']);
+        // Party udah dipilih di Guild, tapi jangan langsung mulai battle -
+        // lempar ke halaman "lineup" (encounters.select) dulu biar player bisa
+        // liat susunan party vs monster & pilih Frontman. Party-nya di-prefill
+        // otomatis lewat session (sama mekanisme kayak jalur explore peta).
+        session(['guild_party' => $data['character_ids']]);
 
-        return redirect()->route('battles.show', $battle);
+        return redirect()->route('encounters.select', $encounter);
     }
 }
