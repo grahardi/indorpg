@@ -19,6 +19,7 @@ export default function Index({ maps }) {
                         <Link href={route('admin.settings.index')} className="rpg-back-link">Settings</Link>
                         <Link href={route('admin.monsters.index')} className="rpg-back-link">Monster</Link>
                         <Link href={route('admin.skills.index')} className="rpg-back-link">Skill</Link>
+                        <Link href={route('admin.items.index')} className="rpg-back-link">Item</Link>
                         <Link href={route('admin.maps.create')} className="rpg-back-link" style={{ color: '#c9a24b' }}>+ Map Baru</Link>
                     </div>
                 </div>

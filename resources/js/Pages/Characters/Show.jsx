@@ -174,6 +174,9 @@ export default function Show({ character }) {
                             <p className="mb-0 mt-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: character.stat_points > 0 ? '#c9a24b' : 'var(--text-secondary)' }}>
                                 Stat Point Gratis: {character.stat_points}{isOwner && character.stat_points > 0 && ' — klik + di stat buat pakai (gratis!)'}
                             </p>
+                            <p className="mb-0 mt-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem', color: '#c9a24b' }}>
+                                Gold: {character.gold}
+                            </p>
                         </div>
 
                         {/* Stats gabungan - base (naik otomatis dari level) + bonus (upgrade EXP) dalam 1 bar */}
@@ -225,9 +228,112 @@ export default function Show({ character }) {
                     </div>
                 </div>
 
+                <InventorySection character={character} isOwner={isOwner} />
+
                 <LoadoutSection character={character} isOwner={isOwner} />
             </div>
         </Layout>
+    );
+}
+
+const RARITY_ACCENT = {
+    common: '#8890a4',
+    rare: '#3f8c94',
+    sr: '#7269d1',
+    ur: '#c9a24b',
+    legendary: '#b8433a',
+};
+
+const RARITY_LABEL = {
+    common: 'Common',
+    rare: 'Rare',
+    sr: 'SR',
+    ur: 'UR',
+    legendary: 'Legendary',
+};
+
+const STAT_LABEL = {
+    physical_damage: 'Physical Attack',
+    physical_defense: 'Physical Defense',
+    magic_damage: 'Magic Attack',
+    magic_defense: 'Magic Defense',
+    accuracy: 'Accuracy',
+    evasion: 'Evasion',
+    critical_hit: 'Critical Hit',
+    critical_luck: 'Critical Luck',
+};
+
+function InventorySection({ character, isOwner }) {
+    const [togglingId, setTogglingId] = useState(null);
+    const items = character.items ?? [];
+    const equippedCount = items.filter((i) => i.pivot?.is_equipped).length;
+
+    function toggleEquip(item) {
+        setTogglingId(item.id);
+        router.post(route('characters.items.toggle-equip', [character.id, item.id]), {}, {
+            preserveScroll: true,
+            onFinish: () => setTogglingId(null),
+        });
+    }
+
+    return (
+        <div className="mb-5">
+            <div className="d-flex justify-content-between align-items-end mb-2">
+                <div className="rpg-skill-group-title" style={{ fontSize: '0.85rem' }}>
+                    Inventory ({equippedCount}/4 ke-equip)
+                </div>
+                {isOwner && (
+                    <Link href={route('shop.index')} className="rpg-back-link" style={{ color: '#c9a24b' }}>
+                        + Belanja di Shop
+                    </Link>
+                )}
+            </div>
+            <p className="text-secondary small mb-3">
+                Maksimal 4 item bisa di-equip sekaligus. Item yang di-equip otomatis nambah stat karakter di battle.
+            </p>
+
+            {items.length === 0 ? (
+                <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
+                    Belum punya item. {isOwner && <>Coba menang battle (kadang drop) atau beli di <Link href={route('shop.index')}>Shop</Link>.</>}
+                </p>
+            ) : (
+                <div className="row g-3">
+                    {items.map((item) => {
+                        const accent = RARITY_ACCENT[item.rarity] ?? '#8890a4';
+                        const isEquipped = item.pivot?.is_equipped;
+                        return (
+                            <div className="col-md-6" key={item.id}>
+                                <div className="rpg-card" style={{ '--accent': accent, opacity: isEquipped ? 1 : 0.7 }}>
+                                    <div className="d-flex justify-content-between align-items-start mb-1">
+                                        <div className="rpg-subclass-name" style={{ fontSize: '0.92rem' }}>{item.name}</div>
+                                        <span className="rpg-element-badge" style={{ '--accent': accent, color: accent, fontSize: '0.58rem' }}>
+                                            {RARITY_LABEL[item.rarity]}
+                                        </span>
+                                    </div>
+                                    <div className="rpg-power-type mb-2">
+                                        +{item.effect_value} {STAT_LABEL[item.effect_stat] ?? item.effect_stat}
+                                    </div>
+                                    {isOwner && (
+                                        <button
+                                            onClick={() => toggleEquip(item)}
+                                            disabled={togglingId === item.id}
+                                            className="rpg-back-link"
+                                            style={{
+                                                fontSize: '0.72rem',
+                                                color: isEquipped ? '#c9a24b' : 'var(--text-secondary)',
+                                                borderColor: isEquipped ? '#c9a24b' : 'var(--border-subtle)',
+                                            }}
+                                        >
+                                            {isEquipped ? '★ Ter-equip (klik buat lepas)' : 'Equip'}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
     );
 }
 

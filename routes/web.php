@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ItemController as AdminItemController;
 use App\Http\Controllers\Admin\MapController as AdminMapController;
 use App\Http\Controllers\Admin\MonsterController as AdminMonsterController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
@@ -100,4 +101,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/maps/{map}/spawn-points/{spawnPoint}/edit', [AdminSpawnPointController::class, 'edit'])->name('maps.spawn-points.edit');
     Route::put('/maps/{map}/spawn-points/{spawnPoint}', [AdminSpawnPointController::class, 'update'])->name('maps.spawn-points.update');
     Route::delete('/maps/{map}/spawn-points/{spawnPoint}', [AdminSpawnPointController::class, 'destroy'])->name('maps.spawn-points.destroy');
+
+    Route::get('/items', [AdminItemController::class, 'index'])->name('items.index');
+    Route::get('/items/create', [AdminItemController::class, 'create'])->name('items.create');
+    Route::post('/items', [AdminItemController::class, 'store'])->name('items.store');
+    Route::get('/items/{item}/edit', [AdminItemController::class, 'edit'])->name('items.edit');
+    Route::put('/items/{item}', [AdminItemController::class, 'update'])->name('items.update');
+    Route::delete('/items/{item}', [AdminItemController::class, 'destroy'])->name('items.destroy');
 });

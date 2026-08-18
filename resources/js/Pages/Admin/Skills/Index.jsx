@@ -18,6 +18,7 @@ export default function Index({ skills, subclasses, filterSubclassId }) {
                         <Link href={route('admin.settings.index')} className="rpg-back-link">Settings</Link>
                         <Link href={route('admin.monsters.index')} className="rpg-back-link">Monster</Link>
                         <Link href={route('admin.maps.index')} className="rpg-back-link">Map</Link>
+                        <Link href={route('admin.items.index')} className="rpg-back-link">Item</Link>
                     </div>
                 </div>
 

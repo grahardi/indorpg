@@ -74,6 +74,7 @@ export default function Layout({ children }) {
     const bermainItems = [
         { href: route('classes.index'), label: 'Depan' },
         { href: route('guild.index'), label: 'Guild' },
+        { href: route('shop.index'), label: 'Shop' },
         { href: route('monsters.index'), label: 'Monster' },
         { href: route('maps.index'), label: 'Peta' },
         { href: route('guide.index'), label: 'Cara Main' },

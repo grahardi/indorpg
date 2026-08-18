@@ -926,3 +926,21 @@ Gak perlu logic tambahan — `skillCombatStats()['multiplier']` (yang udah terma
 Mayoritas tetap serangan biasa (`none`), tapi disisipin 1-2 skill support yang FLAVOR-nya emang udah ngarah ke situ dari deskripsi asli — misal Paladin "Cahaya Penyembuh" jadi heal, Bulwark/Warden/Sentinel/Spellblade/Geomancer punya 1 skill "perisai/tembok/kulit batu" jadi buff defense (self), Pyromancer/Hydromancer punya 1 skill "melemahkan/memperlambat musuh" jadi nerf.
 
 `combat_range` juga dipasang eksplisit di semua 112 skill di seeder ini (sebelumnya kolom itu gak pernah diisi eksplisit di `SkillSeeder` awal).
+
+---
+
+## 38. Fitur Item Bagian 2 (Frontend): Shop, Inventory, Admin Editor (v6.1)
+
+### `/shop` — halaman beli item
+Pilih karakter dulu (dropdown, nunjukkin gold masing-masing), list item urut rarity (Common→Legendary), tombol Beli disabled kalau gold gak cukup. Beli langsung masuk inventory karakter (belum ke-equip otomatis).
+
+### Inventory di halaman karakter (`Characters/Show.jsx`)
+Section baru "Inventory (X/4 ke-equip)" — list semua item yang dimiliki, tombol Equip/Lepas per item (cuma keliatan buat pemilik). Card item yang belum ke-equip agak transparan (opacity 0.7) biar kebeda visual dari yang aktif. Link cepat ke Shop kalau belum ada item.
+
+Gold karakter juga ditampilin di section Resource, sejajar sama EXP/Stat Point.
+
+### `/admin/items` — CRUD item lengkap
+List + create + edit + delete, sama pola kayak Monster/Skill editor. Form isi: nama, deskripsi, rarity, harga, stat yang ditambah, jumlah bonus, drop rate (%). Delete dikasih warning (item yang udah dimiliki/di-equip karakter ikut kehapus, cascade).
+
+### Nav
+"Shop" ditambahin ke dropdown "Bermain" (antara Guild dan Monster). Link "Item" ditambahin ke cross-nav semua halaman admin (Settings/Monster/Skill/Map).
