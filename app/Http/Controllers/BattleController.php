@@ -51,6 +51,7 @@ class BattleController extends Controller
 
         $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
         $this->ensureNoBusyNpcInParty($data['character_ids']);
+        $this->ensureNoFaintedCharacterInParty($data['character_ids']);
 
         $battle = $this->battleService->startBattle($encounter, $data['character_ids']);
 

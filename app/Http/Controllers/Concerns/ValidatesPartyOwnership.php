@@ -44,4 +44,22 @@ trait ValidatesPartyOwnership
             ]);
         }
     }
+
+    /**
+     * Pastikan gak ada karakter yang lagi tumbang (current_hp <= 0) ikut
+     * kepilih di party - dulu ini bug: karakter yang tumbang tetap bisa
+     * dipakai lagi seolah full HP. Karakter tumbang harus pulih dulu.
+     */
+    protected function ensureNoFaintedCharacterInParty(array $characterIds): void
+    {
+        $fainted = Character::whereIn('id', $characterIds)
+            ->where('current_hp', '<=', 0)
+            ->exists();
+
+        if ($fainted) {
+            throw ValidationException::withMessages([
+                'character_ids' => 'Ada karakter tumbang (HP 0) di party, gak bisa dipilih sampai pulih.',
+            ]);
+        }
+    }
 }

@@ -14,8 +14,8 @@ export default function Index({ characters }) {
     const [selected, setSelected] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    function toggle(id, isBusy) {
-        if (isBusy) return;
+    function toggle(id, isUnavailable) {
+        if (isUnavailable) return;
         setSelected((prev) => prev.includes(id)
             ? prev.filter((c) => c !== id)
             : prev.length < 3 ? [...prev, id] : prev);
@@ -62,16 +62,18 @@ export default function Index({ characters }) {
                         const accent = CLASS_ACCENT[c.subclass?.game_class?.slug] ?? '#8890a4';
                         const isSelected = selected.includes(c.id);
                         const isMine = props.auth?.user?.id && c.user_id === props.auth.user.id;
+                        const isFainted = c.current_hp <= 0;
+                        const isUnavailable = c.is_busy || isFainted;
                         return (
                             <div className="col-md-4" key={c.id}>
                                 <div
-                                    onClick={() => toggle(c.id, c.is_busy)}
+                                    onClick={() => toggle(c.id, isUnavailable)}
                                     className="rpg-card"
                                     style={{
                                         '--accent': accent,
-                                        cursor: c.is_busy ? 'not-allowed' : 'pointer',
+                                        cursor: isUnavailable ? 'not-allowed' : 'pointer',
                                         outline: isSelected ? `2px solid ${accent}` : 'none',
-                                        opacity: c.is_busy ? 0.45 : 1,
+                                        opacity: isUnavailable ? 0.45 : 1,
                                     }}
                                 >
                                     <div className="d-flex align-items-center gap-2">
@@ -93,6 +95,9 @@ export default function Index({ characters }) {
                                                 )}
                                                 {c.is_busy && (
                                                     <span className="rpg-element-badge" style={{ '--accent': '#b8433a', color: '#b8433a', fontSize: '0.58rem' }}>Sedang Misi</span>
+                                                )}
+                                                {isFainted && (
+                                                    <span className="rpg-element-badge" style={{ '--accent': '#5b6178', color: '#5b6178', fontSize: '0.58rem' }}>Tumbang</span>
                                                 )}
                                             </div>
                                             <div className="rpg-power-type">Lv.{c.level} &middot; {c.subclass?.name}</div>

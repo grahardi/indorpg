@@ -12,6 +12,7 @@ class GameSettingSeeder extends Seeder
         $defaults = [
             'monster_level_growth_ratio' => ['1.5', 'Rasio kenaikan stat monster tiap level (misal 1.5 = naik 50% tiap level, kompon berlapis). Naikkan/turunkan kalau monster kerasa terlalu OP/lemah.'],
             'monster_max_level_bonus' => ['3', 'Level monster maksimum = level tertinggi party + angka ini. Contoh: party level 5, angka 3 -> monster bisa sampai level 8.'],
+            'regen_ratio' => ['0.1', 'Rasio HP/SP/MP regen per ronde battle (0.1 = 10%). HP regen = ratio x (Physical Defense + Magic Defense). SP regen = ratio x Base SP. MP regen = ratio x Base MP. Contoh: Physical Defense 30 + Magic Defense 30 = 60, dengan ratio 10% -> HP regen 6/ronde.'],
         ];
 
         foreach ($defaults as $key => [$value, $desc]) {

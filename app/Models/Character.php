@@ -31,7 +31,7 @@ class Character extends Model
         'effective_physical_damage', 'effective_physical_defense',
         'effective_magic_damage', 'effective_magic_defense',
         'effective_base_hp', 'effective_base_mp', 'effective_base_sp',
-        'effective_mana_regen', 'effective_stamina_regen',
+        'effective_mana_regen', 'effective_stamina_regen', 'effective_hp_regen',
         'effective_accuracy', 'effective_evasion',
         'effective_critical_hit', 'effective_critical_luck',
         'exp_for_current_level', 'exp_for_next_level',
@@ -150,12 +150,29 @@ class Character extends Model
 
     public function getEffectiveManaRegenAttribute(): int
     {
-        return max(1, (int) round($this->effective_base_mp * 0.1));
+        $ratio = \App\Models\GameSetting::getFloat('regen_ratio', 0.1);
+
+        return max(1, (int) round($this->effective_base_mp * $ratio));
     }
 
     public function getEffectiveStaminaRegenAttribute(): int
     {
-        return max(1, (int) round($this->effective_base_sp * 0.1));
+        $ratio = \App\Models\GameSetting::getFloat('regen_ratio', 0.1);
+
+        return max(1, (int) round($this->effective_base_sp * $ratio));
+    }
+
+    /**
+     * HP regen per ronde battle - sebelumnya HP GAK regen sama sekali (cuma
+     * SP/MP). Formula: ratio x (Physical Defense + Magic Defense) = ratio x
+     * Base HP (karena Base HP emang udah dihitung dari 2 stat itu). Rasio
+     * bisa diatur admin di /admin/settings (default 10%).
+     */
+    public function getEffectiveHpRegenAttribute(): int
+    {
+        $ratio = \App\Models\GameSetting::getFloat('regen_ratio', 0.1);
+
+        return max(1, (int) round($this->effective_base_hp * $ratio));
     }
 
     /**

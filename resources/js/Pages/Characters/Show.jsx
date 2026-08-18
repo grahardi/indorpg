@@ -202,6 +202,7 @@ export default function Show({ character }) {
                                 label="Magic Defense" baseValue={character.effective_magic_defense - character.bonus_magic_defense} max={80} color="#3f8c94"
                                 statKey="magic_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
+                            <StatBar label="HP Regeneration" baseValue={character.effective_hp_regen} max={20} color="#b8433a" character={character} />
                             <StatBar label="Mana Regeneration" baseValue={character.effective_mana_regen} max={20} color="#7269d1" character={character} />
                             <StatBar label="Stamina Regeneration" baseValue={character.effective_stamina_regen} max={20} color="#c98a3a" character={character} />
                             <StatBar

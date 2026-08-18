@@ -56,6 +56,7 @@ class GuildController extends Controller
 
         $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
         $this->ensureNoBusyNpcInParty($data['character_ids']);
+        $this->ensureNoFaintedCharacterInParty($data['character_ids']);
 
         session(['guild_party' => $data['character_ids']]);
 
@@ -75,6 +76,7 @@ class GuildController extends Controller
 
         $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
         $this->ensureNoBusyNpcInParty($data['character_ids']);
+        $this->ensureNoFaintedCharacterInParty($data['character_ids']);
 
         $characters = Character::whereIn('id', $data['character_ids'])->get();
 

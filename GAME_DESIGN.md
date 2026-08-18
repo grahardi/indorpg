@@ -621,3 +621,26 @@ List + create + edit + delete. Form isi semua stat DASAR (level 1 baseline — s
 
 ### `/admin/skills` — edit skill (semua subclass)
 List semua skill (filter by subclass), edit tier/scaling_stat/combat_range/cost/cooldown/multiplier/required_level/deskripsi. **Belum ada create/delete skill** dari admin panel (skill baru masih lewat seeder) — scope dibatasi ke "adjustment" skill yang udah ada dulu, biar gak bikin data skill_id yang direferensikan di banyak tempat (character_skills, battle_participants.loadout_skill_ids) jadi berantakan.
+
+---
+
+## 25. Fix Bug Tumbang + HP Regen per Ronde (v4.3)
+
+### Bug: karakter tumbang tetap bisa main lagi
+**Root cause ganda**:
+1. `BattleParticipant::create()` selalu `is_alive => true` regardless kondisi HP asli karakter.
+2. `character.current_hp` **gak pernah disimpan balik** setelah battle selesai — jadi battle berikutnya selalu baca HP dari kondisi awal (biasanya full), gak peduli abis babak belur di battle sebelumnya.
+
+**Fix**:
+- `is_alive` sekarang dicek dari `character.current_hp > 0` beneran, bukan hardcode.
+- Abis `autoResolve()` selesai, HP/SP/MP akhir tiap participant di-simpen balik ke `characters` (sebelumnya gak pernah ke-update sama sekali).
+- Karakter dengan `current_hp <= 0` sekarang **gak bisa dipilih** buat party baru — badge "Tumbang" (abu-abu) di Guild & Battle Select, mirip pola "Sedang Misi", divalidasi juga di server (`ensureNoFaintedCharacterInParty`).
+
+**Catatan penting (belum ada)**: karena belum ada mekanisme heal/pulih di luar battle, karakter yang tumbang bakal **stuck di 0 HP terus** sampai ada fitur recovery (misal: skill heal beneran diimplementasi, atau regen pasif di luar battle). Sekarang cuma dicegah dari "curang main lagi walau tumbang" — pemulihannya sendiri masih perlu dibangun kalau mau dipakai jangka panjang.
+
+### HP Regen per Ronde (baru — sebelumnya HP gak pernah pulih sendiri di battle)
+Formula: `HP regen/ronde = ratio × (Physical Defense + Magic Defense)` — karena `Base HP` udah dihitung dari 2 stat itu, jadi sederhananya `HP regen = ratio × Base HP`, konsisten sama pola SP/MP regen yang udah ada.
+
+Setting baru `regen_ratio` (default `0.1` = 10%) di `/admin/settings`, **dipakai bareng buat HP, SP, MAupun MP regen** (sebelumnya SP/MP regen hardcode 10% di kode, sekarang keduanya juga ikut baca dari setting ini). Contoh dari instruksi: Physical Defense 30 + Magic Defense 30 = 60, ratio 10% → HP regen 6/ronde — persis sesuai.
+
+Karakter/`Characters/Show.jsx` sekarang nampilin "HP Regeneration" juga (sebelumnya cuma Mana & Stamina Regeneration).

@@ -61,7 +61,10 @@ class BattleService
                 'current_mana' => $character->current_mana,
                 'skill_cooldowns' => $initialCooldowns,
                 'loadout_skill_ids' => $loadoutIds,
-                'is_alive' => true,
+                // BUG FIX: sebelumnya selalu true, jadi karakter yang tumbang
+                // (current_hp 0 dari battle sebelumnya) tetap dianggap "hidup" dan
+                // ikut nyerang lagi di battle baru. Sekarang dicek dari HP asli.
+                'is_alive' => $character->current_hp > 0,
             ]);
         }
 
@@ -140,14 +143,16 @@ class BattleService
         $round = 1;
 
         while ($battle->monster_current_hp > 0 && $this->anyAlive($battle) && $round <= self::MAX_ROUNDS) {
-            // Regen stamina/mana tiap awal ronde, dibatasi pool max efektif karakter
-            // (base subclass + bonus upgrade dari EXP).
+            // Regen HP/stamina/mana tiap awal ronde, dibatasi pool max efektif
+            // karakter (base subclass + bonus upgrade dari EXP). HP regen baru -
+            // sebelumnya cuma SP/MP yang regen, HP gak pernah pulih sendiri di battle.
             foreach ($battle->participants as $participant) {
                 if (! $participant->is_alive) {
                     continue;
                 }
                 $character = $participant->character;
 
+                $participant->current_hp = min($character->effective_base_hp, $participant->current_hp + $character->effective_hp_regen);
                 $participant->current_stamina = min($character->effective_base_sp, $participant->current_stamina + $character->effective_stamina_regen);
                 $participant->current_mana = min($character->effective_base_mp, $participant->current_mana + $character->effective_mana_regen);
             }
@@ -266,6 +271,18 @@ class BattleService
 
         $battle->battle_log = $log;
         $battle->save();
+
+        // Simpen HP/SP/MP akhir battle balik ke karakter - SEBELUMNYA GAK PERNAH
+        // disimpen, jadi character.current_hp gak pernah berubah dari battle ke
+        // battle (karakter yang tumbang gak "kebawa" tumbangnya ke battle berikutnya).
+        // Ini juga yang bikin battle sebelumnya bisa "curang" (is_alive dipaksa true).
+        foreach ($battle->participants as $participant) {
+            $participant->character->update([
+                'current_hp' => $participant->current_hp,
+                'current_stamina' => $participant->current_stamina,
+                'current_mana' => $participant->current_mana,
+            ]);
+        }
 
         return $battle->fresh(['participants.character.subclass', 'monster']);
     }
