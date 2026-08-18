@@ -876,3 +876,31 @@ Ini bikin karakter tanky (HP/DEF tinggi) berguna buat "nutupin" teman yang lebih
 - `BattleService::pickWeightedTarget()` — frontman masuk pool target 2x lipat (bukan exact 50%, tapi mendekati tergantung ukuran party)
 - **Kedua jalur battle** (Misi Cepat di Guild MAUPUN explore-pilih-di-Peta) sekarang **konvergen** ke halaman `Battle/Select.jsx` yang sama — sebelumnya Misi Cepat langsung mulai battle tanpa layar konfirmasi, sekarang keduanya lewat Lineup dulu
 - Arena battle nampilin badge "🛡 Frontman" di karakter yang kepilih, biar kelihatan jelas pas nonton animasinya
+
+---
+
+## 36. Buff Type ke-4: "Buff" + Fix Formula Heal + Area buat Heal/Buff (v5.8)
+
+### Buff Type "Buff" (baru)
+Nambah daya serang **ally** buat serangan **berikutnya** (one-shot, dikonsumsi pas dia nyerang beneran, abis itu reset). Basis kekuatan = **Magic Attack** pemberi buff (biar Magic Attack ada gunanya juga buat karakter support, gak cuma buat nyerang langsung):
+```
+bonus% = Magic Attack pemberi × Base Multiplier skill
+```
+Contoh: 45 Magic Attack, Base Multiplier 100% (1.0) → target dapet **+45% damage** di serangan berikutnya.
+
+`battle_participants.buff_multiplier` (kolom baru) — disimpen di target, dikonsumsi (dikali ke damage, terus di-reset null) pas si target beneran nyerang monster (skill `buff_type='none'`).
+
+### Fix formula Heal: dari Magic Defense (bukan Magic Attack)
+Sebelumnya (v5.8 draft awal) heal pakai Magic Attack sebagai basis — salah, ketuker sama Buff. Sekarang dibetulin:
+```
+heal amount = Magic Defense pemberi × Base Multiplier skill
+```
+Magic Attack = basis offense/buff (nyerang & nge-buff), Magic Defense = basis heal — pembagian peran yang lebih jelas.
+
+### Combat Range "Area" berlaku juga buat Heal & Buff
+Sebelumnya "Area" cuma dipakai buat serangan biasa (kena semua kalau monster area attack). Sekarang **Heal** dan **Buff** juga baca `skill->combat_range`:
+- `combat_range = 'area'` → efek kena SEMUA karakter yang masih hidup (bukan cuma 1 target)
+- Selain itu (close/range) → tetap 1 target (heal pilih yang paling butuh, buff pilih attacker terkuat di party)
+
+### Skill Point Allocation otomatis ikut ke Heal/Buff/Nerf juga
+Gak perlu logic tambahan — `skillCombatStats()['multiplier']` (yang udah termasuk level-scaling + allocation bonus per poin) dipakai SAMA di semua buff_type (heal/buff/nerf/none), jadi invest EXP ke skill heal/buff/nerf otomatis nambah kekuatannya juga, konsisten sama skill serangan biasa.

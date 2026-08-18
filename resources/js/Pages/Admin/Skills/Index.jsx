@@ -66,6 +66,7 @@ export default function Index({ skills, subclasses, filterSubclassId }) {
                                     <td>{s.can_stun ? <span style={{ color: '#c9a24b' }}>⚡ Ya</span> : <span className="text-secondary">-</span>}</td>
                                     <td>
                                         {s.buff_type === 'heal' && <span style={{ color: '#3f8c94' }}>💚 Heal</span>}
+                                        {s.buff_type === 'buff' && <span style={{ color: '#c9a24b' }}>💪 Buff</span>}
                                         {s.buff_type === 'nerf' && <span style={{ color: '#b8433a' }}>☠ Nerf</span>}
                                         {(!s.buff_type || s.buff_type === 'none') && <span className="text-secondary">-</span>}
                                     </td>

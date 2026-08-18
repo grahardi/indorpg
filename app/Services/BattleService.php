@@ -295,37 +295,80 @@ class BattleService
                 $participant->current_stamina = max(0, $participant->current_stamina - $skillStats['stamina_cost']);
                 $participant->current_mana = max(0, $participant->current_mana - $skillStats['mana_cost']);
 
-                // === HEAL: gak nyerang monster sama sekali, nambah HP/MP/SP teman ===
+                // === HEAL: gak nyerang monster sama sekali, nambah HP/MP/SP teman.
+                // Basis kekuatan heal = Magic Defense pemberi (bukan Magic Attack -
+                // itu basis buff/serangan). combat_range='area' -> semua yang hidup
+                // ikut disembuhin, bukan cuma 1 target ===
                 if ($skill->buff_type === 'heal') {
-                    $target = $this->pickHealTarget($battle, $skill);
-                    if (! $target) {
+                    $isAreaHeal = $skill->combat_range === 'area';
+                    $targets = $isAreaHeal
+                        ? $battle->participants->where('is_alive', true)
+                        : collect([$this->pickHealTarget($battle, $skill)])->filter();
+
+                    if ($targets->isEmpty()) {
                         $participant->save();
                         $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name}, tapi gak ada yang perlu disembuhin.", $character->id, $skill->id);
                         continue;
                     }
 
-                    // Pakai magic_damage sebagai "kekuatan nyembuhin" (konvensi umum
-                    // RPG - stat sihir jadi basis heal juga), dikali multiplier skill.
-                    $healPower = $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier'];
+                    $healPower = $this->combatStat($participant, 'magic_defense') * $skillStats['multiplier'];
                     $healAmount = max(1, (int) round($healPower));
                     $resource = $skill->heal_resource ?? 'hp';
+                    $resourceLabel = strtoupper($resource);
+                    $healedNames = [];
 
-                    [$before, $max] = $this->resourceLevel($target, $resource);
-                    $after = min($max, $before + $healAmount);
-                    $actualHeal = $after - $before;
+                    foreach ($targets as $target) {
+                        [$before, $max] = $this->resourceLevel($target, $resource);
+                        $after = min($max, $before + $healAmount);
+                        $actualHeal = $after - $before;
 
-                    match ($resource) {
-                        'mp' => $target->current_mana = $after,
-                        'sp' => $target->current_stamina = $after,
-                        default => $target->current_hp = $after,
-                    };
-                    $target->save();
-                    if ($target->id !== $participant->id) {
+                        match ($resource) {
+                            'mp' => $target->current_mana = $after,
+                            'sp' => $target->current_stamina = $after,
+                            default => $target->current_hp = $after,
+                        };
+                        $target->save();
+                        $healedNames[] = "{$target->character->name} (+{$actualHeal})";
+                    }
+                    if (! $targets->contains('id', $participant->id)) {
                         $participant->save();
                     }
 
-                    $resourceLabel = strtoupper($resource);
-                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$target->character->name}: +{$actualHeal} {$resourceLabel}", $character->id, $skill->id);
+                    $namesText = implode(', ', $healedNames);
+                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText} {$resourceLabel}", $character->id, $skill->id);
+
+                    continue;
+                }
+
+                // === BUFF: nambah daya serang ally buat serangan BERIKUTNYA
+                // (one-shot, dikonsumsi pas dia nyerang, abis itu reset). Basis
+                // kekuatan = Magic Attack pemberi buff (45 magic attack = +45%
+                // damage, biar Magic Attack ada gunanya buat karakter support
+                // juga, gak cuma buat nyerang langsung). combat_range='area' ->
+                // semua yang hidup kebagian buff. ===
+                if ($skill->buff_type === 'buff') {
+                    $isAreaBuff = $skill->combat_range === 'area';
+                    $alive = $battle->participants->where('is_alive', true);
+                    $targets = $isAreaBuff
+                        ? $alive
+                        : collect([$alive->sortByDesc(fn ($p) => $this->combatStat($p, 'physical_damage') + $this->combatStat($p, 'magic_damage'))->first()])->filter();
+
+                    $bonusPercent = $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier'];
+                    $buffMultiplier = 1 + ($bonusPercent / 100);
+                    $bonusRounded = round($bonusPercent);
+                    $buffedNames = [];
+
+                    foreach ($targets as $target) {
+                        $target->buff_multiplier = $buffMultiplier;
+                        $target->save();
+                        $buffedNames[] = $target->character->name;
+                    }
+                    if (! $targets->contains('id', $participant->id)) {
+                        $participant->save();
+                    }
+
+                    $namesText = implode(', ', $buffedNames);
+                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText}: serangan berikutnya +{$bonusRounded}% damage!", $character->id, $skill->id);
 
                     continue;
                 }
@@ -373,6 +416,14 @@ class BattleService
                 if ($isCrit) {
                     $mitigated *= (1 + $character->effective_critical_hit / 100);
                     $note .= ' CRITICAL!';
+                }
+
+                // Buff dari skill support sebelumnya (kalau ada) - one-shot,
+                // konsumsi begitu karakter ini nyerang, abis itu reset.
+                if ($participant->buff_multiplier) {
+                    $mitigated *= (float) $participant->buff_multiplier;
+                    $note .= ' (Buff!)';
+                    $participant->buff_multiplier = null;
                 }
 
                 // Debuff dari skill nerf sebelumnya (kalau ada) - one-shot, konsumsi

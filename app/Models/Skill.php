@@ -21,7 +21,7 @@ class Skill extends Model
         'can_stun' => 'boolean',
     ];
 
-    public const BUFF_TYPES = ['none', 'heal', 'nerf'];
+    public const BUFF_TYPES = ['none', 'heal', 'nerf', 'buff'];
 
     public const HEAL_RESOURCES = ['hp', 'mp', 'sp'];
 
