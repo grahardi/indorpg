@@ -644,3 +644,26 @@ Formula: `HP regen/ronde = ratio × (Physical Defense + Magic Defense)` — kare
 Setting baru `regen_ratio` (default `0.1` = 10%) di `/admin/settings`, **dipakai bareng buat HP, SP, MAupun MP regen** (sebelumnya SP/MP regen hardcode 10% di kode, sekarang keduanya juga ikut baca dari setting ini). Contoh dari instruksi: Physical Defense 30 + Magic Defense 30 = 60, ratio 10% → HP regen 6/ronde — persis sesuai.
 
 Karakter/`Characters/Show.jsx` sekarang nampilin "HP Regeneration" juga (sebelumnya cuma Mana & Stamina Regeneration).
+
+---
+
+## 26. Sistem Kelas Monster (E-S) — ganti tampilan Level statis (v4.4)
+
+Level monster yang statis (di tabel `monsters`) sekarang cuma dipakai sebagai patokan random (lihat bagian 22), jadi nampilin "Lv.1" di Bestiary/preview sebelum battle **menyesatkan** — battle beneran bisa jauh lebih tinggi levelnya.
+
+### `Monster::level_rank` (accessor baru, otomatis ke-append di semua response)
+```php
+S: level >= 17    A: level >= 12    B: level >= 8
+C: level >= 5     D: level >= 3     E: default (1-2)
+```
+
+### Dipakai di (level statis diganti Kelas huruf)
+- `Monsters/Index.jsx` (Bestiary list)
+- `Monsters/Show.jsx` (Bestiary detail) — plus kalimat penjelasan "Kelas nunjukkin perkiraan kekuatan secara umum, level & stat asli baru kelihatan pas battle beneran dimulai"
+- `Battle/Select.jsx` (preview monster sebelum pilih party) — HP statis juga dihilangkan dari preview ini (sama-sama misleading kayak level)
+- `Maps/Show.jsx` (hasil explore ketemu monster)
+
+### TETAP numerik (sengaja, karena datanya akurat di situ)
+- **Di dalam battle** (`Battle/Show.jsx`) — `battle.monster_level` di situ udah hasil roll SEBENARNYA buat battle itu, bukan template statis, jadi angka pasti justru lebih informatif.
+- **Admin panel** (`/admin/monsters`) — admin butuh presisi buat editing, bukan narasi kelas.
+- **Level karakter** (player/NPC) — ini gak random, tetap ditampilin numerik di mana-mana seperti biasa.

@@ -46,7 +46,7 @@ export default function Show({ map, spawnPoints }) {
                                 <div>
                                     <div className="rpg-subclass-name">{result.message}</div>
                                     <div className="rpg-power-type">
-                                        Lv.{result.monster.level} &middot; {result.monster.type} &middot; HP {result.monster.hp}
+                                        Kelas {result.monster.level_rank} &middot; {result.monster.type}
                                     </div>
                                 </div>
                                 <Link href={route('encounters.select', result.encounter_id)} className="rpg-back-link ms-auto">

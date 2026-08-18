@@ -20,6 +20,8 @@ class Monster extends Model
         'description', 'avatar_path', 'full_body_path',
     ];
 
+    protected $appends = ['level_rank'];
+
     /**
      * Kombinasi pola combat yang valid: cara serang (close/range/area) x jenis damage (physical/magic).
      */
@@ -27,6 +29,26 @@ class Monster extends Model
         'close_physical', 'range_physical', 'area_physical',
         'close_magic', 'range_magic', 'area_magic',
     ];
+
+    /**
+     * Rank huruf (E terlemah - S terkuat) buat tampilan publik (Bestiary,
+     * preview sebelum battle) - level angka SEBENARNYA acak tiap encounter
+     * (lihat BattleService::rollMonsterLevel), jadi nunjukkin angka level
+     * statis di sini bisa menyesatkan (janji level yang gak sesuai battle
+     * beneran). Level angka pasti cuma ditampilin di DALAM battle (udah akurat)
+     * dan di admin panel (buat editing).
+     */
+    public function getLevelRankAttribute(): string
+    {
+        return match (true) {
+            $this->level >= 17 => 'S',
+            $this->level >= 12 => 'A',
+            $this->level >= 8 => 'B',
+            $this->level >= 5 => 'C',
+            $this->level >= 3 => 'D',
+            default => 'E',
+        };
+    }
 
     public function element(): BelongsTo
     {
