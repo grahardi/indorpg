@@ -450,18 +450,19 @@ class BattleService
         $battle->battle_log = $log;
         $battle->save();
 
-        // Simpen HP/SP/MP akhir battle balik ke karakter PLAYER - SEBELUMNYA GAK
-        // PERNAH disimpen, jadi character.current_hp gak pernah berubah dari
-        // battle ke battle. NPC gak disimpen (mereka gak numpuk state antar
-        // battle - selalu fresh tiap battle, "diset kayak monster").
+        // Abis battle selesai, party PULIH FULL (HP/SP/MP kembali penuh) - baik
+        // yang tumbang maupun yang cuma kepotong sebagian, gak perlu recovery
+        // manual di luar battle. NPC gak disentuh (mereka emang selalu fresh
+        // tiap battle sendiri, gak nyimpen state apapun - "diset kayak monster").
         foreach ($battle->participants as $participant) {
-            if ($participant->character->is_npc) {
+            $character = $participant->character;
+            if ($character->is_npc) {
                 continue;
             }
-            $participant->character->update([
-                'current_hp' => $participant->current_hp,
-                'current_stamina' => $participant->current_stamina,
-                'current_mana' => $participant->current_mana,
+            $character->update([
+                'current_hp' => $character->effective_base_hp,
+                'current_stamina' => $character->effective_base_sp,
+                'current_mana' => $character->effective_base_mp,
             ]);
         }
 

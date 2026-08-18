@@ -636,7 +636,10 @@ List semua skill (filter by subclass), edit tier/scaling_stat/combat_range/cost/
 - Abis `autoResolve()` selesai, HP/SP/MP akhir tiap participant di-simpen balik ke `characters` (sebelumnya gak pernah ke-update sama sekali).
 - Karakter dengan `current_hp <= 0` sekarang **gak bisa dipilih** buat party baru — badge "Tumbang" (abu-abu) di Guild & Battle Select, mirip pola "Sedang Misi", divalidasi juga di server (`ensureNoFaintedCharacterInParty`).
 
-**Catatan penting (belum ada)**: karena belum ada mekanisme heal/pulih di luar battle, karakter yang tumbang bakal **stuck di 0 HP terus** sampai ada fitur recovery (misal: skill heal beneran diimplementasi, atau regen pasif di luar battle). Sekarang cuma dicegah dari "curang main lagi walau tumbang" — pemulihannya sendiri masih perlu dibangun kalau mau dipakai jangka panjang.
+### Party pulih full HP/SP/MP abis battle (bukan bawa luka)
+Awalnya (v4.3) HP/SP/MP akhir battle disimpan apa adanya ke karakter — jadi yang tumbang tetap 0 HP sampai ada fitur recovery (yang belum dibangun). User minta diubah: **abis battle selesai, party otomatis pulih FULL** (baik yang tumbang maupun yang cuma kepotong sebagian), gak perlu nunggu recovery manual. Battle jadi murni "one-shot encounter" — hasilnya (menang/kalah/EXP) tetap kesimpen, tapi kondisi fisik party di-reset bersih tiap kali balik dari battle.
+
+`ensureNoFaintedCharacterInParty()` (validasi party gak boleh ada yang HP 0) tetap dibiarin ada — jadi gak akan pernah ke-trigger lagi di alur normal (karakter selalu balik full abis battle), tapi tetap jadi pengaman kalau suatu saat ada mekanisme lain yang bisa nurunin HP di luar battle.
 
 ### HP Regen per Ronde (baru — sebelumnya HP gak pernah pulih sendiri di battle)
 Formula: `HP regen/ronde = ratio × (Physical Defense + Magic Defense)` — karena `Base HP` udah dihitung dari 2 stat itu, jadi sederhananya `HP regen = ratio × Base HP`, konsisten sama pola SP/MP regen yang udah ada.
