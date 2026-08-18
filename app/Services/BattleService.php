@@ -336,11 +336,15 @@ class BattleService
                 $damage = max(1, (int) round($mitigated));
                 $battle->monster_current_hp = max(0, $battle->monster_current_hp - $damage);
 
-                // Skill yang bisa stun (diatur admin di skill editor) - kena berarti
-                // monster skip ronde nyerang berikutnya.
+                // Stun - EVENT TERPISAH dari critical hit (roll sendiri, dice beda),
+                // cuma persentase peluangnya kebetulan sama (Critical Luck). Jadi bisa
+                // crit doang, stun doang, keduanya, atau gak dua-duanya - independen.
                 if ($skill->can_stun && $battle->monster_current_hp > 0) {
-                    $battle->monster_stunned = true;
-                    $note .= ' STUN!';
+                    $isStun = random_int(1, 100) <= $character->effective_critical_luck;
+                    if ($isStun) {
+                        $battle->monster_stunned = true;
+                        $note .= ' STUN!';
+                    }
                 }
 
                 $participant->save();

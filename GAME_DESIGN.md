@@ -794,8 +794,8 @@ User awalnya nanya kenapa stat point kayak dikasih tiap battle — root cause-ny
 Sebelumnya cuma opacity card yang berkurang; sekarang nama karakter juga eksplisit ganti warna jadi abu-abu (`#5b6178`) kalau `is_alive` false, biar lebih jelas kelihatan siapa yang udah tumbang.
 
 ### Sistem Stun (dua arah)
-- **Skill player bisa stun monster**: kolom baru `skills.can_stun` (checkbox di admin skill editor). Kalau skill yang stun-able KENA ke monster, `battles.monster_stunned = true` — ronde berikutnya monster **skip nyerang** (log: "X kena stun, skip ronde!"), flag di-reset abis dipakai sekali.
-- **Skill monster bisa stun karakter**: lihat "Skill Monster" di bawah — kalau kena, `battle_participants.is_stunned = true` — karakter itu **skip giliran** ronde berikutnya.
+- **Skill player bisa stun monster**: kolom baru `skills.can_stun` (checkbox di admin skill editor). Kalau skill yang stun-able KENA, ada **roll TERPISAH** (dice sendiri, bukan nempel ke roll critical hit) yang pakai persentase **sama kayak Critical Luck** karakter. Jadi hasilnya independen — bisa crit doang, stun doang, keduanya, atau gak dua-duanya, di ronde yang sama. Kalau stun-nya kena: `battles.monster_stunned = true` — ronde berikutnya monster **skip nyerang** (log: "X kena stun, skip ronde!"), flag di-reset abis dipakai sekali.
+- **Skill monster bisa stun karakter**: lihat "Skill Monster" di bawah — kalau skill itu kena (udah lolos hit-chance normal), stun-nya **deterministik** (bukan roll probabilitas terpisah kayak player, karena monster gak punya stat setara Critical Luck) — kontrolnya cukup lewat "Skill Ratio" (peluang skill itu ke-pilih tiap ronde). `battle_participants.is_stunned = true` — karakter itu **skip giliran** ronde berikutnya.
 - **Efek visual**: ikon ⚡ muncul di atas karakter/monster yang lagi kena stun, dideteksi dari teks battle log step itu (`current.text.includes(nama) && includes('kena stun')`).
 
 ### Skill Monster (baru — monster sekarang bisa punya skill sendiri, bukan cuma serangan generik)
