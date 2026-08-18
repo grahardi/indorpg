@@ -6,7 +6,6 @@ use App\Http\Controllers\Concerns\RollsNpcAvailability;
 use App\Http\Controllers\Concerns\ValidatesPartyOwnership;
 use App\Models\Character;
 use App\Models\Encounter;
-use App\Models\GameSetting;
 use App\Models\SpawnPoint;
 use App\Services\BattleService;
 use Illuminate\Http\RedirectResponse;
@@ -38,17 +37,14 @@ class GuildController extends Controller
         // bukan re-roll tiap page load).
         // $this->rollNpcAvailability($characters);
 
-        // Level NPC di database SELALU 1 (level asli baru di-roll dinamis pas
-        // battle beneran mulai). Di luar battle, kasih RENTANG perkiraan aja
-        // (bukan angka random sekali tembak yang berubah tiap refresh) biar gak
-        // kelihatan "Lv.1" nyasar padahal party udah level tinggi.
+        // Level NPC di database selalu 1 (lihat catatan di Character::resolveNpcLevel) -
+        // sekarang di-cache 300 detik (default) biar angka yang keliatan pas
+        // milih party = angka yang beneran dipakai pas battle, gak diacak ulang.
         $playerMaxLevel = (int) (Character::where('user_id', $request->user()->id)->where('is_npc', false)->max('level') ?: 1);
-        $variance = GameSetting::getInt('npc_level_variance', 2);
 
-        $characters->each(function (Character $c) use ($playerMaxLevel, $variance) {
+        $characters->each(function (Character $c) use ($playerMaxLevel) {
             if ($c->is_npc) {
-                $c->npc_level_min = max(1, $playerMaxLevel - $variance);
-                $c->npc_level_max = $playerMaxLevel + $variance;
+                $c->npc_display_level = $c->resolveNpcLevel($playerMaxLevel);
             }
         });
 

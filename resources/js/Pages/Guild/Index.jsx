@@ -101,7 +101,7 @@ export default function Index({ characters }) {
                                                 )}
                                             </div>
                                             <div className="rpg-power-type">
-                                                {c.is_npc ? `Lv.${c.npc_level_min}-${c.npc_level_max}` : `Lv.${c.level}`} &middot; {c.subclass?.name}
+                                                {c.is_npc ? `Lv.${c.npc_display_level}` : `Lv.${c.level}`} &middot; {c.subclass?.name}
                                             </div>
                                         </div>
                                         {isSelected && <span className="ms-auto" style={{ color: accent }}>✓</span>}

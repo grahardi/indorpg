@@ -7,7 +7,6 @@ use App\Http\Controllers\Concerns\ValidatesPartyOwnership;
 use App\Models\Battle;
 use App\Models\Character;
 use App\Models\Encounter;
-use App\Models\GameSetting;
 use App\Services\BattleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,16 +35,13 @@ class BattleController extends Controller
         // Fitur "NPC on mission" dimatikan sementara - lihat catatan di GuildController.
         // $this->rollNpcAvailability($characters);
 
-        // Level NPC di database selalu 1 - kasih rentang perkiraan (bukan angka
-        // pasti) sesuai level tertinggi karakter sendiri, lihat catatan di
-        // GuildController::index() buat alasan lengkapnya.
+        // Level NPC di-cache 300 detik (default), lihat catatan lengkap di
+        // GuildController::index() / Character::resolveNpcLevel().
         $playerMaxLevel = (int) (Character::where('user_id', $request->user()->id)->where('is_npc', false)->max('level') ?: 1);
-        $variance = GameSetting::getInt('npc_level_variance', 2);
 
-        $characters->each(function (Character $c) use ($playerMaxLevel, $variance) {
+        $characters->each(function (Character $c) use ($playerMaxLevel) {
             if ($c->is_npc) {
-                $c->npc_level_min = max(1, $playerMaxLevel - $variance);
-                $c->npc_level_max = $playerMaxLevel + $variance;
+                $c->npc_display_level = $c->resolveNpcLevel($playerMaxLevel);
             }
         });
 

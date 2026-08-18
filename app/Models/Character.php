@@ -17,11 +17,13 @@ class Character extends Model
         'bonus_magic_damage', 'bonus_magic_defense',
         'bonus_accuracy', 'bonus_evasion',
         'bonus_critical_hit', 'bonus_critical_luck',
-        'current_hp', 'current_stamina', 'current_mana', 'avatar_path', 'full_body_path', 'is_npc', 'busy_until',
+        'current_hp', 'current_stamina', 'current_mana', 'avatar_path', 'full_body_path',
+        'is_npc', 'busy_until', 'npc_cached_level', 'npc_level_refreshed_at',
     ];
 
     protected $casts = [
         'busy_until' => 'datetime',
+        'npc_level_refreshed_at' => 'datetime',
     ];
 
     protected $appends = [
@@ -294,5 +296,34 @@ class Character extends Model
     public function getIsBusyAttribute(): bool
     {
         return $this->busy_until !== null && $this->busy_until->isFuture();
+    }
+
+    /**
+     * Level NPC buat sekarang - kalau cache masih fresh (belum lewat
+     * npc_level_cache_seconds detik), pakai yang lama; kalau kadaluarsa/belum
+     * pernah di-generate, roll baru (playerMaxLevel ± npc_level_variance) dan
+     * simpen sebagai cache baru. Dipakai KONSISTEN di preview Guild/Battle
+     * Select MAUPUN pas battle beneran mulai - biar angka yang keliatan pas
+     * milih party = angka yang beneran dipakai, gak diacak ulang diam-diam.
+     */
+    public function resolveNpcLevel(int $playerMaxLevel): int
+    {
+        $cacheSeconds = \App\Models\GameSetting::getInt('npc_level_cache_seconds', 300);
+        $isFresh = $this->npc_level_refreshed_at !== null
+            && $this->npc_level_refreshed_at->addSeconds($cacheSeconds)->isFuture();
+
+        if ($isFresh && $this->npc_cached_level !== null) {
+            return $this->npc_cached_level;
+        }
+
+        $variance = \App\Models\GameSetting::getInt('npc_level_variance', 2);
+        $newLevel = max(1, $playerMaxLevel + random_int(-$variance, $variance));
+
+        $this->update([
+            'npc_cached_level' => $newLevel,
+            'npc_level_refreshed_at' => now(),
+        ]);
+
+        return $newLevel;
     }
 }

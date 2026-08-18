@@ -64,7 +64,7 @@ class BattleService
             $npcLevel = null;
             $npcSnapshot = null;
             if ($character->is_npc) {
-                $npcLevel = $this->rollNpcEncounterLevel($partyMaxLevel);
+                $npcLevel = $character->resolveNpcLevel($partyMaxLevel);
                 $npcSnapshot = $this->npcScaledStats($character, $npcLevel);
             }
 
@@ -128,13 +128,6 @@ class BattleService
      * Level NPC buat battle ini: level tertinggi PLAYER di party, +/- variance
      * random (setting admin, default 2). Minimal 1.
      */
-    private function rollNpcEncounterLevel(int $partyMaxLevel): int
-    {
-        $variance = GameSetting::getInt('npc_level_variance', 2);
-
-        return max(1, $partyMaxLevel + random_int(-$variance, $variance));
-    }
-
     /**
      * Scale stat NPC dari base level 1 ke level encounter yang di-roll, pakai
      * rasio admin (beda dari rasio monster - NPC biasanya lebih "temenan",

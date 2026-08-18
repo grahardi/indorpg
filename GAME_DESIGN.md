@@ -822,3 +822,21 @@ Kolom baru `monsters.skills_config` (JSON array), diatur admin di halaman edit m
 **Fix**: `GuildController::index()` & `BattleController::select()` sekarang ngitung **rentang perkiraan** (bukan angka pasti) buat tiap NPC yang ditampilin — `[levelTertinggiKarakterSendiri - variance, levelTertinggiKarakterSendiri + variance]` (variance dari setting admin `npc_level_variance`, default 2). Ditampilin sebagai `Lv.2-6` misalnya, bukan angka tunggal random yang bakal beda tiap refresh (yang bisa bingungin — "kok levelnya berubah-ubah padahal gak battle").
 
 Angka PASTI-nya baru muncul di dalam battle beneran (`Lv.7` misalnya, di arena) — sesuai desain yang udah dibangun sebelumnya di bagian 28.
+
+---
+
+## 33. Level NPC Di-cache 300 Detik — Angka Pasti, Konsisten Preview↔Battle (v5.5)
+
+User kasih 2 ide: (1) level NPC keliatan pasti pas milih di Guild (biar bisa milih yang "pas", gak kegedean/kekecilan), atau (2) sistem timer 300 detik. Digabung jadi satu solusi:
+
+### `Character::resolveNpcLevel()` — cache dengan timer
+Kolom baru `characters.npc_cached_level` + `npc_level_refreshed_at`. Tiap kali level NPC dibutuhkan (baik buat preview di Guild/Battle Select MAUPUN buat battle beneran):
+1. Cek cache: kalau `npc_level_refreshed_at` masih dalam `npc_level_cache_seconds` detik terakhir (setting admin, default **300**), pakai angka yang udah ada.
+2. Kalau kadaluarsa/belum pernah: roll baru (`playerMaxLevel ± npc_level_variance`), simpen sebagai cache baru dengan timestamp sekarang.
+
+### Konsisten preview ↔ battle beneran
+Sebelumnya: preview di Guild kasih RENTANG (`Lv.2-6`), battle beneran roll ULANG independen (`BattleService::rollNpcEncounterLevel()`) — jadi angka yang keliatan pas milih BEDA sama yang beneran dipakai di battle. Sekarang **dipakai fungsi yang sama** (`resolveNpcLevel()`) di kedua tempat:
+- `GuildController::index()` / `BattleController::select()`: attach `npc_display_level` (angka PASTI, bukan rentang lagi) ke tiap NPC yang ditampilin
+- `BattleService::startBattle()`: manggil `$character->resolveNpcLevel($partyMaxLevel)` yang SAMA — kalau masih dalam window 300 detik dari waktu preview, dapet angka yang PERSIS SAMA kayak yang keliatan pas milih tadi
+
+Jadi sekarang player beneran bisa "milih NPC yang levelnya pas" — angka yang keliatan di Guild itu yang beneran dipakai di battle, bukan janji palsu yang berubah pas battle mulai.
