@@ -714,3 +714,31 @@ Awalnya level dasar tiap monster beda-beda (1-6), padahal sekarang `class_rank` 
 Fix: `MonsterRankSeeder` sekarang nyamain **level dasar SEMUA monster ke 1**. Base stat (HP/ATK/DEF, yang emang udah beda-beda per monster) tetap jadi sumber utama perbedaan kekuatan relatif — bukan level lagi. `battleBackgroundPath()` (nentuin background "boss" vs biasa) juga diupdate, dari cek `level >= map.max_level` (rusak kalau semua level 1) jadi cek `class_rank` (C ke atas = tier boss). Urutan tampil di Bestiary & admin list juga diganti dari `orderBy('level')` (percuma kalau semua sama) jadi urut sesuai kekuatan class_rank (F→S).
 
 **Catatan guest**: `maps.show` itu route publik (guest bisa liat), jadi kalau belum login, `playerMaxLevel` di-default ke 1 (bukan query characters dengan user_id null yang malah nyangkut ke NPC).
+
+---
+
+## 28. NPC "Diset Kayak Monster" — Level Dinamis, Bukan Progress Permanen (v5.1)
+
+### Keputusan desain: NPC tetap pakai tabel `characters`, bukan tabel terpisah
+User awalnya minta "NPC buat database sendiri kayak bot" (tabel/model terpisah dari player). Saya pilih pendekatan yang lebih ringan: **tetap pakai tabel `characters`** (kolom `is_npc` yang udah ada), tapi ubah total **mekanisme level/stat-nya** biar berperilaku kayak monster. Alasan: bikin tabel/model NPC yang bener-bener terpisah butuh nulis ulang Guild, Battle Select, validasi party, sistem loadout dari nol (semuanya sekarang asumsi "Character" seragam buat player maupun NPC) — effort-nya gak sepadan sama manfaatnya, karena hasil akhirnya (NPC level dinamis + rasio bisa diatur admin) bisa dicapai tanpa perombakan struktural sebesar itu.
+
+### NPC gak numpuk level/EXP permanen lagi
+- `characters.level` NPC **selalu 1** (kolom dasar di database), gak pernah naik dari EXP kayak player.
+- `BattleService::onVictory()` **skip NPC** — mereka gak dapet EXP/total_exp/stat_points.
+- NPC juga **gak nyimpen HP/SP/MP antar battle** (beda dari player) — selalu mulai battle full HP, gak numpuk capek/tumbang kayak karakter pemain.
+- `NpcResetSeeder` reset NPC yang mungkin sempat naik level dari sistem lama, balik ke level 1 bersih.
+
+### Level & stat NPC di-roll dinamis tiap battle (persis kayak monster)
+Di `BattleService::startBattle()`, buat tiap NPC di party:
+```
+NPC level battle ini = level tertinggi PLAYER (bukan NPC) di party ± variance random
+```
+Setting admin baru: `npc_level_variance` (default 2, artinya -2 s/d +2) dan `npc_level_growth_ratio` (default 1.3, beda dari rasio monster karena NPC "temenan" bukan ancaman).
+
+`BattleService::npcScaledStats()` — physical/magic damage & defense NPC di-scale dari base level 1 pakai rasio itu (`stat = leveled_stat * ratio^(level-1)`), base HP/SP/MP dan regen dihitung ulang dari situ. Disimpen sebagai snapshot JSON di `battle_participants.npc_stat_snapshot` + `npc_encounter_level` (kolom baru), biar tiap battle instance konsisten.
+
+### `combatStat()` helper — nyatuin logic NPC vs player
+Semua tempat di `autoResolve()` yang sebelumnya baca `$character->effective_X` langsung, sekarang lewat `combatStat($participant, $stat)` — otomatis baca dari snapshot NPC kalau ini NPC, atau `effective_X` biasa kalau player. Yang **GAK** ikut di-scale (sama kayak monster): Accuracy, Evasion, Critical Hit, Critical Luck — cuma power stat (HP/ATK/DEF) yang naik ngikutin level.
+
+### Tampilan
+Arena battle nampilin level NPC yang dinamis ("Danu Ksatriya Lv.7") di sebelah nama, beda-beda tiap battle tergantung level party.

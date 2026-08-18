@@ -310,7 +310,7 @@ export default function Show({ battle, battleBackground }) {
                         textShadow: '0 1px 3px rgba(0,0,0,0.9)', marginBottom: 2,
                     }}
                 >
-                    {p.character.name} {!live.is_alive && '☠'}
+                    {p.character.name}{p.npc_encounter_level ? ` Lv.${p.npc_encounter_level}` : ''} {!live.is_alive && '☠'}
                 </div>
                 {/* GIF gantiin pose idle pas skill dipakai (bukan numpuk) - ukuran &
                     posisi udah di-sync sama kanvas 364x360 yang sama. */}

@@ -25,10 +25,13 @@ class BattleService
         $monster = $encounter->monster;
         $characters = Character::with(['subclass.skills', 'skills'])->whereIn('id', $characterIds)->get();
 
-        // Level monster di-roll dinamis: max = level tertinggi party + bonus (setting
-        // admin, default +3). Stat monster di-scale sesuai level hasil roll ini pakai
-        // rasio kenaikan (setting admin, default x1.5 tiap level, kompon berlapis).
-        $encounterLevel = $this->rollMonsterLevel($monster, $characters);
+        // Level tertinggi PLAYER (bukan NPC) di party - jadi patokan level
+        // monster MAUPUN level NPC (NPC gak punya level sendiri yang berarti,
+        // ngikutin kekuatan party).
+        $playerCharacters = $characters->where('is_npc', false);
+        $partyMaxLevel = (int) ($playerCharacters->max('level') ?: 1);
+
+        $encounterLevel = $this->rollMonsterLevel($monster, $partyMaxLevel);
         $scaledStats = $this->scaledMonsterStats($monster, $encounterLevel);
 
         $battle = Battle::create([
@@ -53,18 +56,33 @@ class BattleService
                 ->mapWithKeys(fn ($skill) => [$skill->id => 0])
                 ->toArray();
 
+            // NPC "diset kayak monster": gak punya level/progress permanen, level
+            // asli di-roll dinamis tiap battle (level tertinggi PLAYER di party ±
+            // variance random, setting admin), stat-nya di-scale pakai rasio
+            // admin dari base level 1. Selalu mulai battle full HP/SP/MP (gak
+            // numpuk capek/tumbang antar battle kayak karakter pemain).
+            $npcLevel = null;
+            $npcSnapshot = null;
+            if ($character->is_npc) {
+                $npcLevel = $this->rollNpcEncounterLevel($partyMaxLevel);
+                $npcSnapshot = $this->npcScaledStats($character, $npcLevel);
+            }
+
             BattleParticipant::create([
                 'battle_id' => $battle->id,
                 'character_id' => $character->id,
-                'current_hp' => $character->current_hp,
-                'current_stamina' => $character->current_stamina,
-                'current_mana' => $character->current_mana,
+                'current_hp' => $character->is_npc ? $npcSnapshot['base_hp'] : $character->current_hp,
+                'current_stamina' => $character->is_npc ? $npcSnapshot['base_sp'] : $character->current_stamina,
+                'current_mana' => $character->is_npc ? $npcSnapshot['base_mp'] : $character->current_mana,
                 'skill_cooldowns' => $initialCooldowns,
                 'loadout_skill_ids' => $loadoutIds,
-                // BUG FIX: sebelumnya selalu true, jadi karakter yang tumbang
+                'npc_encounter_level' => $npcLevel,
+                'npc_stat_snapshot' => $npcSnapshot,
+                // BUG FIX: sebelumnya selalu true, jadi karakter pemain yang tumbang
                 // (current_hp 0 dari battle sebelumnya) tetap dianggap "hidup" dan
                 // ikut nyerang lagi di battle baru. Sekarang dicek dari HP asli.
-                'is_alive' => $character->current_hp > 0,
+                // NPC selalu mulai fresh (full HP), jadi selalu true.
+                'is_alive' => $character->is_npc ? true : $character->current_hp > 0,
             ]);
         }
 
@@ -73,13 +91,12 @@ class BattleService
 
     /**
      * Level monster buat encounter ini: acak antara level dasar monster (di
-     * tabel monsters) sampai (level tertinggi party + bonus admin). Kalau
-     * level dasar monster udah lebih tinggi dari batas atas itu, ya pakai
-     * level dasarnya aja (gak pernah di-downgrade).
+     * tabel monsters, sekarang selalu 1) sampai (level tertinggi PLAYER + bonus
+     * admin). Kalau level dasar monster udah lebih tinggi dari batas atas itu,
+     * ya pakai level dasarnya aja (gak pernah di-downgrade).
      */
-    private function rollMonsterLevel(Monster $monster, Collection $characters): int
+    private function rollMonsterLevel(Monster $monster, int $partyMaxLevel): int
     {
-        $partyMaxLevel = (int) $characters->max('level');
         $bonus = GameSetting::getInt('monster_max_level_bonus', 3);
         $maxLevel = max($monster->level, $partyMaxLevel + $bonus);
 
@@ -105,6 +122,70 @@ class BattleService
             'magic_defense' => max(0, (int) round($monster->magic_defense * $factor)),
             'exp_reward' => max(1, (int) round($monster->exp_reward * $factor)),
         ];
+    }
+
+    /**
+     * Level NPC buat battle ini: level tertinggi PLAYER di party, +/- variance
+     * random (setting admin, default 2). Minimal 1.
+     */
+    private function rollNpcEncounterLevel(int $partyMaxLevel): int
+    {
+        $variance = GameSetting::getInt('npc_level_variance', 2);
+
+        return max(1, $partyMaxLevel + random_int(-$variance, $variance));
+    }
+
+    /**
+     * Scale stat NPC dari base level 1 ke level encounter yang di-roll, pakai
+     * rasio admin (beda dari rasio monster - NPC biasanya lebih "temenan",
+     * gak sekeras monster). Base HP/SP/MP dihitung ulang dari physical/magic
+     * defense+damage yang udah di-scale, regen juga ikut pakai rasio regen
+     * yang sama kayak karakter pemain.
+     */
+    private function npcScaledStats(Character $character, int $encounterLevel): array
+    {
+        $ratio = GameSetting::getFloat('npc_level_growth_ratio', 1.3);
+        $factor = $ratio ** ($encounterLevel - 1); // NPC base level selalu 1
+
+        $physicalDamage = max(1, (int) round($character->leveled_physical_damage * $factor)) + $character->bonus_physical_damage;
+        $physicalDefense = max(0, (int) round($character->leveled_physical_defense * $factor)) + $character->bonus_physical_defense;
+        $magicDamage = max(1, (int) round($character->leveled_magic_damage * $factor)) + $character->bonus_magic_damage;
+        $magicDefense = max(0, (int) round($character->leveled_magic_defense * $factor)) + $character->bonus_magic_defense;
+
+        $baseHp = $physicalDefense + $magicDefense;
+        $baseMp = $magicDamage + $magicDefense;
+        $baseSp = $physicalDamage + $physicalDefense;
+        $regenRatio = GameSetting::getFloat('regen_ratio', 0.1);
+
+        return [
+            'level' => $encounterLevel,
+            'physical_damage' => $physicalDamage,
+            'physical_defense' => $physicalDefense,
+            'magic_damage' => $magicDamage,
+            'magic_defense' => $magicDefense,
+            'base_hp' => $baseHp,
+            'base_mp' => $baseMp,
+            'base_sp' => $baseSp,
+            'hp_regen' => max(1, (int) round($baseHp * $regenRatio)),
+            'mana_regen' => max(1, (int) round($baseMp * $regenRatio)),
+            'stamina_regen' => max(1, (int) round($baseSp * $regenRatio)),
+        ];
+    }
+
+    /**
+     * Ambil stat combat participant - dari snapshot NPC (kalau ini NPC) atau
+     * dari effective_* karakter biasa (kalau player). Nyatuin logic biar gak
+     * cabang if/else NPC-vs-player berulang-ulang di autoResolve().
+     */
+    private function combatStat(BattleParticipant $participant, string $stat): float
+    {
+        if ($participant->npc_stat_snapshot && array_key_exists($stat, $participant->npc_stat_snapshot)) {
+            return (float) $participant->npc_stat_snapshot[$stat];
+        }
+
+        $accessor = 'effective_'.$stat;
+
+        return (float) $participant->character->{$accessor};
     }
 
     /**
@@ -143,18 +224,16 @@ class BattleService
         $round = 1;
 
         while ($battle->monster_current_hp > 0 && $this->anyAlive($battle) && $round <= self::MAX_ROUNDS) {
-            // Regen HP/stamina/mana tiap awal ronde, dibatasi pool max efektif
-            // karakter (base subclass + bonus upgrade dari EXP). HP regen baru -
-            // sebelumnya cuma SP/MP yang regen, HP gak pernah pulih sendiri di battle.
+            // Regen HP/stamina/mana tiap awal ronde, dibatasi pool max (snapshot
+            // NPC kalau NPC, effective_* karakter kalau player).
             foreach ($battle->participants as $participant) {
                 if (! $participant->is_alive) {
                     continue;
                 }
-                $character = $participant->character;
 
-                $participant->current_hp = min($character->effective_base_hp, $participant->current_hp + $character->effective_hp_regen);
-                $participant->current_stamina = min($character->effective_base_sp, $participant->current_stamina + $character->effective_stamina_regen);
-                $participant->current_mana = min($character->effective_base_mp, $participant->current_mana + $character->effective_mana_regen);
+                $participant->current_hp = min($this->combatStat($participant, 'base_hp'), $participant->current_hp + $this->combatStat($participant, 'hp_regen'));
+                $participant->current_stamina = min($this->combatStat($participant, 'base_sp'), $participant->current_stamina + $this->combatStat($participant, 'stamina_regen'));
+                $participant->current_mana = min($this->combatStat($participant, 'base_mp'), $participant->current_mana + $this->combatStat($participant, 'mana_regen'));
             }
 
             foreach ($battle->participants as $participant) {
@@ -173,7 +252,9 @@ class BattleService
                 $participant->current_stamina = max(0, $participant->current_stamina - $skill->stamina_cost);
                 $participant->current_mana = max(0, $participant->current_mana - $skill->mana_cost);
 
-                // Cek Agility (ofensif) karakter vs evasion bawaan monster - bisa meleset total.
+                // Cek Accuracy (ofensif) vs evasion bawaan monster - bisa meleset total.
+                // Accuracy/critical GAK di-scale NPC (sama kayak monster: cuma power
+                // stat yang naik, bukan akurasi/crit).
                 $hitChance = max(50, min(99, 100 + $character->effective_accuracy - 90 - $monster->agility));
                 if (random_int(1, 100) > $hitChance) {
                     $participant->save();
@@ -181,7 +262,7 @@ class BattleService
                     continue;
                 }
 
-                $offenseStat = $skill->scaling_stat === 'magic' ? $character->effective_magic_damage : $character->effective_physical_damage;
+                $offenseStat = $skill->scaling_stat === 'magic' ? $this->combatStat($participant, 'magic_damage') : $this->combatStat($participant, 'physical_damage');
                 $defenseStat = $skill->scaling_stat === 'magic' ? $stats['magic_defense'] : $stats['physical_defense'];
 
                 $raw = $offenseStat * (float) $skill->base_multiplier;
@@ -230,7 +311,7 @@ class BattleService
                     } else {
                         $useMagic = $stats['magic_damage'] > $stats['physical_damage'];
                         $offenseStat = $useMagic ? $stats['magic_damage'] : $stats['physical_damage'];
-                        $defenseStat = $useMagic ? $character->effective_magic_defense : $character->effective_physical_defense;
+                        $defenseStat = $useMagic ? $this->combatStat($target, 'magic_defense') : $this->combatStat($target, 'physical_defense');
 
                         $raw = $offenseStat;
                         $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
@@ -272,11 +353,14 @@ class BattleService
         $battle->battle_log = $log;
         $battle->save();
 
-        // Simpen HP/SP/MP akhir battle balik ke karakter - SEBELUMNYA GAK PERNAH
-        // disimpen, jadi character.current_hp gak pernah berubah dari battle ke
-        // battle (karakter yang tumbang gak "kebawa" tumbangnya ke battle berikutnya).
-        // Ini juga yang bikin battle sebelumnya bisa "curang" (is_alive dipaksa true).
+        // Simpen HP/SP/MP akhir battle balik ke karakter PLAYER - SEBELUMNYA GAK
+        // PERNAH disimpen, jadi character.current_hp gak pernah berubah dari
+        // battle ke battle. NPC gak disimpen (mereka gak numpuk state antar
+        // battle - selalu fresh tiap battle, "diset kayak monster").
         foreach ($battle->participants as $participant) {
+            if ($participant->character->is_npc) {
+                continue;
+            }
             $participant->character->update([
                 'current_hp' => $participant->current_hp,
                 'current_stamina' => $participant->current_stamina,
@@ -356,6 +440,13 @@ class BattleService
 
         foreach ($battle->participants as $participant) {
             $character = $participant->character;
+
+            // NPC gak numpuk EXP/level permanen - "diset kayak monster", cuma
+            // player yang beneran progress dari battle ke battle.
+            if ($character->is_npc) {
+                continue;
+            }
+
             $character->increment('exp', $expReward);
             $character->increment('total_exp', $expReward);
             $character->refresh();

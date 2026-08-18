@@ -42,12 +42,13 @@ class NpcSeeder extends Seeder
                 continue;
             }
 
-            $level = random_int(1, 3);
-
+            // Level dasar NPC selalu 1 - "diset kayak monster", level asli pas
+            // battle di-roll dinamis (lihat BattleService::rollNpcEncounterLevel),
+            // bukan level tetap yang disimpen di sini.
             Character::create([
                 'subclass_id' => $subclass->id,
                 'name' => $npcName,
-                'level' => $level,
+                'level' => 1,
                 'exp' => 0,
                 'current_hp' => $subclass->base_hp,
                 'current_stamina' => $subclass->base_sp,
