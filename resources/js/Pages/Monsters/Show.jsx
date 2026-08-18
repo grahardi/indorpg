@@ -111,12 +111,17 @@ export default function Show({ monster, mapName }) {
                     <div>
                         <h1 className="rpg-class-title mb-0" style={{ fontSize: '2rem' }}>{monster.name}</h1>
                         <p className="rpg-power-type mb-0">
-                            Level {monster.level} &middot; {monster.type}
+                            Level Dasar {monster.level} &middot; {monster.type}
                             {monster.element && <> &middot; Elemen {monster.element.name}</>}
                         </p>
                     </div>
                 </div>
                 <p className="rpg-class-desc mt-3">{monster.description}</p>
+                <p className="text-secondary small" style={{ maxWidth: 480 }}>
+                    Level {monster.level} di atas cuma level <strong>dasar/minimum</strong> — level asli tiap battle
+                    di-acak, bisa naik sampai (level tertinggi party kamu + 3). Stat (HP, damage, EXP) ikut naik
+                    otomatis sesuai level yang keluar.
+                </p>
 
                 {/* Full View - 1:1, monster di tengah frame */}
                 <div className="mx-auto my-4" style={{ maxWidth: 360 }}>
@@ -131,7 +136,8 @@ export default function Show({ monster, mapName }) {
                     />
                 </div>
 
-                <div className="row g-3 my-4">
+                <div className="rpg-skill-group-title mt-4">Stat Level Dasar (Lv.{monster.level})</div>
+                <div className="row g-3 my-3">
                     {[
                         ['HP', monster.hp, '#3f8c94'],
                         ['Physical DMG', monster.physical_damage, '#b8433a'],

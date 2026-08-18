@@ -48,13 +48,13 @@ export default function Index({ monsters }) {
                                             <div>
                                                 <div className="rpg-subclass-name">{m.name}</div>
                                                 <div className="rpg-power-type">
-                                                    Lv.{m.level} &middot; {m.type}
+                                                    Lv.{m.level}+ &middot; {m.type}
                                                     {m.element && <> &middot; {m.element.name}</>}
                                                 </div>
                                             </div>
                                         </div>
                                         <span className="rpg-element-badge" style={{ '--accent': accent }}>
-                                            {m.exp_reward} EXP
+                                            {m.exp_reward}+ EXP
                                         </span>
                                     </div>
 
