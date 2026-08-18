@@ -13,6 +13,13 @@ class MonsterRankSeeder extends Seeder
      * weak_matchups/strong_matchups baru (2 slot: combat_range + element + ratio).
      * Slot ke-2 sengaja dikosongin (element null, ratio default) - biar admin
      * bisa isi sendiri lewat /admin/monsters kalau mau nambah elemen spesifik.
+     *
+     * Level dasar SEMUA monster disamain ke 1 - class_rank yang sekarang
+     * mewakili kekuatan relatif ke player (bukan level lagi), dan base stat
+     * (HP/ATK/DEF) yang emang udah beda-beda per monster udah cukup ngewakilin
+     * kekuatan relatifnya. Kalau level dasar dibiarin beda-beda (1-6), monster
+     * base level rendah bakal kompon growth LEBIH BANYAK buat nyampe target
+     * level yang sama dibanding monster base level tinggi - jadi gak konsisten.
      */
     public function run(): void
     {
@@ -38,6 +45,7 @@ class MonsterRankSeeder extends Seeder
             $strongRange = explode('_', $monster->strong_against ?? '')[0] ?? null;
 
             $monster->update([
+                'level' => 1,
                 'class_rank' => $rank,
                 'weak_matchups' => [
                     ['combat_range' => $weakRange, 'element_id' => null, 'ratio' => 2],

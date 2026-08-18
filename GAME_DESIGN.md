@@ -708,4 +708,9 @@ level tertinggi karakter (milik user, bukan NPC) + monster_max_level_bonus (sett
 ```
 Kalau gak lolos, explore ditolak dengan pesan jelas ("Level kamu belum cukup..."), dan spawn point ditandai 🔒 terkunci di peta (marker abu-abu + kartu disabled) SEBELUM sempat diklik.
 
+### Level dasar SEMUA monster disamain ke 1
+Awalnya level dasar tiap monster beda-beda (1-6), padahal sekarang `class_rank` yang mewakili kekuatan relatif ke player. Ini bikin inkonsistensi: monster base level rendah (misal Slime, level 1) butuh **lebih banyak kompon growth** buat nyampe target level yang sama dibanding monster base level tinggi (misal Golem, level 5) — jadi di encounter level yang sama, monster yang "harusnya lemah" malah ke-buff lebih agresif secara proporsional.
+
+Fix: `MonsterRankSeeder` sekarang nyamain **level dasar SEMUA monster ke 1**. Base stat (HP/ATK/DEF, yang emang udah beda-beda per monster) tetap jadi sumber utama perbedaan kekuatan relatif — bukan level lagi. `battleBackgroundPath()` (nentuin background "boss" vs biasa) juga diupdate, dari cek `level >= map.max_level` (rusak kalau semua level 1) jadi cek `class_rank` (C ke atas = tier boss). Urutan tampil di Bestiary & admin list juga diganti dari `orderBy('level')` (percuma kalau semua sama) jadi urut sesuai kekuatan class_rank (F→S).
+
 **Catatan guest**: `maps.show` itu route publik (guest bisa liat), jadi kalau belum login, `playerMaxLevel` di-default ke 1 (bukan query characters dengan user_id null yang malah nyangkut ke NPC).

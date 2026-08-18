@@ -15,8 +15,12 @@ class MonsterController extends Controller
 {
     public function index(): Response
     {
+        $rankOrder = "CASE class_rank ".
+            implode(' ', array_map(fn ($r, $i) => "WHEN '{$r}' THEN {$i}", Monster::RANKS, array_keys(Monster::RANKS))).
+            ' END';
+
         return Inertia::render('Admin/Monsters/Index', [
-            'monsters' => Monster::with('element')->orderBy('level')->get(),
+            'monsters' => Monster::with('element')->orderByRaw($rankOrder)->orderBy('name')->get(),
         ]);
     }
 

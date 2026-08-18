@@ -108,7 +108,10 @@ class Monster extends Model
             $theme = 'ruins';
         }
 
-        $isBoss = $map && $this->level >= $map->max_level;
+        // Dulu dicek dari level >= map.max_level, tapi sekarang semua monster
+        // level dasarnya disamain ke 1 (lihat MonsterRankSeeder) - "boss" sekarang
+        // ditentukan dari class_rank (C ke atas dianggap tier atas/boss).
+        $isBoss = in_array($this->class_rank, ['C', 'B', 'A', 'S'], true);
         $variant = $isBoss ? 'boss' : 'regular';
 
         return "/images/battle-backgrounds/{$theme}-{$variant}.jpg";

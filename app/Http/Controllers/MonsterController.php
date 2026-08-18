@@ -13,8 +13,14 @@ class MonsterController extends Controller
 {
     public function index(): Response
     {
+        // Level dasar semua monster sama (1), jadi urut berdasarkan class_rank
+        // (F terlemah - S terkuat) yang sekarang mewakili kekuatan relatif.
+        $rankOrder = "CASE class_rank ".
+            implode(' ', array_map(fn ($r, $i) => "WHEN '{$r}' THEN {$i}", \App\Models\Monster::RANKS, array_keys(\App\Models\Monster::RANKS))).
+            ' END';
+
         $monsters = Monster::with('element')
-            ->orderBy('level')
+            ->orderByRaw($rankOrder)
             ->orderBy('name')
             ->get();
 
