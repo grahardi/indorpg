@@ -810,3 +810,15 @@ Kolom baru `monsters.skills_config` (JSON array), diatur admin di halaman edit m
 - **Skill Ratio (%/ronde)** — peluang skill ini dipilih ronde itu, dicek berurutan tiap skill di list; kalau gak ada yang ke-roll, fallback ke serangan dasar (single target, 100% damage, kayak sebelumnya)
 
 `BattleService::pickMonsterSkill()` yang nge-roll ini tiap ronde monster mau nyerang (kecuali lagi kena stun, langsung skip).
+
+---
+
+## 32. Tampilan Level NPC di Luar Battle (v5.4)
+
+**Pertanyaan user**: "char udah level 3-4, tapi NPC view masih level 1 semua — perlu tabel dipisah?"
+
+**Jawaban: gak perlu dipisah tabelnya.** Ini murni soal tampilan — level ASLI NPC baru di-generate pas battle beneran mulai (`BattleService::rollNpcEncounterLevel()`, disimpan di `battle_participants.npc_encounter_level`, BUKAN di `characters.level` yang emang sengaja selalu 1 buat NPC). Di LUAR battle (Guild, Battle Select), belum ada battle yang berjalan, jadi belum ada angka "asli" buat ditampilin — sebelumnya cuma nunjukkin `characters.level` mentah (selalu 1), makanya kelihatan gak nyambung sama progress player.
+
+**Fix**: `GuildController::index()` & `BattleController::select()` sekarang ngitung **rentang perkiraan** (bukan angka pasti) buat tiap NPC yang ditampilin — `[levelTertinggiKarakterSendiri - variance, levelTertinggiKarakterSendiri + variance]` (variance dari setting admin `npc_level_variance`, default 2). Ditampilin sebagai `Lv.2-6` misalnya, bukan angka tunggal random yang bakal beda tiap refresh (yang bisa bingungin — "kok levelnya berubah-ubah padahal gak battle").
+
+Angka PASTI-nya baru muncul di dalam battle beneran (`Lv.7` misalnya, di arena) — sesuai desain yang udah dibangun sebelumnya di bagian 28.

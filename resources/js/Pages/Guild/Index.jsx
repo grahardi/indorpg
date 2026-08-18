@@ -100,7 +100,9 @@ export default function Index({ characters }) {
                                                     <span className="rpg-element-badge" style={{ '--accent': '#5b6178', color: '#5b6178', fontSize: '0.58rem' }}>Tumbang</span>
                                                 )}
                                             </div>
-                                            <div className="rpg-power-type">Lv.{c.level} &middot; {c.subclass?.name}</div>
+                                            <div className="rpg-power-type">
+                                                {c.is_npc ? `Lv.${c.npc_level_min}-${c.npc_level_max}` : `Lv.${c.level}`} &middot; {c.subclass?.name}
+                                            </div>
                                         </div>
                                         {isSelected && <span className="ms-auto" style={{ color: accent }}>✓</span>}
                                     </div>
