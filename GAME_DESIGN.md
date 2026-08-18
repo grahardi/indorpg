@@ -742,3 +742,15 @@ Semua tempat di `autoResolve()` yang sebelumnya baca `$character->effective_X` l
 
 ### Tampilan
 Arena battle nampilin level NPC yang dinamis ("Danu Ksatriya Lv.7") di sebelah nama, beda-beda tiap battle tergantung level party.
+
+---
+
+## 29. Command Reset Level Karakter
+
+```bash
+php artisan characters:reset-level              # reset SEMUA karakter (pemain + NPC)
+php artisan characters:reset-level --npc-only   # cuma NPC
+php artisan characters:reset-level --force      # skip konfirmasi (misal buat script otomatis)
+```
+
+Reset ke level 1, EXP/total_exp/stat_points/semua bonus stat ke 0, HP/SP/MP di-full-in lagi sesuai pool level 1. Ada konfirmasi y/n dulu sebelum eksekusi (kecuali pakai `--force`), soalnya ini gak bisa di-undo.
