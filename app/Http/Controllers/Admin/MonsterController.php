@@ -90,11 +90,11 @@ class MonsterController extends Controller
             'special_skill_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
             'weak_matchups' => ['nullable', 'array', 'max:2'],
-            'weak_matchups.*.combat_range' => ['nullable', 'string', 'in:close,range,area'],
+            'weak_matchups.*.combat_range' => ['nullable', 'string', 'in:close,range,area,all'],
             'weak_matchups.*.element_id' => ['nullable', 'integer', 'exists:elements,id'],
             'weak_matchups.*.ratio' => ['nullable', 'numeric', 'min:0'],
             'strong_matchups' => ['nullable', 'array', 'max:2'],
-            'strong_matchups.*.combat_range' => ['nullable', 'string', 'in:close,range,area'],
+            'strong_matchups.*.combat_range' => ['nullable', 'string', 'in:close,range,area,all'],
             'strong_matchups.*.element_id' => ['nullable', 'integer', 'exists:elements,id'],
             'strong_matchups.*.ratio' => ['nullable', 'numeric', 'min:0'],
             'skills_config' => ['nullable', 'array'],
@@ -118,6 +118,30 @@ class MonsterController extends Controller
                 ->filter(fn ($slot) => ! empty($slot['combat_range']))
                 ->values()
                 ->all();
+        }
+
+        // Pilih "Semua" (all) buat combat_range WAJIB pilih elemen juga - "weak
+        // semua tipe serangan elemen apapun" itu ketinggian/gak masuk akal.
+        foreach (['weak_matchups', 'strong_matchups'] as $key) {
+            foreach ($data[$key] as $slot) {
+                if ($slot['combat_range'] === 'all' && empty($slot['element_id'])) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        $key => 'Kalau pilih "Semua" tipe serangan, elemen wajib dipilih (gak boleh "elemen apapun" sekaligus).',
+                    ]);
+                }
+            }
+        }
+
+        // Weak dan Strong gak boleh punya kombinasi range+elemen yang SAMA -
+        // aneh kalau monster lemah SEKALIGUS kuat ke pola serangan yang sama persis.
+        foreach ($data['weak_matchups'] as $w) {
+            foreach ($data['strong_matchups'] as $s) {
+                if ($w['combat_range'] === $s['combat_range'] && (int) ($w['element_id'] ?? 0) === (int) ($s['element_id'] ?? 0)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'strong_matchups' => 'Weak dan Strong gak boleh punya kombinasi tipe serangan + elemen yang sama.',
+                    ]);
+                }
+            }
         }
 
         return $data;

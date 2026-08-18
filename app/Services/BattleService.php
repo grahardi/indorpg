@@ -281,7 +281,7 @@ class BattleService
                     continue;
                 }
 
-                $skill = $this->autoPickSkill($participant, $round);
+                $skill = $this->autoPickSkill($battle, $participant, $round);
                 if (! $skill) {
                     $log[] = $this->snapshot($battle, "{$participant->character->name} belum ada skill siap pakai, cuma bertahan.");
                     continue;
@@ -293,6 +293,53 @@ class BattleService
                 $participant->current_stamina = max(0, $participant->current_stamina - $skillStats['stamina_cost']);
                 $participant->current_mana = max(0, $participant->current_mana - $skillStats['mana_cost']);
 
+                // === HEAL: gak nyerang monster sama sekali, nambah HP/MP/SP teman ===
+                if ($skill->buff_type === 'heal') {
+                    $target = $this->pickHealTarget($battle, $skill);
+                    if (! $target) {
+                        $participant->save();
+                        $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name}, tapi gak ada yang perlu disembuhin.", $character->id, $skill->id);
+                        continue;
+                    }
+
+                    // Pakai magic_damage sebagai "kekuatan nyembuhin" (konvensi umum
+                    // RPG - stat sihir jadi basis heal juga), dikali multiplier skill.
+                    $healPower = $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier'];
+                    $healAmount = max(1, (int) round($healPower));
+                    $resource = $skill->heal_resource ?? 'hp';
+
+                    [$before, $max] = $this->resourceLevel($target, $resource);
+                    $after = min($max, $before + $healAmount);
+                    $actualHeal = $after - $before;
+
+                    match ($resource) {
+                        'mp' => $target->current_mana = $after,
+                        'sp' => $target->current_stamina = $after,
+                        default => $target->current_hp = $after,
+                    };
+                    $target->save();
+                    if ($target->id !== $participant->id) {
+                        $participant->save();
+                    }
+
+                    $resourceLabel = strtoupper($resource);
+                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$target->character->name}: +{$actualHeal} {$resourceLabel}", $character->id, $skill->id);
+
+                    continue;
+                }
+
+                // === NERF: gak nyerang langsung, cuma nge-debuff monster (hit
+                // BERIKUTNYA ke monster, siapapun yang mukul, kena dikali multiplier
+                // skill ini - one-shot, abis dipakai sekali langsung reset) ===
+                if ($skill->buff_type === 'nerf') {
+                    $participant->save();
+                    $battle->monster_debuff_multiplier = $skillStats['multiplier'];
+                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name}: serangan berikutnya ke {$monster->name} jadi {$skillStats['multiplier']}x damage!", $character->id, $skill->id);
+
+                    continue;
+                }
+
+                // === SERANGAN BIASA (buff_type = 'none', default) ===
                 // Cek Accuracy (ofensif) vs evasion bawaan monster - bisa meleset total.
                 // Accuracy/critical GAK di-scale NPC (sama kayak monster: cuma power
                 // stat yang naik, bukan akurasi/crit).
@@ -324,6 +371,14 @@ class BattleService
                 if ($isCrit) {
                     $mitigated *= (1 + $character->effective_critical_hit / 100);
                     $note .= ' CRITICAL!';
+                }
+
+                // Debuff dari skill nerf sebelumnya (kalau ada) - one-shot, konsumsi
+                // langsung abis dipakai di sini, siapapun yang mukul duluan.
+                if ($battle->monster_debuff_multiplier) {
+                    $mitigated *= (float) $battle->monster_debuff_multiplier;
+                    $note .= ' (Lemah!)';
+                    $battle->monster_debuff_multiplier = null;
                 }
 
                 $damage = max(1, (int) round($mitigated));
@@ -467,20 +522,27 @@ class BattleService
      * cooldown_seconds ditranslate ke "berapa ronde terkunci" (asumsi ~2.5 detik/ronde,
      * sesuai pacing animasi playback di frontend).
      */
-    private function autoPickSkill(BattleParticipant $participant, int $currentRound): ?Skill
+    private function autoPickSkill(Battle $battle, BattleParticipant $participant, int $currentRound): ?Skill
     {
         $loadoutIds = $participant->loadout_skill_ids ?? [];
         $skills = $participant->character->subclass->skills->whereIn('id', $loadoutIds);
         $cooldowns = $participant->skill_cooldowns ?? [];
         $character = $participant->character;
 
-        $usable = $skills->filter(function (Skill $skill) use ($participant, $cooldowns, $currentRound, $character) {
+        $usable = $skills->filter(function (Skill $skill) use ($battle, $participant, $cooldowns, $currentRound, $character) {
             $scaled = $this->skillCombatStats($character, $skill);
 
             $affordable = $scaled['stamina_cost'] <= $participant->current_stamina
                 && $scaled['mana_cost'] <= $participant->current_mana;
 
             if (! $affordable) {
+                return false;
+            }
+
+            // Skill heal cuma dianggap "usable" kalau emang ada yang butuh
+            // disembuhin (di bawah 90% resource) - biar AI gak spam heal
+            // padahal party full HP/MP/SP.
+            if ($skill->buff_type === 'heal' && ! $this->healTargetNeeded($battle, $skill)) {
                 return false;
             }
 
@@ -522,6 +584,54 @@ class BattleService
         }
 
         return null;
+    }
+
+    /**
+     * Resource (current, max) yang relevan buat heal_resource skill ('hp' default).
+     */
+    private function resourceLevel(BattleParticipant $p, string $resource): array
+    {
+        return match ($resource) {
+            'mp' => [$p->current_mana, $this->combatStat($p, 'base_mp')],
+            'sp' => [$p->current_stamina, $this->combatStat($p, 'base_sp')],
+            default => [$p->current_hp, $this->combatStat($p, 'base_hp')],
+        };
+    }
+
+    /**
+     * Ada gak participant hidup yang resource-nya di bawah 90% (butuh disembuhin)?
+     * Kalau gak ada, skill heal ini gak usable ronde ini (biar AI gak spam heal
+     * pas semua orang udah full).
+     */
+    private function healTargetNeeded(Battle $battle, Skill $skill): bool
+    {
+        $resource = $skill->heal_resource ?? 'hp';
+
+        foreach ($battle->participants->where('is_alive', true) as $p) {
+            [$current, $max] = $this->resourceLevel($p, $resource);
+            if ($max > 0 && ($current / $max) < 0.9) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Pilih target heal: participant hidup dengan persentase resource TERENDAH
+     * (paling butuh), termasuk diri sendiri.
+     */
+    private function pickHealTarget(Battle $battle, Skill $skill): ?BattleParticipant
+    {
+        $resource = $skill->heal_resource ?? 'hp';
+
+        return $battle->participants->where('is_alive', true)
+            ->sortBy(function (BattleParticipant $p) use ($resource) {
+                [$current, $max] = $this->resourceLevel($p, $resource);
+
+                return $max > 0 ? $current / $max : 1;
+            })
+            ->first();
     }
 
     private function anyAlive(Battle $battle): bool

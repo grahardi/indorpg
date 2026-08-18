@@ -23,6 +23,8 @@ export default function Form({ skill, elements }) {
         cooldown_seconds: skill.cooldown_seconds,
         base_multiplier: skill.base_multiplier,
         can_stun: skill.can_stun ?? false,
+        buff_type: skill.buff_type ?? 'none',
+        heal_resource: skill.heal_resource ?? 'hp',
         required_level: skill.required_level,
     });
 
@@ -76,6 +78,30 @@ export default function Form({ skill, elements }) {
                                 </select>
                             </Field>
                         </div>
+                        <div className="col-md-6">
+                            <Field label="Buff Type">
+                                <select className={inputClass} value={data.buff_type} onChange={(e) => setData('buff_type', e.target.value)}>
+                                    <option value="none">No / Serangan Biasa</option>
+                                    <option value="heal">Heal (nambah HP/MP/SP teman)</option>
+                                    <option value="nerf">Nerf (debuff monster)</option>
+                                </select>
+                                <p className="text-secondary small mt-1 mb-0">
+                                    {data.buff_type === 'heal' && 'Skill ini nyembuhin teman (bukan nyerang monster). Base Multiplier jadi kekuatan heal-nya.'}
+                                    {data.buff_type === 'nerf' && 'Skill ini debuff monster (bukan nyerang langsung). Base Multiplier jadi pengali damage serangan BERIKUTNYA ke monster.'}
+                                </p>
+                            </Field>
+                        </div>
+                        {data.buff_type === 'heal' && (
+                            <div className="col-md-6">
+                                <Field label="Resource yang Disembuhin">
+                                    <select className={inputClass} value={data.heal_resource} onChange={(e) => setData('heal_resource', e.target.value)}>
+                                        <option value="hp">HP</option>
+                                        <option value="mp">MP (Mana)</option>
+                                        <option value="sp">SP (Stamina)</option>
+                                    </select>
+                                </Field>
+                            </div>
+                        )}
                         <div className="col-md-6">
                             <Field label="Combat Range">
                                 <select className={inputClass} value={data.combat_range} onChange={(e) => setData('combat_range', e.target.value)}>

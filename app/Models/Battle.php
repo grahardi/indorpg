@@ -14,7 +14,7 @@ class Battle extends Model
 
     protected $fillable = [
         'token', 'encounter_id', 'monster_id', 'monster_level', 'monster_stats', 'monster_current_hp',
-        'monster_stunned', 'status', 'round_number', 'battle_log', 'viewed_at',
+        'monster_stunned', 'monster_debuff_multiplier', 'status', 'round_number', 'battle_log', 'viewed_at',
     ];
 
     protected $casts = [

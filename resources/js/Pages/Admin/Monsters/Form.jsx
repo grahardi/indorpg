@@ -48,6 +48,7 @@ function MatchupSlots({ label, hint, slots, setSlots, elements, accent }) {
                         >
                             <option value="">- Slot kosong -</option>
                             {COMBAT_RANGES.map((r) => <option key={r} value={r}>{r}</option>)}
+                            <option value="all">Semua (close+range+area)</option>
                         </select>
                     </div>
                     <div className="col-4">
@@ -57,9 +58,12 @@ function MatchupSlots({ label, hint, slots, setSlots, elements, accent }) {
                             onChange={(e) => updateSlot(i, 'element_id', e.target.value)}
                             disabled={!slot.combat_range}
                         >
-                            <option value="">Elemen apapun</option>
+                            <option value="">{slot.combat_range === 'all' ? '- Wajib pilih elemen -' : 'Elemen apapun'}</option>
                             {elements.map((el) => <option key={el.id} value={el.id}>{el.name}</option>)}
                         </select>
+                        {slot.combat_range === 'all' && !slot.element_id && (
+                            <p className="small mt-1 mb-0" style={{ color: '#b8433a' }}>Wajib pilih elemen kalau range "Semua"</p>
+                        )}
                     </div>
                     <div className="col-4">
                         <input

@@ -47,6 +47,7 @@ export default function Index({ skills, subclasses, filterSubclassId }) {
                                 <th>Scaling</th>
                                 <th>Attribute</th>
                                 <th>Stun</th>
+                                <th>Buff</th>
                                 <th>Range</th>
                                 <th>Multiplier</th>
                                 <th>SP/MP Cost</th>
@@ -63,6 +64,11 @@ export default function Index({ skills, subclasses, filterSubclassId }) {
                                     <td>{s.scaling_stat}</td>
                                     <td className="text-secondary">{s.element?.name ?? '-'}</td>
                                     <td>{s.can_stun ? <span style={{ color: '#c9a24b' }}>⚡ Ya</span> : <span className="text-secondary">-</span>}</td>
+                                    <td>
+                                        {s.buff_type === 'heal' && <span style={{ color: '#3f8c94' }}>💚 Heal</span>}
+                                        {s.buff_type === 'nerf' && <span style={{ color: '#b8433a' }}>☠ Nerf</span>}
+                                        {(!s.buff_type || s.buff_type === 'none') && <span className="text-secondary">-</span>}
+                                    </td>
                                     <td>{s.combat_range}</td>
                                     <td>{s.base_multiplier}</td>
                                     <td>{s.stamina_cost}/{s.mana_cost}</td>

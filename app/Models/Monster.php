@@ -74,7 +74,9 @@ class Monster extends Model
             return false;
         }
 
-        if ($slot['combat_range'] !== $combatRange) {
+        // 'all' cocok ke combat_range APAPUN (close/range/area) - beda dari
+        // element_id kosong yang cocok ke elemen apapun.
+        if ($slot['combat_range'] !== 'all' && $slot['combat_range'] !== $combatRange) {
             return false;
         }
 
