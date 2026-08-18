@@ -51,6 +51,7 @@ class SkillController extends Controller
             'base_multiplier' => ['required', 'numeric', 'min:0'],
             'can_stun' => ['boolean'],
             'buff_type' => ['required', 'string', 'in:'.implode(',', Skill::BUFF_TYPES)],
+            'buff_stat' => ['nullable', 'string', 'in:'.implode(',', Skill::BUFF_STATS)],
             'heal_resource' => ['nullable', 'string', 'in:'.implode(',', Skill::HEAL_RESOURCES)],
             'required_level' => ['required', 'integer', 'min:1'],
         ]);
@@ -58,6 +59,9 @@ class SkillController extends Controller
         $data['can_stun'] = $request->boolean('can_stun');
         if ($data['buff_type'] !== 'heal') {
             $data['heal_resource'] = null;
+        }
+        if ($data['buff_type'] !== 'buff') {
+            $data['buff_stat'] = null;
         }
 
         $skill->update($data);

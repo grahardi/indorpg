@@ -347,11 +347,20 @@ class BattleService
                 // juga, gak cuma buat nyerang langsung). combat_range='area' ->
                 // semua yang hidup kebagian buff. ===
                 if ($skill->buff_type === 'buff') {
+                    $buffStat = $skill->buff_stat ?? 'attack';
                     $isAreaBuff = $skill->combat_range === 'area';
                     $alive = $battle->participants->where('is_alive', true);
-                    $targets = $isAreaBuff
-                        ? $alive
-                        : collect([$alive->sortByDesc(fn ($p) => $this->combatStat($p, 'physical_damage') + $this->combatStat($p, 'magic_damage'))->first()])->filter();
+
+                    if ($isAreaBuff) {
+                        $targets = $alive;
+                    } elseif ($buffStat === 'defense') {
+                        // Buff defense single-target: prioritas ke yang HP-nya
+                        // paling kepotong (paling butuh perlindungan).
+                        $targets = collect([$this->pickHealTarget($battle, $skill)])->filter();
+                    } else {
+                        // Buff attack single-target: kasih ke attacker terkuat di party.
+                        $targets = collect([$alive->sortByDesc(fn ($p) => $this->combatStat($p, 'physical_damage') + $this->combatStat($p, 'magic_damage'))->first()])->filter();
+                    }
 
                     $bonusPercent = $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier'];
                     $buffMultiplier = 1 + ($bonusPercent / 100);
@@ -360,6 +369,7 @@ class BattleService
 
                     foreach ($targets as $target) {
                         $target->buff_multiplier = $buffMultiplier;
+                        $target->buff_stat = $buffStat;
                         $target->save();
                         $buffedNames[] = $target->character->name;
                     }
@@ -368,7 +378,8 @@ class BattleService
                     }
 
                     $namesText = implode(', ', $buffedNames);
-                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText}: serangan berikutnya +{$bonusRounded}% damage!", $character->id, $skill->id);
+                    $verb = $buffStat === 'defense' ? 'defense-nya naik' : 'serangan berikutnya';
+                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText}: {$verb} +{$bonusRounded}%!", $character->id, $skill->id);
 
                     continue;
                 }
@@ -419,11 +430,14 @@ class BattleService
                 }
 
                 // Buff dari skill support sebelumnya (kalau ada) - one-shot,
-                // konsumsi begitu karakter ini nyerang, abis itu reset.
-                if ($participant->buff_multiplier) {
+                // konsumsi begitu karakter ini nyerang, abis itu reset. Cuma
+                // buff tipe 'attack' yang kekonsumsi di sini (buff 'defense'
+                // dikonsumsi pas KENA serangan, bukan pas nyerang).
+                if ($participant->buff_multiplier && $participant->buff_stat !== 'defense') {
                     $mitigated *= (float) $participant->buff_multiplier;
                     $note .= ' (Buff!)';
                     $participant->buff_multiplier = null;
+                    $participant->buff_stat = null;
                 }
 
                 // Debuff dari skill nerf sebelumnya (kalau ada) - one-shot, konsumsi
@@ -503,6 +517,17 @@ class BattleService
 
                             $raw = $offenseStat * ($damageRatio / 100);
                             $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
+
+                            // Buff defense (kalau ada) - one-shot, konsumsi pas KENA
+                            // serangan ini, ngurangin damage yang masuk.
+                            $defenseBuffNote = '';
+                            if ($target->buff_multiplier && $target->buff_stat === 'defense') {
+                                $mitigated /= (float) $target->buff_multiplier;
+                                $defenseBuffNote = ' (Terlindungi!)';
+                                $target->buff_multiplier = null;
+                                $target->buff_stat = null;
+                            }
+
                             $damage = max(1, (int) round($mitigated));
 
                             $target->current_hp = max(0, $target->current_hp - $damage);
@@ -515,7 +540,7 @@ class BattleService
                             }
                             $target->save();
 
-                            $msg = "{$monster->name} {$verb} {$target->character->name}: {$damage} damage.";
+                            $msg = "{$monster->name} {$verb} {$target->character->name}: {$damage} damage{$defenseBuffNote}.";
                             if ($skillCanStun && ! $justFainted) {
                                 $msg .= " {$target->character->name} kena stun!";
                             }

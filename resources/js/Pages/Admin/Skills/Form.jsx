@@ -24,6 +24,7 @@ export default function Form({ skill, elements }) {
         base_multiplier: skill.base_multiplier,
         can_stun: skill.can_stun ?? false,
         buff_type: skill.buff_type ?? 'none',
+        buff_stat: skill.buff_stat ?? 'attack',
         heal_resource: skill.heal_resource ?? 'hp',
         required_level: skill.required_level,
     });
@@ -93,6 +94,16 @@ export default function Form({ skill, elements }) {
                                 </p>
                             </Field>
                         </div>
+                        {data.buff_type === 'buff' && (
+                            <div className="col-md-6">
+                                <Field label="Buff Nambah Apa?">
+                                    <select className={inputClass} value={data.buff_stat} onChange={(e) => setData('buff_stat', e.target.value)}>
+                                        <option value="attack">Attack (damage serangan berikutnya)</option>
+                                        <option value="defense">Defense (kurangin damage yang diterima berikutnya)</option>
+                                    </select>
+                                </Field>
+                            </div>
+                        )}
                         {data.buff_type === 'heal' && (
                             <div className="col-md-6">
                                 <Field label="Resource yang Disembuhin">

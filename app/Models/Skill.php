@@ -14,7 +14,7 @@ class Skill extends Model
     protected $fillable = [
         'subclass_id', 'element_id', 'name', 'description', 'tier', 'branch',
         'scaling_stat', 'combat_range', 'stamina_cost', 'mana_cost', 'cooldown_seconds',
-        'base_multiplier', 'can_stun', 'buff_type', 'heal_resource', 'icon_path', 'animation_path', 'required_level',
+        'base_multiplier', 'can_stun', 'buff_type', 'buff_stat', 'heal_resource', 'icon_path', 'animation_path', 'required_level',
     ];
 
     protected $casts = [
@@ -22,6 +22,8 @@ class Skill extends Model
     ];
 
     public const BUFF_TYPES = ['none', 'heal', 'nerf', 'buff'];
+
+    public const BUFF_STATS = ['attack', 'defense'];
 
     public const HEAL_RESOURCES = ['hp', 'mp', 'sp'];
 
