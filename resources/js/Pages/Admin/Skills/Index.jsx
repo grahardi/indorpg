@@ -46,6 +46,7 @@ export default function Index({ skills, subclasses, filterSubclassId }) {
                                 <th>Tier</th>
                                 <th>Scaling</th>
                                 <th>Attribute</th>
+                                <th>Stun</th>
                                 <th>Range</th>
                                 <th>Multiplier</th>
                                 <th>SP/MP Cost</th>
@@ -61,6 +62,7 @@ export default function Index({ skills, subclasses, filterSubclassId }) {
                                     <td>{s.tier === 3 ? 'Ultimate' : 'Biasa'}</td>
                                     <td>{s.scaling_stat}</td>
                                     <td className="text-secondary">{s.element?.name ?? '-'}</td>
+                                    <td>{s.can_stun ? <span style={{ color: '#c9a24b' }}>⚡ Ya</span> : <span className="text-secondary">-</span>}</td>
                                     <td>{s.combat_range}</td>
                                     <td>{s.base_multiplier}</td>
                                     <td>{s.stamina_cost}/{s.mana_cost}</td>

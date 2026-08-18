@@ -284,6 +284,7 @@ export default function Show({ battle, battleBackground }) {
 
         const isAnimating = activeAnimation?.characterId === p.character_id;
         const idleImage = subclass?.battle_idle_path || subclass?.full_body_path;
+        const isStunnedThisStep = live.is_alive && current.text?.includes(p.character.name) && current.text?.includes('kena stun');
 
         return (
             <div
@@ -293,6 +294,16 @@ export default function Show({ battle, battleBackground }) {
                     width: '24%', textAlign: 'center', opacity: live.is_alive ? 1 : 0.4,
                 }}
             >
+                {isStunnedThisStep && (
+                    <div
+                        style={{
+                            position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)',
+                            fontSize: '1.4rem', zIndex: 6, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))',
+                        }}
+                    >
+                        ⚡
+                    </div>
+                )}
                 {isMain && (
                     <span
                         className="rpg-element-badge d-inline-block mb-1"
@@ -306,7 +317,7 @@ export default function Show({ battle, battleBackground }) {
                 </div>
                 <div
                     style={{
-                        fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: pColor,
+                        fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: live.is_alive ? pColor : '#5b6178',
                         textShadow: '0 1px 3px rgba(0,0,0,0.9)', marginBottom: 2,
                     }}
                 >
@@ -357,6 +368,16 @@ export default function Show({ battle, battleBackground }) {
                 >
                     {/* Monster - lebih besar, di belakang/tengah */}
                     <div style={{ position: 'absolute', top: '6%', left: '50%', transform: 'translateX(-50%)', width: '42%', textAlign: 'center' }}>
+                        {current.monster_hp > 0 && current.text?.includes(monster.name) && current.text?.includes('kena stun') && (
+                            <div
+                                style={{
+                                    position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)',
+                                    fontSize: '1.8rem', zIndex: 6, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))',
+                                }}
+                            >
+                                ⚡
+                            </div>
+                        )}
                         <div style={{ width: '65%', margin: '0 auto 3px' }}>
                             <Bar current={current.monster_hp} max={monsterMaxHp} color={MONSTER_COLOR} />
                         </div>

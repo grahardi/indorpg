@@ -49,8 +49,11 @@ class SkillController extends Controller
             'mana_cost' => ['required', 'integer', 'min:0'],
             'cooldown_seconds' => ['required', 'integer', 'min:0'],
             'base_multiplier' => ['required', 'numeric', 'min:0'],
+            'can_stun' => ['boolean'],
             'required_level' => ['required', 'integer', 'min:1'],
         ]);
+
+        $data['can_stun'] = $request->boolean('can_stun');
 
         $skill->update($data);
 

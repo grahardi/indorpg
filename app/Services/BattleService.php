@@ -280,6 +280,14 @@ class BattleService
                     continue;
                 }
 
+                // Kena stun dari skill monster ronde sebelumnya -> skip giliran, efek abis dipakai sekali.
+                if ($participant->is_stunned) {
+                    $log[] = $this->snapshot($battle, "{$participant->character->name} kena stun, skip ronde!", $participant->character_id);
+                    $participant->is_stunned = false;
+                    $participant->save();
+                    continue;
+                }
+
                 $skill = $this->autoPickSkill($participant, $round);
                 if (! $skill) {
                     $log[] = $this->snapshot($battle, "{$participant->character->name} belum ada skill siap pakai, cuma bertahan.");
@@ -327,6 +335,14 @@ class BattleService
 
                 $damage = max(1, (int) round($mitigated));
                 $battle->monster_current_hp = max(0, $battle->monster_current_hp - $damage);
+
+                // Skill yang bisa stun (diatur admin di skill editor) - kena berarti
+                // monster skip ronde nyerang berikutnya.
+                if ($skill->can_stun && $battle->monster_current_hp > 0) {
+                    $battle->monster_stunned = true;
+                    $note .= ' STUN!';
+                }
+
                 $participant->save();
 
                 $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: {$damage} damage ke {$monster->name}{$note}", $character->id, $skill->id);
@@ -338,38 +354,75 @@ class BattleService
             }
 
             if ($battle->monster_current_hp > 0) {
-                $alive = $battle->participants()->where('is_alive', true)->get();
+                if ($battle->monster_stunned) {
+                    // Kena stun dari skill player ronde ini -> skip nyerang balik.
+                    $log[] = $this->snapshot($battle, "{$monster->name} kena stun, skip ronde!", null, null, true);
+                    $battle->monster_stunned = false;
+                } else {
+                    // BUG FIX PENTING: sebelumnya pakai participants()->where(...)->get()
+                    // yang query FRESH ke database, hasilnya instance PHP BEDA dari yang
+                    // udah di-cache di $battle->participants. Jadi pas monster nyerang &
+                    // nge-set is_alive=false di instance "asing" itu, collection utama
+                    // yang dipakai loop ronde berikutnya (dan snapshot, dan anyAlive())
+                    // masih "basi" - tetap nganggep karakter itu hidup, jadi masih ikut
+                    // nyerang lagi DAN HP-nya ikut ke-regen balik. Fix: filter collection
+                    // yang UDAH di-load (instance sama), bukan query baru.
+                    $alive = $battle->participants->where('is_alive', true);
 
-                if ($alive->isNotEmpty()) {
-                    $target = $alive->random();
-                    $character = $target->character;
+                    if ($alive->isNotEmpty()) {
+                        // Monster kadang pakai skill konfigurasi admin (nama, damage_ratio,
+                        // effect single/area, can_stun, usage_ratio - chance dipilih tiap
+                        // ronde), atau fallback ke serangan dasar kalau gak ada yang ke-roll.
+                        $monsterSkill = $this->pickMonsterSkill($monster);
+                        $isArea = ($monsterSkill['effect'] ?? null) === 'area';
+                        $targets = $isArea ? $alive : collect([$alive->random()]);
+                        $skillName = $monsterSkill['name'] ?? null;
+                        $damageRatio = $monsterSkill ? (float) ($monsterSkill['damage_ratio'] ?? 100) : 100;
+                        $skillCanStun = (bool) ($monsterSkill['can_stun'] ?? false);
+                        $verb = $skillName ? "pakai {$skillName} ke" : 'menyerang';
 
-                    // Cek akurasi monster vs Evasion (defensif) karakter.
-                    $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $character->effective_evasion));
-                    if (random_int(1, 100) > $hitChance) {
-                        $log[] = $this->snapshot($battle, "{$monster->name} menyerang {$target->character->name}: MELESET!", null, null, true);
-                    } else {
-                        $useMagic = $stats['magic_damage'] > $stats['physical_damage'];
-                        $offenseStat = $useMagic ? $stats['magic_damage'] : $stats['physical_damage'];
-                        $defenseStat = $useMagic ? $this->combatStat($target, 'magic_defense') : $this->combatStat($target, 'physical_defense');
+                        foreach ($targets as $target) {
+                            $character = $target->character;
 
-                        $raw = $offenseStat;
-                        $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
-                        $damage = max(1, (int) round($mitigated));
+                            // Cek akurasi monster vs Evasion (defensif) karakter.
+                            $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $character->effective_evasion));
+                            if (random_int(1, 100) > $hitChance) {
+                                $log[] = $this->snapshot($battle, "{$monster->name} {$verb} {$target->character->name}: MELESET!", null, null, true);
 
-                        $target->current_hp = max(0, $target->current_hp - $damage);
-                        $justFainted = false;
-                        if ($target->current_hp <= 0) {
-                            $target->is_alive = false;
-                            $justFainted = true;
+                                continue;
+                            }
+
+                            $useMagic = $stats['magic_damage'] > $stats['physical_damage'];
+                            $offenseStat = $useMagic ? $stats['magic_damage'] : $stats['physical_damage'];
+                            $defenseStat = $useMagic ? $this->combatStat($target, 'magic_defense') : $this->combatStat($target, 'physical_defense');
+
+                            $raw = $offenseStat * ($damageRatio / 100);
+                            $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
+                            $damage = max(1, (int) round($mitigated));
+
+                            $target->current_hp = max(0, $target->current_hp - $damage);
+                            $justFainted = false;
+                            if ($target->current_hp <= 0) {
+                                $target->is_alive = false;
+                                $justFainted = true;
+                            } elseif ($skillCanStun) {
+                                $target->is_stunned = true;
+                            }
+                            $target->save();
+
+                            $msg = "{$monster->name} {$verb} {$target->character->name}: {$damage} damage.";
+                            if ($skillCanStun && ! $justFainted) {
+                                $msg .= " {$target->character->name} kena stun!";
+                            }
+                            if ($justFainted) {
+                                $msg .= " {$target->character->name} tumbang!";
+                            }
+                            $log[] = $this->snapshot($battle, $msg, null, null, true);
+
+                            if (! $this->anyAlive($battle)) {
+                                break;
+                            }
                         }
-                        $target->save();
-
-                        $msg = "{$monster->name} menyerang {$target->character->name}: {$damage} damage.";
-                        if ($justFainted) {
-                            $msg .= " {$target->character->name} tumbang!";
-                        }
-                        $log[] = $this->snapshot($battle, $msg, null, null, true);
                     }
                 }
             }
@@ -453,6 +506,24 @@ class BattleService
         $participant->skill_cooldowns = $cooldowns;
 
         return $chosen;
+    }
+
+    /**
+     * Roll skill monster (dari skills_config yang diatur admin) yang dipakai
+     * ronde ini, berdasarkan usage_ratio tiap skill (persentase peluang per
+     * ronde, dicek berurutan). Null kalau gak ada yang ke-roll -> fallback
+     * ke serangan dasar (single target, damage_ratio 100%).
+     */
+    private function pickMonsterSkill(Monster $monster): ?array
+    {
+        foreach ($monster->skills_config ?? [] as $skillConfig) {
+            $usageRatio = (float) ($skillConfig['usage_ratio'] ?? 0);
+            if ($usageRatio > 0 && random_int(1, 100) <= $usageRatio) {
+                return $skillConfig;
+            }
+        }
+
+        return null;
     }
 
     private function anyAlive(Battle $battle): bool

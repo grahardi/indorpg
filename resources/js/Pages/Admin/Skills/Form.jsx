@@ -22,6 +22,7 @@ export default function Form({ skill, elements }) {
         mana_cost: skill.mana_cost,
         cooldown_seconds: skill.cooldown_seconds,
         base_multiplier: skill.base_multiplier,
+        can_stun: skill.can_stun ?? false,
         required_level: skill.required_level,
     });
 
@@ -107,6 +108,22 @@ export default function Form({ skill, elements }) {
                         <div className="col-md-6">
                             <Field label="Required Level">
                                 <input type="number" className={inputClass} value={data.required_level} onChange={(e) => setData('required_level', e.target.value)} />
+                            </Field>
+                        </div>
+                        <div className="col-md-6">
+                            <Field label="Bisa Stun?">
+                                <div className="form-check">
+                                    <input
+                                        type="checkbox"
+                                        className="form-check-input"
+                                        id="can_stun"
+                                        checked={data.can_stun}
+                                        onChange={(e) => setData('can_stun', e.target.checked)}
+                                    />
+                                    <label className="form-check-label text-secondary" htmlFor="can_stun" style={{ fontSize: '0.85rem' }}>
+                                        Ya - kalau kena, monster skip ronde nyerang berikutnya
+                                    </label>
+                                </div>
                             </Field>
                         </div>
                     </div>

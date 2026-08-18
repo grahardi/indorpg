@@ -13,11 +13,12 @@ class BattleParticipant extends Model
     protected $fillable = [
         'battle_id', 'character_id', 'current_hp',
         'current_stamina', 'current_mana', 'skill_cooldowns', 'loadout_skill_ids',
-        'npc_encounter_level', 'npc_stat_snapshot', 'is_alive',
+        'npc_encounter_level', 'npc_stat_snapshot', 'is_alive', 'is_stunned',
     ];
 
     protected $casts = [
         'is_alive' => 'boolean',
+        'is_stunned' => 'boolean',
         'skill_cooldowns' => 'array',
         'loadout_skill_ids' => 'array',
         'npc_stat_snapshot' => 'array',

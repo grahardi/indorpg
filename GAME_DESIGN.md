@@ -780,3 +780,30 @@ Sistem baru buat invest EXP ke **skill spesifik** (bukan stat karakter generik l
 
 ### Kenapa desain ini (bukan literasi ke "kenapa dapat 1 poin tiap battle")
 User awalnya nanya kenapa stat point kayak dikasih tiap battle — root cause-nya BUKAN bug (kode udah bener cuma ngasih poin pas level beneran naik), tapi karena early-level EXP requirement kecil + monster EXP reward ikut ke-scale naik bareng level party, jadi level-up (dan dapat poin) emang KERASA sering banget di level rendah. Daripada cuma jelasin, saya redesign sesuai arah yang diminta: stat point otomatis dihapus, diganti sistem skill-specific yang lebih niche dan intentional.
+
+---
+
+## 31. Fix Bug Kritis: Karakter Tumbang Masih Nyerang + Sistem Stun + Skill Monster (v5.3)
+
+### BUG KRITIS: karakter tumbang masih ikut ronde
+**Root cause**: `$battle->participants()->where('is_alive', true)->get()` — pakai tanda kurung `()`, ini manggil RELATION METHOD yang query FRESH ke database, hasilnya **instance PHP yang beda** dari yang udah di-cache di `$battle->participants` (tanpa kurung, si collection yang di-load sekali di awal `autoResolve()`). Jadi pas monster nyerang dan nge-set `$target->is_alive = false` di instance "asing" hasil query fresh itu, perubahannya kesimpen ke database tapi **collection utama yang dipakai di ronde-ronde berikutnya (dan `anyAlive()`, dan snapshot) tetap "basi"** — masih nganggep karakter itu hidup. Efeknya persis yang dilaporkan: karakter tumbang masih ikut nyerang ronde berikutnya, DAN HP-nya ikut ke-regen balik ke atas 0 (soalnya regen loop juga baca dari collection basi yang sama).
+
+**Fix**: ganti jadi `$battle->participants->where('is_alive', true)` (Collection method, tanpa kurung setelah `participants`) — filter collection yang UDAH di-load, instance objeknya sama persis kayak yang dipakai di tempat lain. Sekarang perubahan `is_alive` konsisten di seluruh proses battle.
+
+### Nama abu-abu kalau tumbang
+Sebelumnya cuma opacity card yang berkurang; sekarang nama karakter juga eksplisit ganti warna jadi abu-abu (`#5b6178`) kalau `is_alive` false, biar lebih jelas kelihatan siapa yang udah tumbang.
+
+### Sistem Stun (dua arah)
+- **Skill player bisa stun monster**: kolom baru `skills.can_stun` (checkbox di admin skill editor). Kalau skill yang stun-able KENA ke monster, `battles.monster_stunned = true` — ronde berikutnya monster **skip nyerang** (log: "X kena stun, skip ronde!"), flag di-reset abis dipakai sekali.
+- **Skill monster bisa stun karakter**: lihat "Skill Monster" di bawah — kalau kena, `battle_participants.is_stunned = true` — karakter itu **skip giliran** ronde berikutnya.
+- **Efek visual**: ikon ⚡ muncul di atas karakter/monster yang lagi kena stun, dideteksi dari teks battle log step itu (`current.text.includes(nama) && includes('kena stun')`).
+
+### Skill Monster (baru — monster sekarang bisa punya skill sendiri, bukan cuma serangan generik)
+Kolom baru `monsters.skills_config` (JSON array), diatur admin di halaman edit monster — bisa **tambah/edit/hapus** dinamis, tiap skill:
+- **Nama** (flavor text, muncul di log: "X pakai [nama] ke Y")
+- **Damage (% stat)** — 0-100, persentase dari physical/magic damage monster yang dipakai (bukan base_multiplier kayak skill player, langsung persentase simpel). Misal diisi 89 → 89% dari stat damage monster.
+- **Effect**: Single (1 target random) atau **Area** (kena SEMUA karakter yang masih hidup)
+- **Stun**: checkbox, kalau ya dan skill ini kena → target(s) kena stun
+- **Skill Ratio (%/ronde)** — peluang skill ini dipilih ronde itu, dicek berurutan tiap skill di list; kalau gak ada yang ke-roll, fallback ke serangan dasar (single target, 100% damage, kayak sebelumnya)
+
+`BattleService::pickMonsterSkill()` yang nge-roll ini tiap ronde monster mau nyerang (kecuali lagi kena stun, langsung skip).

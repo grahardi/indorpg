@@ -97,7 +97,20 @@ class MonsterController extends Controller
             'strong_matchups.*.combat_range' => ['nullable', 'string', 'in:close,range,area'],
             'strong_matchups.*.element_id' => ['nullable', 'integer', 'exists:elements,id'],
             'strong_matchups.*.ratio' => ['nullable', 'numeric', 'min:0'],
+            'skills_config' => ['nullable', 'array'],
+            'skills_config.*.name' => ['required', 'string', 'max:100'],
+            'skills_config.*.damage_ratio' => ['required', 'numeric', 'min:0', 'max:100'],
+            'skills_config.*.effect' => ['required', 'string', 'in:single,area'],
+            'skills_config.*.can_stun' => ['boolean'],
+            'skills_config.*.usage_ratio' => ['required', 'numeric', 'min:0', 'max:100'],
         ]);
+
+        if (isset($data['skills_config'])) {
+            $data['skills_config'] = collect($data['skills_config'])
+                ->map(fn ($s) => [...$s, 'can_stun' => (bool) ($s['can_stun'] ?? false)])
+                ->values()
+                ->all();
+        }
 
         // Buang slot yang combat_range-nya kosong (dianggap "gak diisi").
         foreach (['weak_matchups', 'strong_matchups'] as $key) {

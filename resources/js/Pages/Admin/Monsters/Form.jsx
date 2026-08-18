@@ -77,6 +77,99 @@ function MatchupSlots({ label, hint, slots, setSlots, elements, accent }) {
     );
 }
 
+function MonsterSkillsManager({ skills, setSkills }) {
+    function addSkill() {
+        setSkills([...skills, { name: '', damage_ratio: 100, effect: 'single', can_stun: false, usage_ratio: 20 }]);
+    }
+
+    function updateSkill(i, field, value) {
+        const next = [...skills];
+        next[i] = { ...next[i], [field]: value };
+        setSkills(next);
+    }
+
+    function removeSkill(i) {
+        setSkills(skills.filter((_, idx) => idx !== i));
+    }
+
+    return (
+        <div className="mb-4">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+                <div className="rpg-skill-group-title" style={{ fontSize: '0.75rem', color: '#c9a24b' }}>Skill Monster</div>
+                <button type="button" onClick={addSkill} className="rpg-back-link" style={{ fontSize: '0.72rem', padding: '0.2rem 0.6rem' }}>
+                    + Tambah Skill
+                </button>
+            </div>
+            <p className="text-secondary small mb-2">
+                Kalau kosong, monster cuma pakai serangan dasar. Tiap ronde, skill dicek berurutan pakai Skill Ratio-nya
+                (peluang % dipakai ronde itu) - kalau gak ada yang ke-roll, fallback ke serangan dasar.
+            </p>
+            {skills.length === 0 && (
+                <p className="text-secondary small fst-italic">Belum ada skill custom.</p>
+            )}
+            {skills.map((skill, i) => (
+                <div key={i} className="rpg-card mb-2" style={{ '--accent': '#c9a24b', padding: '0.85rem' }}>
+                    <div className="row g-2 align-items-end">
+                        <div className="col-md-4">
+                            <label className="rpg-stat-label d-block mb-1" style={{ fontSize: '0.65rem' }}>Nama Skill</label>
+                            <input
+                                className="form-control form-control-sm bg-dark text-light border-secondary"
+                                value={skill.name}
+                                onChange={(e) => updateSkill(i, 'name', e.target.value)}
+                                placeholder="misal: Cakar Beracun"
+                            />
+                        </div>
+                        <div className="col-md-2">
+                            <label className="rpg-stat-label d-block mb-1" style={{ fontSize: '0.65rem' }}>Damage (% stat)</label>
+                            <input
+                                type="number" min="0" max="100"
+                                className="form-control form-control-sm bg-dark text-light border-secondary"
+                                value={skill.damage_ratio}
+                                onChange={(e) => updateSkill(i, 'damage_ratio', e.target.value)}
+                            />
+                        </div>
+                        <div className="col-md-2">
+                            <label className="rpg-stat-label d-block mb-1" style={{ fontSize: '0.65rem' }}>Effect</label>
+                            <select
+                                className="form-select form-select-sm bg-dark text-light border-secondary"
+                                value={skill.effect}
+                                onChange={(e) => updateSkill(i, 'effect', e.target.value)}
+                            >
+                                <option value="single">Single</option>
+                                <option value="area">Area (semua)</option>
+                            </select>
+                        </div>
+                        <div className="col-md-2">
+                            <label className="rpg-stat-label d-block mb-1" style={{ fontSize: '0.65rem' }}>Skill Ratio (%/ronde)</label>
+                            <input
+                                type="number" min="0" max="100"
+                                className="form-control form-control-sm bg-dark text-light border-secondary"
+                                value={skill.usage_ratio}
+                                onChange={(e) => updateSkill(i, 'usage_ratio', e.target.value)}
+                            />
+                        </div>
+                        <div className="col-md-1 form-check">
+                            <input
+                                type="checkbox"
+                                className="form-check-input"
+                                checked={!!skill.can_stun}
+                                onChange={(e) => updateSkill(i, 'can_stun', e.target.checked)}
+                                id={`stun-${i}`}
+                            />
+                            <label className="form-check-label text-secondary" htmlFor={`stun-${i}`} style={{ fontSize: '0.65rem' }}>Stun</label>
+                        </div>
+                        <div className="col-md-1 text-end">
+                            <button type="button" onClick={() => removeSkill(i)} className="rpg-back-link" style={{ fontSize: '0.7rem', color: '#b8433a', borderColor: '#b8433a', background: 'none' }}>
+                                Hapus
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export default function Form({ monster, elements, combatPatterns }) {
     const isEdit = !!monster;
     const { data, setData, post, put, processing, errors } = useForm({
@@ -99,6 +192,7 @@ export default function Form({ monster, elements, combatPatterns }) {
         description: monster?.description ?? '',
         weak_matchups: normalizeSlots(monster?.weak_matchups),
         strong_matchups: normalizeSlots(monster?.strong_matchups),
+        skills_config: monster?.skills_config ?? [],
     });
 
     function submit(e) {
@@ -220,6 +314,11 @@ export default function Form({ monster, elements, combatPatterns }) {
                         setSlots={(v) => setData('strong_matchups', v)}
                         elements={elements}
                         accent="#3f8c94"
+                    />
+
+                    <MonsterSkillsManager
+                        skills={data.skills_config}
+                        setSkills={(v) => setData('skills_config', v)}
                     />
 
                     <div className="row g-3">
