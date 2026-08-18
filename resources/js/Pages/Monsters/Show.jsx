@@ -111,14 +111,14 @@ export default function Show({ monster, mapName }) {
                     <div>
                         <h1 className="rpg-class-title mb-0" style={{ fontSize: '2rem' }}>{monster.name}</h1>
                         <p className="rpg-power-type mb-0">
-                            Kelas {monster.level_rank} &middot; {monster.type}
+                            Kelas {monster.class_rank} &middot; {monster.type}
                             {monster.element && <> &middot; Elemen {monster.element.name}</>}
                         </p>
                     </div>
                 </div>
                 <p className="rpg-class-desc mt-3">{monster.description}</p>
                 <p className="text-secondary small" style={{ maxWidth: 480 }}>
-                    Kelas <strong>{monster.level_rank}</strong> nunjukkin perkiraan kekuatan monster ini secara umum
+                    Kelas <strong>{monster.class_rank}</strong> nunjukkin perkiraan kekuatan monster ini secara umum
                     (E terlemah, S terkuat). Level & stat asli tiap battle di-acak dan bisa naik sesuai level party
                     kamu — jadi angka pastinya baru kelihatan pas battle beneran dimulai.
                 </p>
@@ -136,7 +136,7 @@ export default function Show({ monster, mapName }) {
                     />
                 </div>
 
-                <div className="rpg-skill-group-title mt-4">Stat Referensi (Kelas {monster.level_rank})</div>
+                <div className="rpg-skill-group-title mt-4">Stat Referensi (Kelas {monster.class_rank})</div>
                 <div className="row g-3 my-3">
                     {[
                         ['HP', monster.hp, '#3f8c94'],

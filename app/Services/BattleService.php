@@ -187,13 +187,13 @@ class BattleService
                 $raw = $offenseStat * (float) $skill->base_multiplier;
                 $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
 
-                $pattern = "{$skill->combat_range}_{$skill->scaling_stat}";
                 $note = '';
-                if ($pattern === $monster->weak_against) {
-                    $mitigated *= 1.5;
+                $matchupMultiplier = $monster->matchupMultiplier($skill->combat_range, $skill->element_id);
+                if ($matchupMultiplier > 1) {
+                    $mitigated *= $matchupMultiplier;
                     $note = ' (Efektif!)';
-                } elseif ($pattern === $monster->strong_against) {
-                    $mitigated *= 0.5;
+                } elseif ($matchupMultiplier < 1) {
+                    $mitigated *= $matchupMultiplier;
                     $note = ' (Kurang efektif...)';
                 }
 

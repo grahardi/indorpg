@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\Admin\MapController as AdminMapController;
 use App\Http\Controllers\Admin\MonsterController as AdminMonsterController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
 use App\Http\Controllers\Admin\SkillController as AdminSkillController;
+use App\Http\Controllers\Admin\SpawnPointController as AdminSpawnPointController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BattleController;
 use App\Http\Controllers\CharacterController;
@@ -77,4 +79,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/skills', [AdminSkillController::class, 'index'])->name('skills.index');
     Route::get('/skills/{skill}/edit', [AdminSkillController::class, 'edit'])->name('skills.edit');
     Route::put('/skills/{skill}', [AdminSkillController::class, 'update'])->name('skills.update');
+
+    Route::get('/maps', [AdminMapController::class, 'index'])->name('maps.index');
+    Route::get('/maps/create', [AdminMapController::class, 'create'])->name('maps.create');
+    Route::post('/maps', [AdminMapController::class, 'store'])->name('maps.store');
+    Route::get('/maps/{map}/edit', [AdminMapController::class, 'edit'])->name('maps.edit');
+    Route::put('/maps/{map}', [AdminMapController::class, 'update'])->name('maps.update');
+    Route::delete('/maps/{map}', [AdminMapController::class, 'destroy'])->name('maps.destroy');
+    Route::post('/maps/{map}/background', [AdminMapController::class, 'uploadBackground'])->name('maps.background');
+
+    Route::get('/maps/{map}/spawn-points', [AdminSpawnPointController::class, 'index'])->name('maps.spawn-points.index');
+    Route::get('/maps/{map}/spawn-points/create', [AdminSpawnPointController::class, 'create'])->name('maps.spawn-points.create');
+    Route::post('/maps/{map}/spawn-points', [AdminSpawnPointController::class, 'store'])->name('maps.spawn-points.store');
+    Route::get('/maps/{map}/spawn-points/{spawnPoint}/edit', [AdminSpawnPointController::class, 'edit'])->name('maps.spawn-points.edit');
+    Route::put('/maps/{map}/spawn-points/{spawnPoint}', [AdminSpawnPointController::class, 'update'])->name('maps.spawn-points.update');
+    Route::delete('/maps/{map}/spawn-points/{spawnPoint}', [AdminSpawnPointController::class, 'destroy'])->name('maps.spawn-points.destroy');
 });

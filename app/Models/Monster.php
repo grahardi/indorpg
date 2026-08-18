@@ -11,8 +11,8 @@ class Monster extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'slug', 'level', 'type', 'element_id',
-        'strong_against', 'weak_against',
+        'name', 'slug', 'level', 'class_rank', 'type', 'element_id',
+        'strong_against', 'weak_against', 'weak_matchups', 'strong_matchups',
         'hp', 'physical_damage', 'physical_defense', 'magic_damage', 'magic_defense',
         'agility', 'accuracy',
         'exp_reward', 'min_party_level',
@@ -20,7 +20,10 @@ class Monster extends Model
         'description', 'avatar_path', 'full_body_path',
     ];
 
-    protected $appends = ['level_rank'];
+    protected $casts = [
+        'weak_matchups' => 'array',
+        'strong_matchups' => 'array',
+    ];
 
     /**
      * Kombinasi pola combat yang valid: cara serang (close/range/area) x jenis damage (physical/magic).
@@ -30,29 +33,56 @@ class Monster extends Model
         'close_magic', 'range_magic', 'area_magic',
     ];
 
-    /**
-     * Rank huruf (E terlemah - S terkuat) buat tampilan publik (Bestiary,
-     * preview sebelum battle) - level angka SEBENARNYA acak tiap encounter
-     * (lihat BattleService::rollMonsterLevel), jadi nunjukkin angka level
-     * statis di sini bisa menyesatkan (janji level yang gak sesuai battle
-     * beneran). Level angka pasti cuma ditampilin di DALAM battle (udah akurat)
-     * dan di admin panel (buat editing).
-     */
-    public function getLevelRankAttribute(): string
-    {
-        return match (true) {
-            $this->level >= 17 => 'S',
-            $this->level >= 12 => 'A',
-            $this->level >= 8 => 'B',
-            $this->level >= 5 => 'C',
-            $this->level >= 3 => 'D',
-            default => 'E',
-        };
-    }
+    public const RANKS = ['F', 'E', 'D', 'C', 'B', 'A', 'S'];
 
     public function element(): BelongsTo
     {
         return $this->belongsTo(Element::class);
+    }
+
+    /**
+     * Cek apakah serangan (combat_range + elemen skill) kena salah satu slot
+     * weak/strong matchup monster ini, return multiplier damage-nya.
+     * Weak matchup: damage x ratio (misal ratio 2 = 2x damage).
+     * Strong matchup: damage x (1/ratio) (misal ratio 2 = setengah damage).
+     * Slot dengan element_id null artinya cocok ke elemen APAPUN (cuma cek combat_range).
+     * Slot dengan combat_range null dianggap gak aktif (belum diisi admin).
+     */
+    public function matchupMultiplier(string $combatRange, ?int $skillElementId): float
+    {
+        foreach ($this->weak_matchups ?? [] as $slot) {
+            if ($this->slotMatches($slot, $combatRange, $skillElementId)) {
+                return (float) ($slot['ratio'] ?? 1);
+            }
+        }
+
+        foreach ($this->strong_matchups ?? [] as $slot) {
+            if ($this->slotMatches($slot, $combatRange, $skillElementId)) {
+                $ratio = (float) ($slot['ratio'] ?? 1);
+
+                return $ratio > 0 ? 1 / $ratio : 1;
+            }
+        }
+
+        return 1.0;
+    }
+
+    private function slotMatches(?array $slot, string $combatRange, ?int $skillElementId): bool
+    {
+        if (! $slot || empty($slot['combat_range'])) {
+            return false;
+        }
+
+        if ($slot['combat_range'] !== $combatRange) {
+            return false;
+        }
+
+        // Slot tanpa element_id = cocok ke elemen apapun (termasuk skill tanpa elemen).
+        if (empty($slot['element_id'])) {
+            return true;
+        }
+
+        return (int) $slot['element_id'] === $skillElementId;
     }
 
     public function spawnPoints(): \Illuminate\Database\Eloquent\Relations\BelongsToMany

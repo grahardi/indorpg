@@ -667,3 +667,45 @@ C: level >= 5     D: level >= 3     E: default (1-2)
 - **Di dalam battle** (`Battle/Show.jsx`) — `battle.monster_level` di situ udah hasil roll SEBENARNYA buat battle itu, bukan template statis, jadi angka pasti justru lebih informatif.
 - **Admin panel** (`/admin/monsters`) — admin butuh presisi buat editing, bukan narasi kelas.
 - **Level karakter** (player/NPC) — ini gak random, tetap ditampilin numerik di mana-mana seperti biasa.
+
+---
+
+## 27. Rework Total: Kelas Monster Manual, Weak/Strong 2-Slot, Skill Attribute, Map+SpawnPoint Editor, Gerbang Level (v5.0)
+
+### Kelas Monster jadi kolom manual (bukan dihitung dari level lagi)
+`Monster::class_rank` (F/E/D/C/B/A/S) sekarang kolom asli yang diisi admin manual, bukan accessor `getLevelRankAttribute()` yang dihitung dari level (dihapus total). `MonsterRankSeeder` isi 12 monster existing sesuai tabel yang diminta:
+```
+F: Tikus Raksasa, Slime Api, Slime Air
+E: Kelelawar Gua, Bandit Pemula, Serigala Hutan, Zombie Reyot
+D: Laba-laba Beracun, Peri Air, Elemental Api Kecil
+C: Golem Batu Kecil, Harpy Muda
+```
+Semua frontend yang sebelumnya baca `monster.level_rank` diganti `monster.class_rank`.
+
+### Weak/Strong jadi 2 slot per kategori (bukan 1 pola string lagi)
+Kolom lama `weak_against`/`strong_against` (1 string pola "range_scaling") **gak dipakai lagi buat kalkulasi** (kolom fisiknya masih ada, cuma legacy). Diganti `weak_matchups`/`strong_matchups` (JSON array, 2 slot masing-masing), tiap slot: `combat_range` (close/range/area) + `element_id` (opsional, null = elemen apapun) + `ratio` (multiplier).
+
+`Monster::matchupMultiplier($combatRange, $skillElementId)`:
+- Weak slot cocok → damage × ratio (misal ratio 2 = 2x damage)
+- Strong slot cocok → damage × (1/ratio) (misal ratio 2 = setengah damage)
+- Slot dengan `combat_range` kosong dianggap gak aktif (belum diisi)
+
+`BattleService` diganti total dari cek `pattern === monster->weak_against` (string exact-match) jadi manggil `matchupMultiplier()`.
+
+### Skill Editor: tambah Attribute (element)
+`Admin\SkillController` sekarang include `element_id` di validasi + form — field ini sebenarnya udah ada dari awal di kolom `skills.element_id`, cuma belum pernah dipasang di form admin sebelumnya.
+
+### `/admin/maps` — Map Editor + upload background
+CRUD lengkap (index/create/edit/delete) + `uploadBackground()` (resize ke 1200×675, pola sama kayak upload avatar/full body yang udah ada — `ImageResizer` + `public_path()`, bukan Storage disk).
+
+### `/admin/maps/{map}/spawn-points` — Spawn Point Editor
+CRUD lengkap per map: nama, deskripsi, posisi (pos_x/pos_y %), **`min_monster_level`** (baru), respawn_seconds, dan pilih monster + bobot (weighted pool, checkbox + input angka per monster).
+
+### Gerbang Level (`min_monster_level`)
+Kolom baru `spawn_points.min_monster_level` (default 1 = semua level boleh masuk). Dicek di `MapController::explore()` DAN `MapController::show()` (buat nampilin status terkunci di peta):
+```
+level tertinggi karakter (milik user, bukan NPC) + monster_max_level_bonus (setting admin, default +3) >= min_monster_level
+```
+Kalau gak lolos, explore ditolak dengan pesan jelas ("Level kamu belum cukup..."), dan spawn point ditandai 🔒 terkunci di peta (marker abu-abu + kartu disabled) SEBELUM sempat diklik.
+
+**Catatan guest**: `maps.show` itu route publik (guest bisa liat), jadi kalau belum login, `playerMaxLevel` di-default ke 1 (bukan query characters dengan user_id null yang malah nyangkut ke NPC).

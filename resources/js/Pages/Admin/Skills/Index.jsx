@@ -17,6 +17,7 @@ export default function Index({ skills, subclasses, filterSubclassId }) {
                     <div className="d-flex gap-3 align-items-center">
                         <Link href={route('admin.settings.index')} className="rpg-back-link">Settings</Link>
                         <Link href={route('admin.monsters.index')} className="rpg-back-link">Monster</Link>
+                        <Link href={route('admin.maps.index')} className="rpg-back-link">Map</Link>
                     </div>
                 </div>
 
@@ -44,6 +45,7 @@ export default function Index({ skills, subclasses, filterSubclassId }) {
                                 <th>Subclass</th>
                                 <th>Tier</th>
                                 <th>Scaling</th>
+                                <th>Attribute</th>
                                 <th>Range</th>
                                 <th>Multiplier</th>
                                 <th>SP/MP Cost</th>
@@ -58,6 +60,7 @@ export default function Index({ skills, subclasses, filterSubclassId }) {
                                     <td className="text-secondary">{s.subclass?.name}</td>
                                     <td>{s.tier === 3 ? 'Ultimate' : 'Biasa'}</td>
                                     <td>{s.scaling_stat}</td>
+                                    <td className="text-secondary">{s.element?.name ?? '-'}</td>
                                     <td>{s.combat_range}</td>
                                     <td>{s.base_multiplier}</td>
                                     <td>{s.stamina_cost}/{s.mana_cost}</td>

@@ -25,6 +25,7 @@ export default function Settings({ settings }) {
                     <div className="d-flex gap-3">
                         <Link href={route('admin.monsters.index')} className="rpg-back-link">Monster</Link>
                         <Link href={route('admin.skills.index')} className="rpg-back-link">Skill</Link>
+                        <Link href={route('admin.maps.index')} className="rpg-back-link">Map</Link>
                     </div>
                 </div>
 

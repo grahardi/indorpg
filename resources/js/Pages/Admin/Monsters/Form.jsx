@@ -1,6 +1,9 @@
 import { Head, useForm, Link } from '@inertiajs/react';
 import Layout from '../../../Layout';
 
+const RANKS = ['F', 'E', 'D', 'C', 'B', 'A', 'S'];
+const COMBAT_RANGES = ['close', 'range', 'area'];
+
 function Field({ label, children }) {
     return (
         <div className="mb-3">
@@ -10,15 +13,78 @@ function Field({ label, children }) {
     );
 }
 
+function emptySlot() {
+    return { combat_range: '', element_id: '', ratio: 2 };
+}
+
+function normalizeSlots(slots) {
+    const arr = Array.isArray(slots) ? slots.map((s) => ({
+        combat_range: s?.combat_range ?? '',
+        element_id: s?.element_id ?? '',
+        ratio: s?.ratio ?? 2,
+    })) : [];
+    while (arr.length < 2) arr.push(emptySlot());
+    return arr.slice(0, 2);
+}
+
+function MatchupSlots({ label, hint, slots, setSlots, elements, accent }) {
+    function updateSlot(i, field, value) {
+        const next = [...slots];
+        next[i] = { ...next[i], [field]: value };
+        setSlots(next);
+    }
+
+    return (
+        <div className="mb-4">
+            <div className="rpg-skill-group-title mb-1" style={{ fontSize: '0.75rem', color: accent }}>{label}</div>
+            <p className="text-secondary small mb-2">{hint}</p>
+            {slots.map((slot, i) => (
+                <div className="row g-2 mb-2" key={i}>
+                    <div className="col-4">
+                        <select
+                            className="form-select form-select-sm bg-dark text-light border-secondary"
+                            value={slot.combat_range}
+                            onChange={(e) => updateSlot(i, 'combat_range', e.target.value)}
+                        >
+                            <option value="">- Slot kosong -</option>
+                            {COMBAT_RANGES.map((r) => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                    </div>
+                    <div className="col-4">
+                        <select
+                            className="form-select form-select-sm bg-dark text-light border-secondary"
+                            value={slot.element_id}
+                            onChange={(e) => updateSlot(i, 'element_id', e.target.value)}
+                            disabled={!slot.combat_range}
+                        >
+                            <option value="">Elemen apapun</option>
+                            {elements.map((el) => <option key={el.id} value={el.id}>{el.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="col-4">
+                        <input
+                            type="number" step="0.1" min="0"
+                            className="form-control form-control-sm bg-dark text-light border-secondary"
+                            value={slot.ratio}
+                            onChange={(e) => updateSlot(i, 'ratio', e.target.value)}
+                            disabled={!slot.combat_range}
+                            placeholder="Ratio"
+                        />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export default function Form({ monster, elements, combatPatterns }) {
     const isEdit = !!monster;
     const { data, setData, post, put, processing, errors } = useForm({
         name: monster?.name ?? '',
         level: monster?.level ?? 1,
+        class_rank: monster?.class_rank ?? 'E',
         type: monster?.type ?? '',
         element_id: monster?.element_id ?? '',
-        strong_against: monster?.strong_against ?? '',
-        weak_against: monster?.weak_against ?? '',
         hp: monster?.hp ?? 30,
         physical_damage: monster?.physical_damage ?? 10,
         physical_defense: monster?.physical_defense ?? 5,
@@ -31,6 +97,8 @@ export default function Form({ monster, elements, combatPatterns }) {
         special_skill_name: monster?.special_skill_name ?? '',
         special_skill_description: monster?.special_skill_description ?? '',
         description: monster?.description ?? '',
+        weak_matchups: normalizeSlots(monster?.weak_matchups),
+        strong_matchups: normalizeSlots(monster?.strong_matchups),
     });
 
     function submit(e) {
@@ -53,15 +121,22 @@ export default function Form({ monster, elements, combatPatterns }) {
 
                 <form onSubmit={submit}>
                     <div className="row g-3">
-                        <div className="col-md-8">
+                        <div className="col-md-7">
                             <Field label="Nama">
                                 <input className={inputClass} value={data.name} onChange={(e) => setData('name', e.target.value)} />
                                 {errors.name && <div className="text-danger small mt-1">{errors.name}</div>}
                             </Field>
                         </div>
-                        <div className="col-md-4">
+                        <div className="col-md-3">
                             <Field label="Level Dasar">
                                 <input type="number" className={inputClass} value={data.level} onChange={(e) => setData('level', e.target.value)} />
+                            </Field>
+                        </div>
+                        <div className="col-md-2">
+                            <Field label="Kelas">
+                                <select className={inputClass} value={data.class_rank} onChange={(e) => setData('class_rank', e.target.value)}>
+                                    {RANKS.map((r) => <option key={r} value={r}>{r}</option>)}
+                                </select>
                             </Field>
                         </div>
 
@@ -75,23 +150,6 @@ export default function Form({ monster, elements, combatPatterns }) {
                                 <select className={inputClass} value={data.element_id} onChange={(e) => setData('element_id', e.target.value)}>
                                     <option value="">- Tanpa elemen -</option>
                                     {elements.map((el) => <option key={el.id} value={el.id}>{el.name}</option>)}
-                                </select>
-                            </Field>
-                        </div>
-
-                        <div className="col-md-6">
-                            <Field label="Lemah Terhadap (weak_against)">
-                                <select className={inputClass} value={data.weak_against} onChange={(e) => setData('weak_against', e.target.value)}>
-                                    <option value="">- Tidak ada -</option>
-                                    {combatPatterns.map((p) => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                            </Field>
-                        </div>
-                        <div className="col-md-6">
-                            <Field label="Kuat Terhadap (strong_against)">
-                                <select className={inputClass} value={data.strong_against} onChange={(e) => setData('strong_against', e.target.value)}>
-                                    <option value="">- Tidak ada -</option>
-                                    {combatPatterns.map((p) => <option key={p} value={p}>{p}</option>)}
                                 </select>
                             </Field>
                         </div>
@@ -142,7 +200,29 @@ export default function Form({ monster, elements, combatPatterns }) {
                                 <input type="number" className={inputClass} value={data.min_party_level} onChange={(e) => setData('min_party_level', e.target.value)} />
                             </Field>
                         </div>
+                    </div>
 
+                    <hr className="my-4" style={{ borderColor: 'var(--border-subtle)' }} />
+
+                    <MatchupSlots
+                        label="Weak (Lemah Terhadap) - 2 slot"
+                        hint="Serangan yang cocok slot ini kena damage dikali ratio. Contoh: Range=close, Elemen=Fire, Ratio=2 -> serangan jarak dekat elemen Api kena 2x damage."
+                        slots={data.weak_matchups}
+                        setSlots={(v) => setData('weak_matchups', v)}
+                        elements={elements}
+                        accent="#b8433a"
+                    />
+
+                    <MatchupSlots
+                        label="Strong (Kuat Terhadap) - 2 slot"
+                        hint="Serangan yang cocok slot ini kena damage dibagi ratio. Contoh: Range=area, Ratio=2 -> serangan area cuma kena 1/2 damage."
+                        slots={data.strong_matchups}
+                        setSlots={(v) => setData('strong_matchups', v)}
+                        elements={elements}
+                        accent="#3f8c94"
+                    />
+
+                    <div className="row g-3">
                         <div className="col-md-6">
                             <Field label="Nama Skill Spesial (opsional, flavor text)">
                                 <input className={inputClass} value={data.special_skill_name} onChange={(e) => setData('special_skill_name', e.target.value)} />
@@ -164,6 +244,7 @@ export default function Form({ monster, elements, combatPatterns }) {
                     <p className="text-secondary small mt-3">
                         Catatan: HP/damage/defense/EXP di atas adalah nilai di <strong>level dasar</strong>.
                         Stat aktual pas battle di-scale otomatis sesuai level encounter (lihat Settings buat atur rasio kenaikannya).
+                        Kelas (F-S) itu label kekuatan yang ditampilin ke player, TERPISAH dari level dasar.
                         Avatar/full body diatur lewat halaman detail monster (upload gambar), bukan di sini.
                     </p>
 

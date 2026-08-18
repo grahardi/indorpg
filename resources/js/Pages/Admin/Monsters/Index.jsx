@@ -18,6 +18,7 @@ export default function Index({ monsters }) {
                     <div className="d-flex gap-3 align-items-center">
                         <Link href={route('admin.settings.index')} className="rpg-back-link">Settings</Link>
                         <Link href={route('admin.skills.index')} className="rpg-back-link">Skill</Link>
+                        <Link href={route('admin.maps.index')} className="rpg-back-link">Map</Link>
                         <Link href={route('admin.monsters.create')} className="rpg-back-link" style={{ color: '#c9a24b' }}>+ Monster Baru</Link>
                     </div>
                 </div>
@@ -33,6 +34,7 @@ export default function Index({ monsters }) {
                         <thead>
                             <tr>
                                 <th>Nama</th>
+                                <th>Kelas</th>
                                 <th>Lv</th>
                                 <th>Type</th>
                                 <th>Elemen</th>
@@ -47,6 +49,7 @@ export default function Index({ monsters }) {
                             {monsters.map((m) => (
                                 <tr key={m.id}>
                                     <td className="rpg-subclass-name" style={{ fontSize: '0.9rem' }}>{m.name}</td>
+                                    <td style={{ color: '#c9a24b', fontWeight: 700 }}>{m.class_rank}</td>
                                     <td>{m.level}</td>
                                     <td>{m.type}</td>
                                     <td>{m.element?.name ?? '-'}</td>

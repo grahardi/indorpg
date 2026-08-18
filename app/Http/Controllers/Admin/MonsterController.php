@@ -67,13 +67,12 @@ class MonsterController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'level' => ['required', 'integer', 'min:1', 'max:100'],
+            'class_rank' => ['required', 'string', 'in:'.implode(',', Monster::RANKS)],
             'type' => ['required', 'string', 'max:50'],
             'element_id' => ['nullable', 'exists:elements,id'],
-            'strong_against' => ['nullable', 'string', 'in:'.implode(',', Monster::COMBAT_PATTERNS)],
-            'weak_against' => ['nullable', 'string', 'in:'.implode(',', Monster::COMBAT_PATTERNS)],
             'hp' => ['required', 'integer', 'min:1'],
             'physical_damage' => ['required', 'integer', 'min:0'],
             'physical_defense' => ['required', 'integer', 'min:0'],
@@ -86,6 +85,24 @@ class MonsterController extends Controller
             'special_skill_name' => ['nullable', 'string', 'max:100'],
             'special_skill_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
+            'weak_matchups' => ['nullable', 'array', 'max:2'],
+            'weak_matchups.*.combat_range' => ['nullable', 'string', 'in:close,range,area'],
+            'weak_matchups.*.element_id' => ['nullable', 'integer', 'exists:elements,id'],
+            'weak_matchups.*.ratio' => ['nullable', 'numeric', 'min:0'],
+            'strong_matchups' => ['nullable', 'array', 'max:2'],
+            'strong_matchups.*.combat_range' => ['nullable', 'string', 'in:close,range,area'],
+            'strong_matchups.*.element_id' => ['nullable', 'integer', 'exists:elements,id'],
+            'strong_matchups.*.ratio' => ['nullable', 'numeric', 'min:0'],
         ]);
+
+        // Buang slot yang combat_range-nya kosong (dianggap "gak diisi").
+        foreach (['weak_matchups', 'strong_matchups'] as $key) {
+            $data[$key] = collect($data[$key] ?? [])
+                ->filter(fn ($slot) => ! empty($slot['combat_range']))
+                ->values()
+                ->all();
+        }
+
+        return $data;
     }
 }

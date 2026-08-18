@@ -10,11 +10,12 @@ function Field({ label, children }) {
     );
 }
 
-export default function Form({ skill }) {
+export default function Form({ skill, elements }) {
     const { data, setData, put, processing, errors } = useForm({
         name: skill.name,
         description: skill.description ?? '',
         tier: skill.tier,
+        element_id: skill.element_id ?? '',
         scaling_stat: skill.scaling_stat,
         combat_range: skill.combat_range,
         stamina_cost: skill.stamina_cost,
@@ -63,6 +64,14 @@ export default function Form({ skill }) {
                                 <select className={inputClass} value={data.scaling_stat} onChange={(e) => setData('scaling_stat', e.target.value)}>
                                     <option value="physical">Physical</option>
                                     <option value="magic">Magic</option>
+                                </select>
+                            </Field>
+                        </div>
+                        <div className="col-md-6">
+                            <Field label="Attribute (elemen)">
+                                <select className={inputClass} value={data.element_id} onChange={(e) => setData('element_id', e.target.value)}>
+                                    <option value="">- Tanpa elemen -</option>
+                                    {elements.map((el) => <option key={el.id} value={el.id}>{el.name}</option>)}
                                 </select>
                             </Field>
                         </div>

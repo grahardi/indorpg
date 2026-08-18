@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Element;
 use App\Models\Skill;
 use App\Models\Subclass;
 use Illuminate\Http\RedirectResponse;
@@ -14,7 +15,7 @@ class SkillController extends Controller
 {
     public function index(Request $request): Response
     {
-        $query = Skill::with('subclass.gameClass');
+        $query = Skill::with(['subclass.gameClass', 'element']);
 
         if ($request->filled('subclass_id')) {
             $query->where('subclass_id', $request->input('subclass_id'));
@@ -31,6 +32,7 @@ class SkillController extends Controller
     {
         return Inertia::render('Admin/Skills/Form', [
             'skill' => $skill,
+            'elements' => Element::orderBy('name')->get(),
         ]);
     }
 
@@ -40,6 +42,7 @@ class SkillController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
             'tier' => ['required', 'integer', 'in:1,3'],
+            'element_id' => ['nullable', 'exists:elements,id'],
             'scaling_stat' => ['required', 'string', 'in:physical,magic'],
             'combat_range' => ['required', 'string', 'in:close,range,area'],
             'stamina_cost' => ['required', 'integer', 'min:0'],

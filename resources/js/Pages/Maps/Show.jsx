@@ -36,7 +36,7 @@ export default function Show({ map, spawnPoints }) {
                 {result && (
                     <div
                         className="rpg-card mb-4"
-                        style={{ '--accent': result.status === 'encounter' ? '#b8433a' : '#5b6178' }}
+                        style={{ '--accent': result.status === 'encounter' ? '#b8433a' : result.status === 'locked' ? '#c9a24b' : '#5b6178' }}
                     >
                         {result.status === 'encounter' ? (
                             <div className="d-flex align-items-center gap-3">
@@ -46,7 +46,7 @@ export default function Show({ map, spawnPoints }) {
                                 <div>
                                     <div className="rpg-subclass-name">{result.message}</div>
                                     <div className="rpg-power-type">
-                                        Kelas {result.monster.level_rank} &middot; {result.monster.type}
+                                        Kelas {result.monster.class_rank} &middot; {result.monster.type}
                                     </div>
                                 </div>
                                 <Link href={route('encounters.select', result.encounter_id)} className="rpg-back-link ms-auto">
@@ -54,7 +54,7 @@ export default function Show({ map, spawnPoints }) {
                                 </Link>
                             </div>
                         ) : (
-                            <p className="mb-0 text-secondary">{result.message}</p>
+                            <p className="mb-0" style={{ color: result.status === 'locked' ? '#c9a24b' : 'var(--text-secondary)' }}>{result.message}</p>
                         )}
                     </div>
                 )}
@@ -75,8 +75,8 @@ export default function Show({ map, spawnPoints }) {
                         <button
                             key={sp.id}
                             onClick={() => explore(sp.id)}
-                            disabled={sp.on_cooldown || loadingId === sp.id}
-                            title={sp.name}
+                            disabled={sp.on_cooldown || sp.is_locked || loadingId === sp.id}
+                            title={sp.is_locked ? `${sp.name} (terkunci, butuh level ${sp.min_monster_level})` : sp.name}
                             style={{
                                 position: 'absolute',
                                 left: `${sp.pos_x}%`,
@@ -86,9 +86,9 @@ export default function Show({ map, spawnPoints }) {
                                 height: 18,
                                 borderRadius: '50%',
                                 border: '2px solid var(--text-primary)',
-                                background: sp.on_cooldown ? 'var(--text-muted)' : '#b8433a',
-                                cursor: sp.on_cooldown ? 'not-allowed' : 'pointer',
-                                boxShadow: sp.on_cooldown ? 'none' : '0 0 12px rgba(184,67,58,0.7)',
+                                background: sp.is_locked ? '#3a3d4a' : sp.on_cooldown ? 'var(--text-muted)' : '#b8433a',
+                                cursor: (sp.on_cooldown || sp.is_locked) ? 'not-allowed' : 'pointer',
+                                boxShadow: (sp.on_cooldown || sp.is_locked) ? 'none' : '0 0 12px rgba(184,67,58,0.7)',
                             }}
                         />
                     ))}
@@ -97,8 +97,15 @@ export default function Show({ map, spawnPoints }) {
                 <div className="row g-3">
                     {spawnPoints.map((sp) => (
                         <div className="col-md-6 col-lg-3" key={sp.id}>
-                            <div className="rpg-card" style={{ '--accent': sp.on_cooldown ? '#5b6178' : '#c9a24b' }}>
-                                <div className="rpg-subclass-name">{sp.name}</div>
+                            <div className="rpg-card" style={{ '--accent': sp.is_locked ? '#5b6178' : sp.on_cooldown ? '#5b6178' : '#c9a24b' }}>
+                                <div className="rpg-subclass-name d-flex align-items-center gap-2">
+                                    {sp.name}
+                                    {sp.is_locked && (
+                                        <span className="rpg-element-badge" style={{ '--accent': '#c9a24b', color: '#c9a24b', fontSize: '0.55rem' }}>
+                                            🔒 Lv.{sp.min_monster_level}+
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="rpg-power-type mt-1 mb-2">
                                     {sp.monsters.map((m) => m.name).join(', ')}
                                 </p>
@@ -106,9 +113,9 @@ export default function Show({ map, spawnPoints }) {
                                     className="btn btn-sm w-100"
                                     style={{ background: 'var(--bg-panel-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
                                     onClick={() => explore(sp.id)}
-                                    disabled={sp.on_cooldown || loadingId === sp.id}
+                                    disabled={sp.on_cooldown || sp.is_locked || loadingId === sp.id}
                                 >
-                                    {loadingId === sp.id ? 'Menjelajah...' : sp.on_cooldown ? 'Cooldown' : 'Jelajahi'}
+                                    {loadingId === sp.id ? 'Menjelajah...' : sp.is_locked ? 'Terkunci' : sp.on_cooldown ? 'Cooldown' : 'Jelajahi'}
                                 </button>
                             </div>
                         </div>

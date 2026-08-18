@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             CombatRangeSeeder::class,
             MonsterSeeder::class,
             SkillAnimationSeeder::class,
+            MonsterRankSeeder::class,
             SecondaryStatsSeeder::class,
             MapSeeder::class,
             GameSettingSeeder::class,

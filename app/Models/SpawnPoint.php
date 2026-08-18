@@ -13,7 +13,7 @@ class SpawnPoint extends Model
     use HasFactory;
 
     protected $fillable = [
-        'map_id', 'name', 'description', 'pos_x', 'pos_y',
+        'map_id', 'name', 'description', 'pos_x', 'pos_y', 'min_monster_level',
         'respawn_seconds', 'last_defeated_at',
     ];
 

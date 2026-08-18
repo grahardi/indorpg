@@ -48,7 +48,7 @@ export default function Index({ monsters }) {
                                             <div>
                                                 <div className="rpg-subclass-name">{m.name}</div>
                                                 <div className="rpg-power-type">
-                                                    Kelas {m.level_rank} &middot; {m.type}
+                                                    Kelas {m.class_rank} &middot; {m.type}
                                                     {m.element && <> &middot; {m.element.name}</>}
                                                 </div>
                                             </div>

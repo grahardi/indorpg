@@ -37,7 +37,7 @@ export default function Select({ encounter, characters, preselected = [] }) {
                 <div className="rpg-card mb-4" style={{ '--accent': '#b8433a' }}>
                     <div className="rpg-subclass-name">{encounter.monster.name} muncul!</div>
                     <p className="rpg-power-type mb-0">
-                        Kelas {encounter.monster.level_rank} &middot; {encounter.monster.type}
+                        Kelas {encounter.monster.class_rank} &middot; {encounter.monster.type}
                     </p>
                 </div>
 
