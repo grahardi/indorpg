@@ -1131,3 +1131,26 @@ Diterapkan konsisten di semua tempat item ditampilkan: Shop, Inventory Bag (grid
 
 ### Tampilan CD/Mana/Stamina cost di halaman karakter
 User minta ditambahin biar transparan — sekarang tiap `SkillCard` (Loadout Battle) dan card di Skill Point Allocation nampilin baris kecil: **MP X · SP Y · CD Zs** langsung di bawah deskripsi skill. Di section allocation, CD-nya udah disesuaikan sama pengurangan dari poin yang udah diinvest (`cooldown × (1 - bonus%)`).
+
+---
+
+## 49. Fix Bug Kritis: Damage Skill Meledak di Level Tinggi (13.372 damage!) (v7.2)
+
+User laporkan: karakter level 13 nge-damage **13.372** ke monster level 2 pakai skill tier-1 biasa — jelas gak wajar.
+
+### Root cause: exponential compounding, bukan linear
+`skillCombatStats()` (bagian 30) pakai `levelFactor = $levelRatio ** ($character->level - 1)` — KOMPON BERLAPIS EKSPONENSIAL. Contoh awal yang dikasih waktu itu ("damage 20 jadi 26 di level 2") emang cocok (`1.3^1 = 1.3`), TAPI begitu levelnya naik jauh, angkanya meledak:
+```
+Level 2:  1.3^1  = 1.3x
+Level 13: 1.3^12 = ~23.3x  <- INI YANG BIKIN MASALAH
+Level 20: 1.3^19 = ~146x
+```
+Digabung sama offense stat yang emang udah tinggi (dari level growth + stat point + item), plus critical hit, plus efektivitas elemen — hasil akhirnya bisa nembus belasan ribu damage ke monster yang harusnya biasa aja.
+
+### Fix: linear growth, bukan eksponensial
+```php
+$levelFactor = 1 + (($levelRatio - 1) * ($character->level - 1));
+```
+Level 2 tetap PERSIS sama kayak contoh awal (`1 + 0.3*1 = 1.3x`), tapi level 13 cuma `1 + 0.3*12 = 4.6x` — jauh lebih masuk akal, BUKAN `23x`. Ini juga sekalian menyamakan konsistensi sama `Character::levelGrowth()` (pertumbuhan stat dasar karakter dari level) yang emang dari awal udah linear, bukan eksponensial — jadi sekarang seluruh sistem growth konsisten pakai model yang sama.
+
+Setting `skill_level_growth_ratio` di admin tetap nama & default value-nya sama (1.3), cuma CARA PAKAINYA yang diperbaiki — deskripsinya di `/admin/settings` juga udah diupdate biar akurat.

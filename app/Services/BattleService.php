@@ -216,10 +216,10 @@ class BattleService
     }
 
     /**
-     * Stat combat skill yang BENERAN dipakai di battle - base_multiplier/mana_cost/
-     * stamina_cost skill di-scale OTOMATIS sesuai level karakter (rasio admin,
-     * default 1.3, kompon berlapis dari level 1) - gak butuh aksi player.
-     * Cooldown TIDAK ikut naik dari level.
+     * Stat combat skill yang BENERAN dipakai di battle - base_multiplier skill
+     * di-scale OTOMATIS sesuai level karakter (rasio admin, default 1.3) - gak
+     * butuh aksi player. Cooldown TIDAK ikut naik dari level, mana/stamina cost
+     * juga TETAP di base (lihat catatan di bawah).
      *
      * DI ATAS itu, ada "skill point allocation" (manual, per-skill, lihat
      * skillBonusLevel()): tiap poin nambah +1% damage & -1% cooldown skill itu
@@ -228,7 +228,17 @@ class BattleService
     private function skillCombatStats(Character $character, Skill $skill): array
     {
         $levelRatio = GameSetting::getFloat('skill_level_growth_ratio', 1.3);
-        $levelFactor = $levelRatio ** ($character->level - 1);
+        // BUG FIX KRITIS: sebelumnya levelFactor = $levelRatio ** (level-1) -
+        // KOMPON BERLAPIS EKSPONENSIAL. Contoh yang dikasih dulu (damage 20
+        // jadi 26 di level 2) itu match, TAPI begitu naik ke level tinggi,
+        // exponential explode - level 13 = 1.3^12 ≈ 23x lipat! Digabung sama
+        // offense stat yang udah gede + crit + efektivitas elemen, damage bisa
+        // tembus belasan ribu ke monster yang harusnya biasa aja (dilaporkan
+        // user: 13372 damage). Fix: growth linear, bukan eksponensial - level 2
+        // TETAP persis 1.3x (sesuai contoh awal), tapi level 13 cuma ~4.6x
+        // (1 + 0.3*12), bukan 23x. Konsisten juga sama levelGrowth() karakter
+        // sendiri yang emang linear dari awal, bukan eksponensial.
+        $levelFactor = 1 + (($levelRatio - 1) * ($character->level - 1));
 
         $bonusLevel = $this->skillBonusLevel($character, $skill);
         $allocFactor = 1 + ($bonusLevel * 0.01);
@@ -236,13 +246,10 @@ class BattleService
 
         return [
             'multiplier' => (float) $skill->base_multiplier * $levelFactor * $allocFactor,
-            // BUG FIX: sebelumnya mana_cost/stamina_cost IKUT di-scale pakai
-            // levelFactor yang sama kayak damage (naik eksponensial 1.3^level).
-            // Pool MP/SP karakter naiknya jauh lebih lambat (linear-ish dari
-            // level growth stat), jadi makin tinggi level, skill makin GAK
-            // KEMAKAN - karakter jadi sering "skip ronde" karena gak mampu
-            // bayar skill apapun. Fix: cost TETAP di base value skill, cuma
-            // damage yang naik seiring level.
+            // Mana/stamina cost TETAP di base value skill (gak ikut naik dari
+            // level) - kalau ikut discale, biayanya numpuk lebih cepet dari
+            // pool MP/SP yang tersedia, karakter jadi gak mampu bayar skill
+            // apapun di level tinggi ("skip" terus).
             'mana_cost' => $skill->mana_cost,
             'stamina_cost' => $skill->stamina_cost,
             'cooldown_seconds' => max(1, (int) round($skill->cooldown_seconds * $cooldownFactor)),
