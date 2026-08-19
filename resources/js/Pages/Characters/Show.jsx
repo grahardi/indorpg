@@ -518,7 +518,7 @@ function estimateSkillDamage(character, skill, ratio) {
     const level = character.level ?? 1;
     const bonusLevel = skill.pivot?.bonus_level ?? 0;
     const levelFactor = 1 + ((ratio - 1) * (level - 1));
-    const allocFactor = 1 + (bonusLevel * 0.01);
+    const allocFactor = 1 + (bonusLevel * 0.001);
     const multiplier = (skill.base_multiplier ?? 1) * levelFactor * allocFactor;
 
     const isMagic = skill.scaling_stat === 'magic';
@@ -580,12 +580,12 @@ function LoadoutSection({ character, isOwner, skillLevelGrowthRatio }) {
     return (
         <>
             {/* Skill Point Allocation - cuma muncul kalau loadout manual udah diset (5 skill).
-                Tiap poin invest EXP: +1% damage & -1% cooldown skill itu spesifik. */}
+                Tiap poin invest EXP: +0.1% damage & -0.1% cooldown skill itu spesifik. */}
             {hasManualLoadout && (
                 <>
                     <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Skill Point Allocation</div>
                     <p className="text-secondary small mb-3">
-                        Invest EXP ke skill spesifik: tiap poin +1% damage &amp; -1% cooldown skill itu (bukan stat karakter umum).
+                        Invest EXP ke skill spesifik: tiap poin +0.1% damage &amp; -0.1% cooldown skill itu (bukan stat karakter umum).
                     </p>
                     <div className="row g-3 mb-4">
                         {character.skills.map((s) => {
@@ -601,7 +601,7 @@ function LoadoutSection({ character, isOwner, skillLevelGrowthRatio }) {
                                                 <span>{s.name}</span>
                                                 {bonus > 0 && (
                                                     <span style={{ color: '#c9a24b', fontSize: '0.68rem', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                                                        +{bonus}% dmg / -{bonus}% cd
+                                                        +{(bonus * 0.1).toFixed(1)}% dmg / -{(bonus * 0.1).toFixed(1)}% cd
                                                     </span>
                                                 )}
                                             </div>
@@ -612,7 +612,7 @@ function LoadoutSection({ character, isOwner, skillLevelGrowthRatio }) {
                                             <div className="d-flex gap-3 flex-wrap mb-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                                                 {s.mana_cost > 0 && <span style={{ color: '#7269d1' }}>MP {s.mana_cost}</span>}
                                                 {s.stamina_cost > 0 && <span style={{ color: '#c98a3a' }}>SP {s.stamina_cost}</span>}
-                                                <span>CD {Math.max(1, Math.round(s.cooldown_seconds * (1 - bonus * 0.01)))}s</span>
+                                                <span>CD {Math.max(1, Math.round(s.cooldown_seconds * (1 - bonus * 0.001)))}s</span>
                                             </div>
                                             {isOwner && (
                                                 <button

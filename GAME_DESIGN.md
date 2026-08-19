@@ -1229,3 +1229,15 @@ Ditambahin di semua kartu skill (halaman detail karakter): Skill Point Allocatio
 `CharacterController::show()` sekarang kirim `skillLevelGrowthRatio` (dari GameSetting) ke frontend biar kalkulasinya akurat ngikutin setting admin yang lagi aktif, bukan angka hardcode.
 
 **Catatan**: ini fitur sementara buat bantu debug — kalau udah ketemu sumber OP-nya dan rasa balance-nya udah pas, bisa dipertimbangkan disederhanain lagi (atau dibiarin, karena info-nya emang berguna buat player ngerti kekuatan skill-nya sebelum battle).
+
+---
+
+## 54. Fix: Skill Point Allocation Rate 1% → 0.1% per Poin (v7.7)
+
+User ketemu satu lagi sumber OP: Skill Point Allocation (invest EXP ke skill spesifik) ngasih **+1% damage / -1% cooldown per poin** — kegedean, seharusnya **+0.1% / -0.1%** per poin.
+
+Diperbaiki konsisten di semua tempat yang pakai angka ini (backend & frontend WAJIB sinkron, karena frontend nge-estimasi angka yang bakal keluar di battle beneran):
+- `BattleService::skillCombatStats()` — `allocFactor`/`cooldownFactor` (rumus battle asli)
+- `Characters/Show.jsx` — `estimateSkillDamage()` (estimasi damage di kartu skill, bagian 53), badge "+X% dmg/-X% cd", tampilan CD ter-reduksi, teks penjelasan
+
+Biaya EXP per poin (`(bonus_level+1) × 10`) **gak berubah** — cuma efek per poinnya yang dikecilin, jadi sekarang butuh 10x lebih banyak investasi buat dapet efek yang sama kayak sebelumnya (lebih gradual, gak gampang numpuk jadi OP).

@@ -238,7 +238,7 @@ class BattleService
      * juga TETAP di base (lihat catatan di bawah).
      *
      * DI ATAS itu, ada "skill point allocation" (manual, per-skill, lihat
-     * skillBonusLevel()): tiap poin nambah +1% damage & -1% cooldown skill itu
+     * skillBonusLevel()): tiap poin nambah +0.1% damage & -0.1% cooldown skill itu
      * (floor cooldown di 20% dari aslinya biar gak jadi instan 0 detik).
      */
     private function skillCombatStats(Character $character, Skill $skill): array
@@ -257,8 +257,8 @@ class BattleService
         $levelFactor = 1 + (($levelRatio - 1) * ($character->level - 1));
 
         $bonusLevel = $this->skillBonusLevel($character, $skill);
-        $allocFactor = 1 + ($bonusLevel * 0.01);
-        $cooldownFactor = max(0.2, 1 - ($bonusLevel * 0.01));
+        $allocFactor = 1 + ($bonusLevel * 0.001);
+        $cooldownFactor = max(0.2, 1 - ($bonusLevel * 0.001));
 
         return [
             'multiplier' => (float) $skill->base_multiplier * $levelFactor * $allocFactor,
