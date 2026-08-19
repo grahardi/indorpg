@@ -330,7 +330,12 @@ class BattleService
                         continue;
                     }
 
-                    $healPower = $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier'];
+                    // Sama kayak damage biasa: multiplier skill CUMA ngefek ke base
+                    // Magic Attack (subclass+level), bonus stat point/item ditambah
+                    // flat - biar gak numpuk perkalian sama growth level skill.
+                    $healPower = $character->is_npc
+                        ? $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier']
+                        : ($character->leveled_magic_damage * $skillStats['multiplier']) + $character->bonus_magic_damage + $character->itemBonus('magic_damage');
                     $healAmount = max(1, (int) round($healPower));
                     $resource = $skill->heal_resource ?? 'hp';
                     $resourceLabel = strtoupper($resource);
@@ -381,7 +386,11 @@ class BattleService
                         $targets = collect([$alive->sortByDesc(fn ($p) => $this->combatStat($p, 'physical_damage') + $this->combatStat($p, 'magic_damage'))->first()])->filter();
                     }
 
-                    $bonusPercent = $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier'];
+                    // Sama kayak damage/heal: multiplier skill CUMA ngefek ke base
+                    // Magic Attack, bonus stat point/item ditambah flat.
+                    $bonusPercent = $character->is_npc
+                        ? $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier']
+                        : ($character->leveled_magic_damage * $skillStats['multiplier']) + $character->bonus_magic_damage + $character->itemBonus('magic_damage');
                     $buffMultiplier = 1 + ($bonusPercent / 100);
                     $bonusRounded = round($bonusPercent);
                     $buffedNames = [];
@@ -425,13 +434,35 @@ class BattleService
                     continue;
                 }
 
-                $offenseStat = $skill->scaling_stat === 'magic' ? $this->combatStat($participant, 'magic_damage') : $this->combatStat($participant, 'physical_damage');
-                // Item elemental (misal "+fire damage") - nambah damage kalau
-                // elemen skill yang dipakai sama kayak elemen item.
-                $offenseStat += $character->elementalDamageBonus($skill->element_id);
+                $scalingKey = $skill->scaling_stat === 'magic' ? 'magic_damage' : 'physical_damage';
                 $defenseStat = $skill->scaling_stat === 'magic' ? $stats['magic_defense'] : $stats['physical_defense'];
 
-                $raw = $offenseStat * $skillStats['multiplier'];
+                // BUG FIX PENTING: sebelumnya SELURUH offense stat (base + bonus
+                // stat point + bonus item) ikut dikaliin sama skillStats['multiplier']
+                // (yang levelnya sendiri udah naik dari level karakter). Efeknya 2
+                // sistem growth NUMPUK SECARA PERKALIAN (bukan cuma dijumlah) - kalau
+                // karakter udah invest banyak stat point + item (misal +44+68=112 dari
+                // total 175 Physical Attack), bonus segede itu ikut kelipatgandain sama
+                // skill multiplier juga, hasilnya damage meledak jauh di atas wajar.
+                // Fix: skill multiplier CUMA ngefek ke base stat (subclass + level
+                // growth doang), bonus stat point/item/elemental ditambah FLAT di luar
+                // perkalian - biar investasi ke stat point/item kerasa proporsional,
+                // gak ikut "digandakan" sama pertumbuhan level skill.
+                if ($participant->npc_stat_snapshot) {
+                    // NPC snapshot udah nilai final (NPC gak pernah punya stat point/item
+                    // ekstra by design), jadi tetap dikaliin utuh apa adanya.
+                    $offenseStat = $this->combatStat($participant, $scalingKey);
+                    $raw = $offenseStat * $skillStats['multiplier'];
+                } else {
+                    $baseStat = $scalingKey === 'magic_damage' ? $character->leveled_magic_damage : $character->leveled_physical_damage;
+                    $bonusStat = $character->{"bonus_{$scalingKey}"} + $character->itemBonus($scalingKey);
+                    $raw = ($baseStat * $skillStats['multiplier']) + $bonusStat;
+                }
+
+                // Item elemental (misal "+fire damage") - juga FLAT, gak ikut dikali
+                // multiplier skill (sama alasannya kayak bonus stat point/item di atas).
+                $raw += $character->elementalDamageBonus($skill->element_id);
+
                 $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
 
                 $note = '';

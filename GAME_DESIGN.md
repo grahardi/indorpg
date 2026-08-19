@@ -1181,3 +1181,24 @@ $factor = 1 + (($ratio - 1) * ($encounterLevel - 1));              // NPC
 Sekarang **ketiga sistem growth** (skill damage, monster stat, NPC stat) konsisten pakai model linear yang sama — gak ada lagi kompon berlapis eksponensial di manapun. Dicek juga gak ada formula `**` lain yang kelewat di `BattleService`/`Character`/`Monster`.
 
 Setting `monster_level_growth_ratio` (default 1.5) dan `npc_level_growth_ratio` (default 1.3) nama & default value-nya TETAP SAMA — cuma cara pakainya yang diperbaiki. Deskripsi di `/admin/settings` juga diupdate.
+
+---
+
+## 51. Fix Bug OP Lanjutan: Bonus Stat Point/Item Ikut Kelipatgandain Skill Multiplier (v7.4)
+
+User cek ulang setelah fix eksponensial (bagian 49-50), masih ngerasa player OP. Analisa lebih dalam: formula damage lama ngaliin **SELURUH** offense stat (base + bonus stat point + bonus item) sama `skillStats['multiplier']` yang levelnya sendiri udah naik dari level karakter. Efeknya **2 sistem growth numpuk secara PERKALIAN** (bukan cuma dijumlah) — kalau karakter udah investasi banyak stat point + item (contoh nyata dari user: Physical Attack 175 = base 63 + stat point 44 + item 68, jadi **64% dari total stat itu BONUS**), bonus segede itu ikut kelipatgandain sama skill multiplier juga.
+
+### Fix: skill multiplier cuma ngefek base stat, bonus ditambah FLAT
+```
+raw = (base_stat × skill_multiplier) + bonus_stat_point + bonus_item + bonus_elemental
+```
+Bukan lagi:
+```
+raw = (base_stat + bonus_stat_point + bonus_item) × skill_multiplier   ← LAMA, salah
+```
+
+`base_stat` = `Character::leveled_physical_damage`/`leveled_magic_damage` (subclass + level growth doang). `bonus_stat_point` (dari upgrade EXP/stat point gratis), `bonus_item` (dari equipped item), dan `elementalDamageBonus` (item "+fire damage" dst) semuanya jadi **penjumlahan flat** di luar perkalian.
+
+Diterapkan konsisten di 3 tempat: **serangan biasa**, **heal** (Magic Attack jadi basis kekuatan heal), dan **buff** (basis persentase bonus). NPC dikecualikan dari split ini (tetap dikaliin utuh apa adanya) — karena NPC by design gak pernah punya stat point/item ekstra, jadi splitnya gak relevan buat mereka.
+
+**Efek**: investasi ke stat point/item tetap berguna (proporsional linear ke damage), tapi gak lagi "ikut dilipatgandain" sama pertumbuhan level skill — biang OP utama sekarang ilang.
