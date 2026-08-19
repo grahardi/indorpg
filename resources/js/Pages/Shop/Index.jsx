@@ -2,12 +2,15 @@ import { Head, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../Layout';
 
+// Warna latar ikon item sesuai rarity - ikon PNG-nya transparan (icon shape
+// putih polos), warna dipasang di sini lewat CSS (background), bukan dibakar
+// ke gambar. Biar gampang dibedain sekilas: grey/purple/blue/yellow/light-red.
 const RARITY_ACCENT = {
-    common: '#8890a4',
-    rare: '#3f8c94',
-    sr: '#7269d1',
-    ur: '#c9a24b',
-    legendary: '#b8433a',
+    common: '#8f96a3',
+    rare: '#8b5cf6',
+    sr: '#4a90e2',
+    ur: '#e8c547',
+    legendary: '#ef7d6f',
 };
 
 const RARITY_LABEL = {
@@ -139,11 +142,13 @@ export default function Index({ items, characters }) {
                                 <div className="col-md-6 col-lg-4" key={item.id}>
                                     <div className="rpg-card h-100" style={{ '--accent': accent }}>
                                         <div className="d-flex align-items-center gap-3 mb-2">
-                                            <img
-                                                src={item.icon_path ?? '/images/items/placeholder.png'}
-                                                alt={item.name}
-                                                style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }}
-                                            />
+                                            <div style={{ width: 56, height: 56, borderRadius: 8, background: accent, flexShrink: 0, padding: 6, display: 'flex' }}>
+                                                <img
+                                                    src={item.icon_path ?? '/images/items/placeholder.png'}
+                                                    alt={item.name}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                                />
+                                            </div>
                                             <div className="flex-grow-1">
                                                 <div className="d-flex justify-content-between align-items-start">
                                                     <div className="rpg-subclass-name" style={{ fontSize: '1rem' }}>{item.name}</div>

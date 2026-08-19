@@ -4,6 +4,7 @@ import Layout from '../../../Layout';
 
 const RARITIES = ['common', 'rare', 'sr', 'ur', 'legendary'];
 const RARITY_LABEL = { common: 'Common', rare: 'Rare', sr: 'SR', ur: 'UR', legendary: 'Legendary' };
+const RARITY_ACCENT = { common: '#8f96a3', rare: '#8b5cf6', sr: '#4a90e2', ur: '#e8c547', legendary: '#ef7d6f' };
 const EFFECT_STATS = [
     'physical_damage', 'physical_defense', 'magic_damage', 'magic_defense',
     'accuracy', 'evasion', 'critical_hit', 'critical_luck',
@@ -162,7 +163,7 @@ export default function Form({ item, elements = [], availableIcons = [] }) {
                                 <img
                                     src={data.icon_path}
                                     alt="Preview"
-                                    style={{ width: 64, height: 64, objectFit: 'contain', borderRadius: 8, border: '2px solid #c9a24b', background: 'var(--bg-panel-hover)' }}
+                                    style={{ width: 64, height: 64, objectFit: 'contain', padding: 10, boxSizing: 'border-box', borderRadius: 8, border: `2px solid ${RARITY_ACCENT[data.rarity]}`, background: RARITY_ACCENT[data.rarity] }}
                                 />
                             )}
                             <div>

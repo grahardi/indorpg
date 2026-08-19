@@ -263,12 +263,15 @@ export default function Show({ character }) {
     );
 }
 
+// Warna latar ikon item sesuai rarity - ikon PNG-nya transparan (icon shape
+// putih polos), warna dipasang di sini lewat CSS (background), bukan dibakar
+// ke gambar. Biar gampang dibedain sekilas: grey/purple/blue/yellow/light-red.
 const RARITY_ACCENT = {
-    common: '#8890a4',
-    rare: '#3f8c94',
-    sr: '#7269d1',
-    ur: '#c9a24b',
-    legendary: '#b8433a',
+    common: '#8f96a3',
+    rare: '#8b5cf6',
+    sr: '#4a90e2',
+    ur: '#e8c547',
+    legendary: '#ef7d6f',
 };
 
 const RARITY_LABEL = {
@@ -349,7 +352,7 @@ function InventorySection({ character, isOwner }) {
                                     src={item.icon_path ?? '/images/items/placeholder.png'}
                                     alt={item.name}
                                     title={`${item.name} (+${item.effect_value} ${itemStatLabel(item)})`}
-                                    style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 8, border: `2px solid ${accent}`, cursor: 'default' }}
+                                    style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 8, border: `2px solid ${accent}`, background: accent, padding: 4, boxSizing: 'border-box', cursor: 'default' }}
                                 />
                             );
                         })}
@@ -375,7 +378,7 @@ function InventorySection({ character, isOwner }) {
                         <img
                             src={selectedItem.icon_path ?? '/images/items/placeholder.png'}
                             alt={selectedItem.name}
-                            style={{ width: 120, height: 120, objectFit: 'contain', background: 'var(--bg-panel-hover)', borderRadius: 10, border: `2px solid ${accent}` }}
+                            style={{ width: 120, height: 120, objectFit: 'contain', background: accent, padding: 16, boxSizing: 'border-box', borderRadius: 10, border: `2px solid ${accent}` }}
                         />
                     </div>
                     <div className="text-center mb-1">
@@ -454,11 +457,13 @@ function InventorySection({ character, isOwner }) {
                                     {isEquipped && (
                                         <span style={{ position: 'absolute', top: 4, right: 4, fontSize: '0.7rem', color: '#c9a24b' }}>★</span>
                                     )}
-                                    <img
-                                        src={item.icon_path ?? '/images/items/placeholder.png'}
-                                        alt={item.name}
-                                        style={{ width: '60%', aspectRatio: '1/1', objectFit: 'contain' }}
-                                    />
+                                    <div style={{ width: '60%', aspectRatio: '1/1', background: accent, borderRadius: 6, display: 'flex', padding: 4, boxSizing: 'border-box' }}>
+                                        <img
+                                            src={item.icon_path ?? '/images/items/placeholder.png'}
+                                            alt={item.name}
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                        />
+                                    </div>
                                     <span className="text-truncate w-100" style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>
                                         {item.name}
                                     </span>

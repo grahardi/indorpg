@@ -1098,3 +1098,22 @@ Selain milih dari pool, admin sekarang bisa **upload gambar sendiri** langsung d
 - `Admin\ItemController::uploadIcon()` — endpoint standalone (gak butuh item sudah ada, karena item BARU belum punya ID), resize ke 256×256 (`ImageResizer`, pola sama kayak upload avatar lain), simpen ke `public/images/items/uploads/{uuid}.png`
 - Dipanggil pakai `fetch()` langsung dari form (bukan Inertia visit) — biar gak reload halaman/ilangin isian field lain yang udah diisi
 - Ada tombol "Hapus Gambar" buat reset balik ke ikon kategori default
+
+---
+
+## 48. Semua Ikon Item Diproses Ulang jadi Transparan + Warna Latar Sesuai Rarity (v7.1)
+
+### Ikon transparan, bukan background dibakar ke gambar lagi
+Sebelumnya tiap PNG punya background solid (tinted rarity atau vivid colorful) yang dibakar permanen ke gambar. Sekarang **semua 165 ikon** (27 unik+kategori + 138 pool) diproses ulang: background dibuang total (transparan), icon shape dinormalisasi jadi **putih polos**. Warna sekarang dipasang lewat CSS `background` di elemen pembungkus `<img>`, bukan bagian dari file gambar — jadi 1 ikon bisa dipakai ulang buat rarity manapun tanpa perlu generate ulang gambar.
+
+### Skema warna rarity (dipasang dinamis)
+```
+common: grey (#8f96a3)   rare: purple (#8b5cf6)   sr: blue (#4a90e2)
+ur: yellow (#e8c547)     legendary: light red (#ef7d6f)
+```
+Diterapkan konsisten di semua tempat item ditampilkan: Shop, Inventory Bag (grid & compact-equipped & detail view), dan preview di Admin Item Form (ngikutin rarity yang lagi dipilih di dropdown, real-time).
+
+### 2 ikon dibuang (gak bisa diproses transparan)
+`badges/ice.svg` dan `badges/moon.svg` punya struktur SVG beda dari pola standar game-icons.net (bukan cuma background rect + 1 shape path) — dicoba diproses otomatis GAGAL, jadi sesuai instruksi ("hilangkan icon yang tidak bisa transparent"), keduanya langsung dibuang dari pool (gak pernah kepakai item manapun juga, aman dihapus).
+
+**Catatan**: kalau nanti mau upload icon pack sendiri (disebut user), tinggal pakai fitur "Upload Gambar Sendiri" yang udah ada di Admin Item Form (bagian 47) — asalkan gambarnya emang transparan (PNG dengan alpha channel), bakal otomatis kena warna rarity yang sama kayak ikon pool.
