@@ -35,18 +35,31 @@ function ResourceRow({ label, current, max, color }) {
     );
 }
 
-// Bar gabungan: segmen "base" (warna utama) + segmen "bonus" (emas) dalam 1 bar,
-// angka format "base + bonus = total". Kalau statKey gak dikasih (stat auto tanpa
-// bonus, misal Base HP/Regen), tampil bar polos + angka tunggal.
-function StatBar({ label, baseValue, max = 100, color, suffix = '', statKey, character, isOwner, upgrading, onUpgrade }) {
+function itemBonusFor(character, statKey) {
+    return (character.items ?? [])
+        .filter((i) => i.pivot?.is_equipped && i.effect_stat === statKey)
+        .reduce((sum, i) => sum + i.effect_value, 0);
+}
+
+// Bar gabungan: segmen "base" (warna utama) + segmen "bonus stat point/EXP"
+// (emas) + segmen "bonus item ter-equip" (hijau, jelas beda dari base/emas) -
+// angka format "base +bonus +item = total". statKey = stat karakter (buat
+// tombol upgrade), itemBonusKey = effect_stat item yang relevan (buat nunjukkin
+// bar item, gak harus sama kayak statKey - misal Base HP gak punya statKey tapi
+// tetap punya itemBonusKey='hp').
+function StatBar({ label, baseValue, max = 100, color, suffix = '', statKey, itemBonusKey, character, isOwner, upgrading, onUpgrade }) {
     const bonusValue = statKey ? (character[`bonus_${statKey}`] ?? 0) : 0;
-    const total = baseValue + bonusValue;
+    const itemValue = itemBonusKey ? itemBonusFor(character, itemBonusKey) : 0;
+    const total = baseValue + bonusValue + itemValue;
     const basePct = Math.max(0, Math.min(100, (baseValue / max) * 100));
     const bonusPct = Math.max(0, Math.min(100 - basePct, (bonusValue / max) * 100));
+    const itemPct = Math.max(0, Math.min(100 - basePct - bonusPct, (itemValue / max) * 100));
     const hasFreePoint = character.stat_points > 0;
     const cost = statKey ? (bonusValue + 1) * UPGRADE_MULTIPLIER[statKey] : 0;
     const canAfford = statKey && (hasFreePoint || character.exp >= cost);
     const bonusColor = '#c9a24b';
+    const itemColor = '#4a9960';
+    const hasExtra = bonusValue > 0 || itemValue > 0;
 
     return (
         <div className="d-flex align-items-center gap-3 mb-3">
@@ -54,16 +67,20 @@ function StatBar({ label, baseValue, max = 100, color, suffix = '', statKey, cha
             <div className="flex-grow-1 rpg-stat-track" style={{ height: 12, display: 'flex', overflow: 'hidden' }}>
                 <div style={{ width: `${basePct}%`, background: color }} />
                 {bonusValue > 0 && <div style={{ width: `${bonusPct}%`, background: bonusColor }} />}
+                {itemValue > 0 && <div style={{ width: `${itemPct}%`, background: itemColor }} />}
             </div>
             <div
                 style={{
-                    width: bonusValue > 0 ? 118 : 60, textAlign: 'right', flexShrink: 0,
-                    fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: bonusValue > 0 ? '0.85rem' : '1.05rem', color,
+                    width: hasExtra ? 150 : 60, textAlign: 'right', flexShrink: 0,
+                    fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: hasExtra ? '0.85rem' : '1.05rem', color,
                 }}
             >
-                {bonusValue > 0 ? (
+                {hasExtra ? (
                     <>
-                        {baseValue} <span style={{ color: bonusColor }}>+{bonusValue}</span> = {total}{suffix}
+                        {baseValue}
+                        {bonusValue > 0 && <span style={{ color: bonusColor }}> +{bonusValue}</span>}
+                        {itemValue > 0 && <span style={{ color: itemColor }}> +{itemValue}</span>}
+                        {' = '}{total}{suffix}
                     </>
                 ) : (
                     <>{total}{suffix}</>
@@ -183,48 +200,53 @@ export default function Show({ character }) {
                         <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Stats</div>
                         <p className="text-secondary small mb-2">
                             Physical/Magic Attack &amp; Defense naik otomatis tiap level (sesuai profil {subclass?.name}).
-                            Semua stat bisa ditambah lagi pakai EXP (klik +) — bar emas nunjukkin bagian dari upgrade.
+                            Bar emas = upgrade pakai EXP/stat point, bar hijau = bonus dari item yang di-equip.
                         </p>
                         <div className="rpg-card" style={{ '--accent': accent, padding: '1.5rem' }}>
-                            <StatBar label="Base HP" baseValue={character.effective_base_hp} max={150} color="#b8433a" character={character} />
+                            <StatBar label="Base HP" baseValue={character.effective_base_hp - itemBonusFor(character, 'hp')} itemBonusKey="hp" max={150} color="#b8433a" character={character} />
                             <StatBar label="Base MP" baseValue={character.effective_base_mp} max={150} color="#7269d1" character={character} />
                             <StatBar label="Base SP" baseValue={character.effective_base_sp} max={150} color="#c98a3a" character={character} />
                             <StatBar
-                                label="Physical Attack" baseValue={character.effective_physical_damage - character.bonus_physical_damage} max={80} color="#b8433a"
-                                statKey="physical_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                                label="Physical Attack" baseValue={character.effective_physical_damage - character.bonus_physical_damage - itemBonusFor(character, 'physical_damage')} max={80} color="#b8433a"
+                                statKey="physical_damage" itemBonusKey="physical_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Physical Defense" baseValue={character.effective_physical_defense - character.bonus_physical_defense} max={80} color="#c98a3a"
-                                statKey="physical_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                                label="Physical Defense" baseValue={character.effective_physical_defense - character.bonus_physical_defense - itemBonusFor(character, 'physical_defense')} max={80} color="#c98a3a"
+                                statKey="physical_defense" itemBonusKey="physical_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Magic Attack" baseValue={character.effective_magic_damage - character.bonus_magic_damage} max={80} color="#7269d1"
-                                statKey="magic_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                                label="Magic Attack" baseValue={character.effective_magic_damage - character.bonus_magic_damage - itemBonusFor(character, 'magic_damage')} max={80} color="#7269d1"
+                                statKey="magic_damage" itemBonusKey="magic_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Magic Defense" baseValue={character.effective_magic_defense - character.bonus_magic_defense} max={80} color="#3f8c94"
-                                statKey="magic_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                                label="Magic Defense" baseValue={character.effective_magic_defense - character.bonus_magic_defense - itemBonusFor(character, 'magic_defense')} max={80} color="#3f8c94"
+                                statKey="magic_defense" itemBonusKey="magic_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
-                            <StatBar label="HP Regeneration" baseValue={character.effective_hp_regen} max={20} color="#b8433a" character={character} />
-                            <StatBar label="Mana Regeneration" baseValue={character.effective_mana_regen} max={20} color="#7269d1" character={character} />
-                            <StatBar label="Stamina Regeneration" baseValue={character.effective_stamina_regen} max={20} color="#c98a3a" character={character} />
+                            <StatBar label="HP Regeneration" baseValue={character.effective_hp_regen - itemBonusFor(character, 'hp_regen')} itemBonusKey="hp_regen" max={20} color="#b8433a" character={character} />
+                            <StatBar label="Mana Regeneration" baseValue={character.effective_mana_regen - itemBonusFor(character, 'mp_regen')} itemBonusKey="mp_regen" max={20} color="#7269d1" character={character} />
+                            <StatBar label="Stamina Regeneration" baseValue={character.effective_stamina_regen - itemBonusFor(character, 'sp_regen')} itemBonusKey="sp_regen" max={20} color="#c98a3a" character={character} />
                             <StatBar
-                                label="Accuracy" baseValue={character.effective_accuracy - character.bonus_accuracy} max={80} color="#3f8c94"
-                                statKey="accuracy" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
-                            />
-                            <StatBar
-                                label="Evasion" baseValue={character.effective_evasion - character.bonus_evasion} max={80} color="#3f8c94"
-                                statKey="evasion" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                                label="Accuracy" baseValue={character.effective_accuracy - character.bonus_accuracy - itemBonusFor(character, 'accuracy')} max={80} color="#3f8c94"
+                                statKey="accuracy" itemBonusKey="accuracy" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Critical Hit" baseValue={character.effective_critical_hit - character.bonus_critical_hit} max={60} color="#c9a24b" suffix="%"
-                                statKey="critical_hit" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                                label="Evasion" baseValue={character.effective_evasion - character.bonus_evasion - itemBonusFor(character, 'evasion')} max={80} color="#3f8c94"
+                                statKey="evasion" itemBonusKey="evasion" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Critical Luck" baseValue={character.effective_critical_luck - character.bonus_critical_luck} max={60} color="#c9a24b" suffix="%"
-                                statKey="critical_luck" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                                label="Critical Hit" baseValue={character.effective_critical_hit - character.bonus_critical_hit - itemBonusFor(character, 'critical_hit')} max={60} color="#c9a24b" suffix="%"
+                                statKey="critical_hit" itemBonusKey="critical_hit" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
+                            />
+                            <StatBar
+                                label="Critical Luck" baseValue={character.effective_critical_luck - character.bonus_critical_luck - itemBonusFor(character, 'critical_luck')} max={60} color="#c9a24b" suffix="%"
+                                statKey="critical_luck" itemBonusKey="critical_luck" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                         </div>
+                        {(character.items ?? []).some((i) => i.pivot?.is_equipped && i.effect_stat === 'elemental_damage') && (
+                            <p className="text-secondary small mt-2 mb-0">
+                                ⚡ Ada item elemental ter-equip — bonus damage-nya cuma keliatan pas battle pakai skill elemen yang cocok, gak masuk bar di atas.
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -282,8 +304,10 @@ function InventorySection({ character, isOwner }) {
     const [togglingId, setTogglingId] = useState(null);
     const [page, setPage] = useState(0);
     const [selectedItem, setSelectedItem] = useState(null);
+    const [bagOpen, setBagOpen] = useState(false);
     const items = character.items ?? [];
-    const equippedCount = items.filter((i) => i.pivot?.is_equipped).length;
+    const equippedItems = items.filter((i) => i.pivot?.is_equipped);
+    const equippedCount = equippedItems.length;
     const totalPages = Math.max(1, Math.ceil(items.length / BAG_SLOTS_PER_PAGE));
     const pageItems = items.slice(page * BAG_SLOTS_PER_PAGE, page * BAG_SLOTS_PER_PAGE + BAG_SLOTS_PER_PAGE);
     // Isi slot kosong biar grid tetap 3x3 penuh di halaman terakhir.
@@ -295,6 +319,39 @@ function InventorySection({ character, isOwner }) {
             preserveScroll: true,
             onFinish: () => setTogglingId(null),
         });
+    }
+
+    // Compact default: cuma nunjukkin item yang lagi ke-equip (ikon kecil,
+    // gak makan tempat) + tombol buka Inventory buat liat semua/atur equip.
+    if (!bagOpen) {
+        return (
+            <div className="mb-5">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                    <div className="rpg-skill-group-title" style={{ fontSize: '0.85rem' }}>Item Ter-equip ({equippedCount}/4)</div>
+                    <button onClick={() => setBagOpen(true)} className="rpg-back-link" style={{ color: '#c9a24b' }}>
+                        Buka Inventory ({items.length}/{BAG_MAX_CAPACITY})
+                    </button>
+                </div>
+                {equippedItems.length === 0 ? (
+                    <p className="text-secondary small mb-0">Belum ada item ter-equip.</p>
+                ) : (
+                    <div className="d-flex gap-2 flex-wrap">
+                        {equippedItems.map((item) => {
+                            const accent = RARITY_ACCENT[item.rarity] ?? '#8890a4';
+                            return (
+                                <img
+                                    key={item.id}
+                                    src={item.icon_path ?? '/images/items/placeholder.png'}
+                                    alt={item.name}
+                                    title={`${item.name} (+${item.effect_value} ${itemStatLabel(item)})`}
+                                    style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 8, border: `2px solid ${accent}`, cursor: 'default' }}
+                                />
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
     }
 
     // Detail view - klik slot buat liat info + tombol Equip/Lepas, tombol Kembali balik ke grid.
@@ -350,11 +407,16 @@ function InventorySection({ character, isOwner }) {
                 <div className="rpg-skill-group-title" style={{ fontSize: '0.85rem' }}>
                     Inventory Bag ({items.length}/{BAG_MAX_CAPACITY}) &middot; {equippedCount}/4 ke-equip
                 </div>
-                {isOwner && (
-                    <Link href={route('shop.index')} className="rpg-back-link" style={{ color: '#c9a24b' }}>
-                        + Belanja di Shop
-                    </Link>
-                )}
+                <div className="d-flex gap-3 align-items-center">
+                    {isOwner && (
+                        <Link href={route('shop.index')} className="rpg-back-link" style={{ color: '#c9a24b' }}>
+                            + Belanja di Shop
+                        </Link>
+                    )}
+                    <button onClick={() => setBagOpen(false)} className="rpg-back-link">
+                        Tutup Inventory
+                    </button>
+                </div>
             </div>
             <p className="text-secondary small mb-3">
                 Klik item buat liat detail & equip. Maksimal 4 item ke-equip sekaligus (otomatis nambah stat di battle).

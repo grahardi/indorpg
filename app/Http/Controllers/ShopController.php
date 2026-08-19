@@ -19,10 +19,17 @@ class ShopController extends Controller
 
         $items = Item::with('element')->orderByRaw($rarityOrder)->orderBy('price')->get();
 
-        $characters = Character::where('user_id', $request->user()->id)
+        // BUG FIX: sebelumnya select(['id','name','gold']) gak include subclass_id,
+        // jadi relasi subclass() lazy-load gagal (null) - tapi Character model
+        // punya banyak accessor $appends (effective_physical_damage dst) yang
+        // OTOMATIS keitung pas di-serialize ke JSON, dan accessor2 itu baca
+        // $this->subclass->base_physical_damage -> crash "read property on null".
+        // Fix: eager-load subclass beneran, jangan restrict select().
+        $characters = Character::with('subclass')
+            ->where('user_id', $request->user()->id)
             ->where('is_npc', false)
             ->orderBy('name')
-            ->get(['id', 'name', 'gold']);
+            ->get();
 
         return Inertia::render('Shop/Index', [
             'items' => $items,

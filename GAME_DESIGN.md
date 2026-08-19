@@ -994,3 +994,16 @@ Physical/Magic Damage & Defense, Accuracy, Evasion, Critical Hit, Critical Luck,
 
 ### Ikon: kategori, bukan per-item
 60 gambar unik gak sepadan effort-nya — jadi ikon dikelompokkin **per kategori stat** (16 ikon dari game-icons.net, sama sumbernya kayak bagian 39): pedang buat physical damage, perisai buat physical defense, tongkat sihir buat magic damage, jimat buat magic defense, mata-target buat accuracy, sepatu buat evasion, crosshair buat critical hit, dadu buat critical luck, hati buat HP, botol ramuan buat HP regen, ramuan sihir buat MP regen, otot buat SP regen, dan api/tetes air/tumpukan batu/tornado buat 4 elemen. Item dengan stat yang sama otomatis share ikon yang sama (visual konsisten per kategori).
+
+---
+
+## 41. Fix Bug Shop + Inventory Compact + Bar Item di Stats (v6.4)
+
+### Fix bug: "Attempt to read property base_physical_damage on null" di Shop
+Root cause: `ShopController::index()` ambil karakter pakai `->get(['id', 'name', 'gold'])` — gak include `subclass_id`. Character model punya banyak accessor di `$appends` (`effective_physical_damage` dst) yang OTOMATIS keitung pas model di-serialize ke JSON buat Inertia, dan accessor itu baca `$this->subclass->base_physical_damage`. Karena `subclass_id` gak ke-select, relasi `subclass()` gagal (null), langsung crash. Fix: eager-load `subclass` beneran, jangan restrict `select()`.
+
+### Inventory jadi compact by default
+Sebelumnya bag langsung tampil grid 3×3 full di halaman karakter (makan tempat). Sekarang default-nya **compact**: cuma nunjukkin ikon kecil item yang lagi ke-equip (48×48px, border warna rarity, hover buat liat nama+efek), plus tombol **"Buka Inventory"** yang nunjukkin jumlah total (`X/50`). Klik tombol itu baru muncul grid 3×3 penuh (bagian 39). Ada tombol **"Tutup Inventory"** buat balik ke compact lagi.
+
+### Bar item di Stats (segmen ke-3, beda warna)
+Tiap `StatBar` sekarang bisa nampilin 3 segmen: **base** (warna stat), **bonus stat point/EXP** (emas), **bonus item ter-equip** (hijau `#4a9960`, baru). `itemBonusFor(character, statKey)` — helper JS yang jumlahin `effect_value` dari semua item ter-equip yang match `effect_stat`-nya, dihitung di frontend (data item + pivot udah ada di `character.items`). Berlaku di semua row yang relevan: Physical/Magic Attack & Defense, Accuracy, Evasion, Critical Hit/Luck, Base HP, HP/Mana/Stamina Regen. Item elemental (`elemental_damage`) sengaja GAK masuk bar manapun (efeknya kondisional per-skill, gak representatif ditampilin sebagai angka stat statis) — ada catatan kecil di bawah card kalau karakter punya item elemental ter-equip.
