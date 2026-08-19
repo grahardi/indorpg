@@ -1,4 +1,5 @@
 import { Head, useForm, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import Layout from '../../../Layout';
 
 const RARITIES = ['common', 'rare', 'sr', 'ur', 'legendary'];
@@ -47,6 +48,34 @@ export default function Form({ item, elements = [], availableIcons = [] }) {
     const iconChoices = item?.icon_path && !availableIcons.includes(item.icon_path)
         ? [item.icon_path, ...availableIcons]
         : availableIcons;
+
+    const [uploading, setUploading] = useState(false);
+
+    // Upload manual - pakai fetch() langsung (bukan Inertia visit), biar gak
+    // reload halaman/ilangin isian form lain. Hasilnya langsung set ke icon_path.
+    async function handleUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const res = await fetch(route('admin.items.upload-icon'), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData,
+            });
+            if (!res.ok) throw new Error('Upload gagal');
+            const json = await res.json();
+            setData('icon_path', json.path);
+        } catch (err) {
+            alert('Upload gambar gagal, coba lagi.');
+        } finally {
+            setUploading(false);
+            e.target.value = '';
+        }
+    }
 
     function submit(e) {
         e.preventDefault();
@@ -127,8 +156,35 @@ export default function Form({ item, elements = [], availableIcons = [] }) {
 
                     <div className="mb-3">
                         <label className="rpg-stat-label d-block mb-1">Gambar Item</label>
+
+                        <div className="d-flex align-items-center gap-3 mb-3">
+                            {data.icon_path && (
+                                <img
+                                    src={data.icon_path}
+                                    alt="Preview"
+                                    style={{ width: 64, height: 64, objectFit: 'contain', borderRadius: 8, border: '2px solid #c9a24b', background: 'var(--bg-panel-hover)' }}
+                                />
+                            )}
+                            <div>
+                                <label className="btn btn-sm btn-outline-light mb-0" style={{ cursor: uploading ? 'wait' : 'pointer' }}>
+                                    {uploading ? 'Mengupload...' : 'Upload Gambar Sendiri'}
+                                    <input type="file" accept="image/*" onChange={handleUpload} disabled={uploading} hidden />
+                                </label>
+                                {data.icon_path && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setData('icon_path', '')}
+                                        className="rpg-back-link ms-2"
+                                        style={{ fontSize: '0.75rem' }}
+                                    >
+                                        Hapus Gambar
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
                         <p className="text-secondary small mb-2">
-                            Pilih dari {iconChoices.length} ikon yang belum kepakai (dari game-icons.net). Klik buat pilih, klik lagi buat batal pilih (pakai default kategori).
+                            Atau pilih dari {iconChoices.length} ikon yang belum kepakai (dari game-icons.net). Klik buat pilih, klik lagi buat batal pilih (pakai default kategori).
                         </p>
                         {iconChoices.length === 0 ? (
                             <p className="text-secondary small fst-italic">

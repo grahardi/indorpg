@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Item;
+use App\Services\ImageResizer;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -69,7 +71,29 @@ class ItemController extends Controller
     }
 
     /**
-     * Scan folder public/images/items/pool/ (40 ikon dari game-icons.net yang
+     * Upload gambar manual (bukan pilih dari pool) - dipanggil via fetch()
+     * langsung dari form (bukan Inertia visit), biar gak reload halaman/ilangin
+     * isian form yang lain. Gak butuh {item} existing karena dipakai juga pas
+     * bikin item BARU (belum ada ID).
+     */
+    public function uploadIcon(Request $request): JsonResponse
+    {
+        $request->validate([
+            'image' => ['required', 'image', 'max:5120', 'dimensions:min_width=32,min_height=32'],
+        ]);
+
+        $binary = ImageResizer::coverResizePng($request->file('image')->getRealPath(), 256, 256, 'center');
+
+        $filename = Str::uuid().'.png';
+        $relativePath = 'images/items/uploads/'.$filename;
+        @mkdir(public_path('images/items/uploads'), 0755, true);
+        file_put_contents(public_path($relativePath), $binary);
+
+        return response()->json(['path' => '/'.$relativePath]);
+    }
+
+    /**
+     * Scan folder public/images/items/pool/ (ikon dari game-icons.net yang
      * belum ke-assign ke item manapun) - dipakai buat picker gambar di form
      * admin, biar admin gampang pilih ikon yang belum kepakai pas bikin item
      * manual, gak perlu upload sendiri.

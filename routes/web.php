@@ -106,6 +106,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/items', [AdminItemController::class, 'index'])->name('items.index');
     Route::get('/items/create', [AdminItemController::class, 'create'])->name('items.create');
     Route::post('/items', [AdminItemController::class, 'store'])->name('items.store');
+    Route::post('/items/upload-icon', [AdminItemController::class, 'uploadIcon'])->name('items.upload-icon');
     Route::get('/items/{item}/edit', [AdminItemController::class, 'edit'])->name('items.edit');
     Route::put('/items/{item}', [AdminItemController::class, 'update'])->name('items.update');
     Route::delete('/items/{item}', [AdminItemController::class, 'destroy'])->name('items.destroy');
