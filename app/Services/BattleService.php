@@ -114,20 +114,32 @@ class BattleService
      * dibanding player yang growth-nya udah dibikin linear).
      * Agility/accuracy/strong-weak GAK di-scale (persentase/pola combat, bukan power).
      */
+    /**
+     * Scale stat monster dari level dasarnya ke level encounter - dipisah jadi
+     * 2 rasio INDEPENDEN (bukan 1 rasio buat semuanya kayak sebelumnya): HP
+     * (+defense+reward, "seberapa tahan/berharga") sama Damage ("seberapa
+     * sakit mukulnya"). Alasan dipisah: kalau 1 rasio dipakai bareng, admin
+     * gak bisa nyetel HP tinggi tanpa ikut bikin damage-nya juga tinggi (atau
+     * sebaliknya) - rasio kecil = monster cepet mati, rasio gede = player
+     * kena 1 hit. Sekarang bisa disetel independen.
+     */
     public function scaledMonsterStats(Monster $monster, int $targetLevel): array
     {
-        $ratio = GameSetting::getFloat('monster_level_growth_ratio', 1.5);
-        $factor = 1 + (($ratio - 1) * ($targetLevel - $monster->level));
+        $hpRatio = GameSetting::getFloat('monster_hp_growth_ratio', 1.5);
+        $damageRatio = GameSetting::getFloat('monster_damage_growth_ratio', 1.5);
+        $levelDiff = $targetLevel - $monster->level;
+        $hpFactor = 1 + (($hpRatio - 1) * $levelDiff);
+        $damageFactor = 1 + (($damageRatio - 1) * $levelDiff);
 
         return [
             'level' => $targetLevel,
-            'hp' => max(1, (int) round($monster->hp * $factor)),
-            'physical_damage' => max(1, (int) round($monster->physical_damage * $factor)),
-            'physical_defense' => max(0, (int) round($monster->physical_defense * $factor)),
-            'magic_damage' => max(1, (int) round($monster->magic_damage * $factor)),
-            'magic_defense' => max(0, (int) round($monster->magic_defense * $factor)),
-            'exp_reward' => max(1, (int) round($monster->exp_reward * $factor)),
-            'gold_reward' => max(1, (int) round($monster->gold_reward * $factor)),
+            'hp' => max(1, (int) round($monster->hp * $hpFactor)),
+            'physical_damage' => max(1, (int) round($monster->physical_damage * $damageFactor)),
+            'physical_defense' => max(0, (int) round($monster->physical_defense * $hpFactor)),
+            'magic_damage' => max(1, (int) round($monster->magic_damage * $damageFactor)),
+            'magic_defense' => max(0, (int) round($monster->magic_defense * $hpFactor)),
+            'exp_reward' => max(1, (int) round($monster->exp_reward * $hpFactor)),
+            'gold_reward' => max(1, (int) round($monster->gold_reward * $hpFactor)),
         ];
     }
 

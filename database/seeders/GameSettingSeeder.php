@@ -10,7 +10,8 @@ class GameSettingSeeder extends Seeder
     public function run(): void
     {
         $defaults = [
-            'monster_level_growth_ratio' => ['1.5', 'Rasio kenaikan stat monster tiap level - LINEAR, bukan kompon berlapis (dulu sempat eksponensial, bug kritis: party level 13 bisa bikin monster 437x lipat statnya). Naikkan/turunkan kalau monster kerasa terlalu OP/lemah.'],
+            'monster_hp_growth_ratio' => ['1.5', 'Rasio kenaikan HP + Defense + EXP/Gold reward monster tiap level - LINEAR (bukan kompon berlapis). TERPISAH dari rasio damage - naikkan biar monster gak cepet mati, gak ikut bikin serangannya lebih sakit.'],
+            'monster_damage_growth_ratio' => ['1.5', 'Rasio kenaikan Physical/Magic Damage monster tiap level - LINEAR (bukan kompon berlapis). TERPISAH dari rasio HP - turunkan biar player gak kena 1 hit, gak ikut bikin HP monster jadi kebanyakan/kesedikitan.'],
             'monster_max_level_bonus' => ['3', 'Level monster maksimum = level tertinggi party + angka ini. Contoh: party level 5, angka 3 -> monster bisa sampai level 8.'],
             'regen_ratio' => ['0.1', 'Rasio HP/SP/MP regen per ronde battle (0.1 = 10%). HP regen = ratio x (Physical Defense + Magic Defense). SP regen = ratio x Base SP. MP regen = ratio x Base MP. Contoh: Physical Defense 30 + Magic Defense 30 = 60, dengan ratio 10% -> HP regen 6/ronde.'],
             'npc_level_growth_ratio' => ['1.3', 'Rasio kenaikan stat NPC (bukan karakter pemain) per level - LINEAR, bukan kompon berlapis (sama fix-nya kayak monster & skill). NPC gak numpuk level permanen; level asli di-roll dinamis tiap battle (level tertinggi karaktermu di party ±2 random), stat-nya di-scale pakai rasio ini dari base level 1.'],
@@ -22,5 +23,10 @@ class GameSettingSeeder extends Seeder
         foreach ($defaults as $key => [$value, $desc]) {
             GameSetting::updateOrCreate(['key' => $key], ['value' => $value, 'description' => $desc]);
         }
+
+        // Setting lama 'monster_level_growth_ratio' udah dipecah jadi
+        // monster_hp_growth_ratio + monster_damage_growth_ratio - buang biar
+        // gak nyangkut jadi row mati di /admin/settings.
+        GameSetting::where('key', 'monster_level_growth_ratio')->delete();
     }
 }

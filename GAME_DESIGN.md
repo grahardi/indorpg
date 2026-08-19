@@ -1202,3 +1202,17 @@ raw = (base_stat + bonus_stat_point + bonus_item) × skill_multiplier   ← LAMA
 Diterapkan konsisten di 3 tempat: **serangan biasa**, **heal** (Magic Attack jadi basis kekuatan heal), dan **buff** (basis persentase bonus). NPC dikecualikan dari split ini (tetap dikaliin utuh apa adanya) — karena NPC by design gak pernah punya stat point/item ekstra, jadi splitnya gak relevan buat mereka.
 
 **Efek**: investasi ke stat point/item tetap berguna (proporsional linear ke damage), tapi gak lagi "ikut dilipatgandain" sama pertumbuhan level skill — biang OP utama sekarang ilang.
+
+---
+
+## 52. Rasio HP Monster Dipisah dari Rasio Damage Monster (v7.5)
+
+User laporkan: 1 rasio (`monster_level_growth_ratio`) dipakai buat SEMUA stat monster (HP, damage, defense, reward) bikin gak fleksibel — set rendah, monster cepet mati (HP kurang); set tinggi, player malah kena 1 hit (damage monster ikut naik juga). Gak bisa disetel independen.
+
+### Fix: 2 setting terpisah
+- **`monster_hp_growth_ratio`** (default 1.5) — HP + Physical/Magic Defense + EXP/Gold reward ("seberapa tahan & berharga" monster itu)
+- **`monster_damage_growth_ratio`** (default 1.5) — Physical/Magic Damage doang ("seberapa sakit mukulnya")
+
+Sekarang bisa disetel independen di `/admin/settings`: mau monster jadi tembok HP yang mukulnya pelan (naikkan HP ratio, turunkan damage ratio), atau glass cannon yang gampang mati tapi mukul keras (kebalikannya) — bebas dikombinasi.
+
+Setting lama `monster_level_growth_ratio` otomatis dibuang dari database pas `php artisan db:seed` (biar gak nyangkut jadi row mati/gak kepakai di admin panel).
