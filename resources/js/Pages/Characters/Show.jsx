@@ -263,10 +263,19 @@ const STAT_LABEL = {
     critical_luck: 'Critical Luck',
 };
 
+const BAG_SLOTS_PER_PAGE = 9; // grid 3x3
+const BAG_MAX_CAPACITY = 50; // sementara
+
 function InventorySection({ character, isOwner }) {
     const [togglingId, setTogglingId] = useState(null);
+    const [page, setPage] = useState(0);
+    const [selectedItem, setSelectedItem] = useState(null);
     const items = character.items ?? [];
     const equippedCount = items.filter((i) => i.pivot?.is_equipped).length;
+    const totalPages = Math.max(1, Math.ceil(items.length / BAG_SLOTS_PER_PAGE));
+    const pageItems = items.slice(page * BAG_SLOTS_PER_PAGE, page * BAG_SLOTS_PER_PAGE + BAG_SLOTS_PER_PAGE);
+    // Isi slot kosong biar grid tetap 3x3 penuh di halaman terakhir.
+    const emptySlots = BAG_SLOTS_PER_PAGE - pageItems.length;
 
     function toggleEquip(item) {
         setTogglingId(item.id);
@@ -276,11 +285,58 @@ function InventorySection({ character, isOwner }) {
         });
     }
 
+    // Detail view - klik slot buat liat info + tombol Equip/Lepas, tombol Kembali balik ke grid.
+    if (selectedItem) {
+        const accent = RARITY_ACCENT[selectedItem.rarity] ?? '#8890a4';
+        const isEquipped = selectedItem.pivot?.is_equipped;
+
+        return (
+            <div className="mb-5">
+                <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Inventory Bag</div>
+                <div className="rpg-card mx-auto" style={{ '--accent': accent, maxWidth: 360 }}>
+                    <button onClick={() => setSelectedItem(null)} className="rpg-back-link mb-3">
+                        &larr; Kembali ke Bag
+                    </button>
+                    <div className="text-center mb-3">
+                        <img
+                            src={selectedItem.icon_path ?? '/images/items/placeholder.png'}
+                            alt={selectedItem.name}
+                            style={{ width: 120, height: 120, objectFit: 'contain', background: 'var(--bg-panel-hover)', borderRadius: 10, border: `2px solid ${accent}` }}
+                        />
+                    </div>
+                    <div className="text-center mb-1">
+                        <span className="rpg-element-badge" style={{ '--accent': accent, color: accent, fontSize: '0.6rem' }}>
+                            {RARITY_LABEL[selectedItem.rarity]}
+                        </span>
+                    </div>
+                    <div className="rpg-subclass-name text-center mb-2" style={{ fontSize: '1.05rem' }}>{selectedItem.name}</div>
+                    <p className="text-secondary small text-center mb-2">{selectedItem.description}</p>
+                    <div className="rpg-power-type text-center mb-3">
+                        +{selectedItem.effect_value} {STAT_LABEL[selectedItem.effect_stat] ?? selectedItem.effect_stat}
+                    </div>
+                    {isOwner && (
+                        <button
+                            onClick={() => toggleEquip(selectedItem)}
+                            disabled={togglingId === selectedItem.id}
+                            className="btn w-100"
+                            style={{
+                                background: isEquipped ? 'transparent' : 'var(--bg-panel-hover)',
+                                border: `1px solid ${accent}`, color: accent,
+                            }}
+                        >
+                            {isEquipped ? 'Lepas dari Equip' : 'Equip'}
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="mb-5">
             <div className="d-flex justify-content-between align-items-end mb-2">
                 <div className="rpg-skill-group-title" style={{ fontSize: '0.85rem' }}>
-                    Inventory ({equippedCount}/4 ke-equip)
+                    Inventory Bag ({items.length}/{BAG_MAX_CAPACITY}) &middot; {equippedCount}/4 ke-equip
                 </div>
                 {isOwner && (
                     <Link href={route('shop.index')} className="rpg-back-link" style={{ color: '#c9a24b' }}>
@@ -289,49 +345,80 @@ function InventorySection({ character, isOwner }) {
                 )}
             </div>
             <p className="text-secondary small mb-3">
-                Maksimal 4 item bisa di-equip sekaligus. Item yang di-equip otomatis nambah stat karakter di battle.
+                Klik item buat liat detail & equip. Maksimal 4 item ke-equip sekaligus (otomatis nambah stat di battle).
             </p>
 
             {items.length === 0 ? (
                 <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
-                    Belum punya item. {isOwner && <>Coba menang battle (kadang drop) atau beli di <Link href={route('shop.index')}>Shop</Link>.</>}
+                    Bag masih kosong. {isOwner && <>Coba menang battle (kadang drop) atau beli di <Link href={route('shop.index')}>Shop</Link>.</>}
                 </p>
             ) : (
-                <div className="row g-3">
-                    {items.map((item) => {
-                        const accent = RARITY_ACCENT[item.rarity] ?? '#8890a4';
-                        const isEquipped = item.pivot?.is_equipped;
-                        return (
-                            <div className="col-md-6" key={item.id}>
-                                <div className="rpg-card" style={{ '--accent': accent, opacity: isEquipped ? 1 : 0.7 }}>
-                                    <div className="d-flex justify-content-between align-items-start mb-1">
-                                        <div className="rpg-subclass-name" style={{ fontSize: '0.92rem' }}>{item.name}</div>
-                                        <span className="rpg-element-badge" style={{ '--accent': accent, color: accent, fontSize: '0.58rem' }}>
-                                            {RARITY_LABEL[item.rarity]}
-                                        </span>
-                                    </div>
-                                    <div className="rpg-power-type mb-2">
-                                        +{item.effect_value} {STAT_LABEL[item.effect_stat] ?? item.effect_stat}
-                                    </div>
-                                    {isOwner && (
-                                        <button
-                                            onClick={() => toggleEquip(item)}
-                                            disabled={togglingId === item.id}
-                                            className="rpg-back-link"
-                                            style={{
-                                                fontSize: '0.72rem',
-                                                color: isEquipped ? '#c9a24b' : 'var(--text-secondary)',
-                                                borderColor: isEquipped ? '#c9a24b' : 'var(--border-subtle)',
-                                            }}
-                                        >
-                                            {isEquipped ? '★ Ter-equip (klik buat lepas)' : 'Equip'}
-                                        </button>
+                <>
+                    <div
+                        className="mx-auto"
+                        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', maxWidth: 360 }}
+                    >
+                        {pageItems.map((item) => {
+                            const accent = RARITY_ACCENT[item.rarity] ?? '#8890a4';
+                            const isEquipped = item.pivot?.is_equipped;
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setSelectedItem(item)}
+                                    className="rpg-card text-center p-2"
+                                    style={{
+                                        '--accent': accent, aspectRatio: '1 / 1', display: 'flex', flexDirection: 'column',
+                                        alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer',
+                                        opacity: isEquipped ? 1 : 0.85, position: 'relative',
+                                    }}
+                                >
+                                    {isEquipped && (
+                                        <span style={{ position: 'absolute', top: 4, right: 4, fontSize: '0.7rem', color: '#c9a24b' }}>★</span>
                                     )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                                    <img
+                                        src={item.icon_path ?? '/images/items/placeholder.png'}
+                                        alt={item.name}
+                                        style={{ width: '60%', aspectRatio: '1/1', objectFit: 'contain' }}
+                                    />
+                                    <span className="text-truncate w-100" style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>
+                                        {item.name}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                        {Array.from({ length: emptySlots }).map((_, i) => (
+                            <div
+                                key={`empty-${i}`}
+                                className="rpg-card"
+                                style={{ aspectRatio: '1 / 1', opacity: 0.3, border: '1px dashed var(--border-subtle)' }}
+                            />
+                        ))}
+                    </div>
+
+                    {totalPages > 1 && (
+                        <div className="d-flex justify-content-center align-items-center gap-3 mt-3">
+                            <button
+                                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                                disabled={page === 0}
+                                className="rpg-back-link"
+                                style={{ opacity: page === 0 ? 0.4 : 1 }}
+                            >
+                                &larr;
+                            </button>
+                            <span className="text-secondary small" style={{ fontFamily: 'var(--font-mono)' }}>
+                                Halaman {page + 1} / {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                                disabled={page >= totalPages - 1}
+                                className="rpg-back-link"
+                                style={{ opacity: page >= totalPages - 1 ? 0.4 : 1 }}
+                            >
+                                &rarr;
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

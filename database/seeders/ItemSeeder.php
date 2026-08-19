@@ -40,8 +40,9 @@ class ItemSeeder extends Seeder
         ];
 
         foreach ($items as $item) {
+            $slug = Str::slug($item['name']);
             Item::updateOrCreate(
-                ['slug' => Str::slug($item['name'])],
+                ['slug' => $slug],
                 [
                     'name' => $item['name'],
                     'description' => $item['desc'],
@@ -50,6 +51,7 @@ class ItemSeeder extends Seeder
                     'effect_stat' => $item['stat'],
                     'effect_value' => $item['value'],
                     'drop_rate' => $item['drop'],
+                    'icon_path' => "/images/items/{$slug}.png",
                 ]
             );
         }

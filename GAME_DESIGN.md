@@ -944,3 +944,34 @@ List + create + edit + delete, sama pola kayak Monster/Skill editor. Form isi: n
 
 ### Nav
 "Shop" ditambahin ke dropdown "Bermain" (antara Guild dan Monster). Link "Item" ditambahin ke cross-nav semua halaman admin (Settings/Monster/Skill/Map).
+
+---
+
+## 39. Inventory Bag UI + Gambar Item dari game-icons.net (v6.2)
+
+### Gambar item (open-source, dari GitHub)
+Ikon item diambil dari **game-icons.net** (github.com/game-icons/icons — repo publik CC BY 3.0, ribuan SVG fantasy/RPG gratis), didownload lewat `codeload.github.com` (ada di allowlist network). Tiap ikon diproses: background SVG-nya diwarnain sesuai **rarity item** (abu-abu buat Common, teal buat Rare, ungu buat SR, emas buat UR, merah buat Legendary), di-convert ke PNG 256×256 pakai `cairosvg`.
+
+10 item awal (`public/images/items/*.png`):
+| Item | Ikon sumber |
+|---|---|
+| Black Dagger | `lorc/plain-dagger.svg` |
+| Iron Bracer | `delapouite/bracer.svg` |
+| Arcane Ring | `delapouite/ring.svg` |
+| Guardian Amulet | `lorc/gem-pendant.svg` |
+| Hawk's Eye Lens | `lorc/crystal-eye.svg` |
+| Shadowstep Boots | `lorc/steeltoe-boots.svg` |
+| Dragon's Fang | `lorc/saber-tooth.svg` |
+| Fortune Coin | `lorc/crown-coin.svg` |
+| Excalibur Shard | `lorc/shard-sword.svg` |
+| Phoenix Heart | `delapouite/heart-shield.svg` |
+
+Plus `placeholder.png` (ikon peti harta karun) buat item yang belum punya `icon_path` diisi.
+
+### Inventory Bag — grid 3×3, 9 slot/halaman, kapasitas 50
+`InventorySection` di `Characters/Show.jsx` dirombak total dari list kartu jadi model **bag ala game RPG klasik**:
+- **Grid 3×3** (9 slot per halaman), tombol ← / → buat pindah halaman kalau item lebih dari 9
+- Slot kosong di halaman terakhir ditandai kotak putus-putus (biar grid tetap penuh 3×3)
+- **Klik slot** → masuk ke tampilan detail (gambar besar, rarity badge, nama, deskripsi, efek stat) + tombol **Equip/Lepas**
+- Tombol **"← Kembali ke Bag"** di layar detail buat balik ke grid
+- Kapasitas maksimal **50 item** per karakter (`characters:count() >= 50` dicek di `ShopController::buy()` DAN `BattleService`'s item drop logic — kalau bag penuh, drop di-skip diam-diam biar gak error pas battle)

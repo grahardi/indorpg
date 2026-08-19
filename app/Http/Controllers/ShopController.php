@@ -48,6 +48,10 @@ class ShopController extends Controller
 
         $item = Item::findOrFail($data['item_id']);
 
+        if ($character->items()->count() >= 50) {
+            return back()->withErrors(['gold' => 'Bag udah penuh (maksimal 50 item). Jual/buang item dulu.']);
+        }
+
         if ($character->gold < $item->price) {
             return back()->withErrors(['gold' => 'Gold gak cukup buat beli item ini.']);
         }

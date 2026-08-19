@@ -786,7 +786,7 @@ class BattleService
             }
 
             $droppedItem = $this->rollItemDrop();
-            if ($droppedItem) {
+            if ($droppedItem && $character->items()->count() < 50) {
                 $character->items()->attach($droppedItem->id, ['obtained_at' => now()]);
                 $rarityLabel = \App\Models\Item::RARITY_LABELS[$droppedItem->rarity] ?? $droppedItem->rarity;
                 $log[] = $this->snapshot($battle, "{$character->name} dapat item [{$rarityLabel}] {$droppedItem->name}!");

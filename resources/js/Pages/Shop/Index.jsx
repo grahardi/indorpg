@@ -88,11 +88,20 @@ export default function Index({ items, characters }) {
                         return (
                             <div className="col-md-6 col-lg-4" key={item.id}>
                                 <div className="rpg-card h-100" style={{ '--accent': accent }}>
-                                    <div className="d-flex justify-content-between align-items-start mb-1">
-                                        <div className="rpg-subclass-name" style={{ fontSize: '1rem' }}>{item.name}</div>
-                                        <span className="rpg-element-badge" style={{ '--accent': accent, color: accent, fontSize: '0.6rem' }}>
-                                            {RARITY_LABEL[item.rarity]}
-                                        </span>
+                                    <div className="d-flex align-items-center gap-3 mb-2">
+                                        <img
+                                            src={item.icon_path ?? '/images/items/placeholder.png'}
+                                            alt={item.name}
+                                            style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }}
+                                        />
+                                        <div className="flex-grow-1">
+                                            <div className="d-flex justify-content-between align-items-start">
+                                                <div className="rpg-subclass-name" style={{ fontSize: '1rem' }}>{item.name}</div>
+                                            </div>
+                                            <span className="rpg-element-badge" style={{ '--accent': accent, color: accent, fontSize: '0.6rem' }}>
+                                                {RARITY_LABEL[item.rarity]}
+                                            </span>
+                                        </div>
                                     </div>
                                     <p className="text-secondary small mb-2">{item.description}</p>
                                     <div className="rpg-power-type mb-2">
