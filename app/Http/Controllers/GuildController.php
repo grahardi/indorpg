@@ -21,13 +21,17 @@ class GuildController extends Controller
 
     public function index(Request $request): Response
     {
-        // Sementara sembunyikan karakter milik pemain lain di Guild - cuma
-        // tampilin karakter sendiri + NPC (yang non-NPC punya orang lain gak
-        // ditampilkan dulu di tahap ini).
-        $characters = Character::with(['subclass.gameClass', 'user'])
-            ->where(function ($q) use ($request) {
-                $q->where('user_id', $request->user()->id)->orWhere('is_npc', true);
-            })
+        // Pisah karakter pemain (sendiri aja, milik user lain masih disembunyikan
+        // dulu) sama NPC - dua list terpisah, bukan digabung kayak sebelumnya.
+        $playerCharacters = Character::with(['subclass.gameClass'])
+            ->where('user_id', $request->user()->id)
+            ->where('is_npc', false)
+            ->orderBy('name')
+            ->get();
+
+        $npcCharacters = Character::with(['subclass.gameClass'])
+            ->where('is_npc', true)
+            ->orderBy('name')
             ->get();
 
         // FITUR "NPC ON MISSION" DIMATIKAN SEMENTARA - kemarin kejadian semua NPC
@@ -35,21 +39,20 @@ class GuildController extends Controller
         // berkali-kali numpuk banyak NPC ke-roll busy bersamaan). Nanti diaktifkan
         // lagi setelah logic-nya diperbaiki (misal: cooldown per-request/session,
         // bukan re-roll tiap page load).
-        // $this->rollNpcAvailability($characters);
+        // $this->rollNpcAvailability($npcCharacters);
 
         // Level NPC di database selalu 1 (lihat catatan di Character::resolveNpcLevel) -
         // sekarang di-cache 300 detik (default) biar angka yang keliatan pas
         // milih party = angka yang beneran dipakai pas battle, gak diacak ulang.
-        $playerMaxLevel = (int) (Character::where('user_id', $request->user()->id)->where('is_npc', false)->max('level') ?: 1);
+        $playerMaxLevel = (int) ($playerCharacters->max('level') ?: 1);
 
-        $characters->each(function (Character $c) use ($playerMaxLevel) {
-            if ($c->is_npc) {
-                $c->npc_display_level = $c->resolveNpcLevel($playerMaxLevel);
-            }
+        $npcCharacters->each(function (Character $c) use ($playerMaxLevel) {
+            $c->npc_display_level = $c->resolveNpcLevel($playerMaxLevel);
         });
 
         return Inertia::render('Guild/Index', [
-            'characters' => $characters,
+            'playerCharacters' => $playerCharacters,
+            'npcCharacters' => $npcCharacters,
         ]);
     }
 

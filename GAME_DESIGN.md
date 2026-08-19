@@ -1040,3 +1040,21 @@ Gambar desa (`public/images/ui/town-hub.jpg`, di-generate AI, dikompres ke JPEG 
 - **Codex jadi punya route sendiri** (`/codex`, `classes.codex`) — soalnya `/` sekarang beda isi tergantung status login, user yang login masih perlu cara akses Codex, ditambahin ke dropdown nav "Bermain"
 - `Home/TownHub.jsx`: hotspot posisinya dalam **persen** (bukan pixel absolut) relatif ke gambar 1376×768, jadi tetap presisi walau gambar responsive resize di layar beda-beda. Posisi divalidasi visual (generate overlay kotak warna-warni di atas gambar asli, dicek manual sebelum finalize)
 - Hover di hotspot: border emas + label nama+deskripsi muncul di atas bangunan. Ada juga daftar link teks kecil di bawah gambar (fallback buat aksesibilitas/kalau hotspot susah diklik di HP)
+
+---
+
+## 44. Rework Alur Party: Guild (pisah Pemain/NPC) → Frontman (halaman sendiri) (v6.7)
+
+Sebelumnya: Guild nampilin karakter pemain+NPC dicampur jadi 1 list checkbox, terus Battle/Select nampilin picker YANG SAMA lagi (redundan) + Lineup/Frontman digabung di halaman itu juga.
+
+### Guild (`Guild/Index.jsx`) — dua section terpisah
+- **"Karaktermu"** (atas): karakter pemain sendiri. Kalau cuma punya **1 karakter, otomatis "pass" langsung** (gak perlu diklik, cuma ditampilin dengan badge "Otomatis Ikut"). Kalau punya lebih dari 1, jadi **single-select** (radio-style, bukan checkbox) — pilih SATU yang mau dibawa, default-nya karakter pertama.
+- **"Ajak NPC"** (bawah): checkbox multi-select, maksimal 2 NPC (total party = 1 karakter kamu + sampai 2 NPC = maks 3).
+- `GuildController::index()` sekarang kirim 2 array terpisah (`playerCharacters`, `npcCharacters`), bukan 1 array campuran kayak sebelumnya.
+
+### Frontman — halaman sendiri (`Battle/Select.jsx`, tapi isinya beda total)
+Party udah FIX begitu keluar dari Guild (disimpen di session `guild_party`). Halaman ini **cuma nampilin party vs monster + pilih Frontman** — gak ada checkbox pilih karakter lagi sama sekali.
+
+`BattleController::select()` baca party dari `session('guild_party')` (bukan nampilin semua karakter+NPC buat dipilih ulang). Kalau session party kosong (misal user nyasar akses langsung tanpa lewat Guild), di-redirect balik ke Guild dengan pesan error.
+
+**Kedua jalur battle** (Misi Cepat di Guild maupun Explore lewat Peta) sama-sama udah nentuin party di Guild dulu sebelum sampai sini — jadi halaman Frontman ini konsisten selalu nampilin party yang FIX, gak pernah kosong/perlu dipilih ulang.

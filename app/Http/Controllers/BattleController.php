@@ -20,23 +20,27 @@ class BattleController extends Controller
     public function __construct(private BattleService $battleService) {}
 
     /**
-     * Halaman pilih 2-3 karakter buat lawan monster dari suatu encounter.
+     * Halaman pilih Frontman - party-nya UDAH FIX (dipilih di Guild sebelumnya,
+     * disimpen di session), di sini cuma nampilin party vs monster + pilih
+     * Frontman. Kalau session party kosong (misal user nyasar akses langsung
+     * tanpa lewat Guild dulu), lempar balik ke Guild.
      */
-    public function select(Request $request, Encounter $encounter): Response
+    public function select(Request $request, Encounter $encounter): Response|RedirectResponse
     {
+        $partyIds = session('guild_party', []);
+
+        if (empty($partyIds)) {
+            return redirect()->route('guild.index')
+                ->withErrors(['mission' => 'Pilih party dulu di Guild sebelum battle.']);
+        }
+
         $encounter->load('monster');
 
-        $characters = Character::with(['subclass.gameClass', 'user'])
-            ->where(function ($q) use ($request) {
-                $q->where('user_id', $request->user()->id)->orWhere('is_npc', true);
-            })
-            ->get();
+        $characters = Character::with(['subclass.gameClass'])->whereIn('id', $partyIds)->get();
+        // whereIn() gak jamin urutan - urutin balik sesuai urutan pilih di Guild
+        // (karakter pemain pertama, biar tampil di posisi utama).
+        $characters = collect($partyIds)->map(fn ($id) => $characters->firstWhere('id', $id))->filter()->values();
 
-        // Fitur "NPC on mission" dimatikan sementara - lihat catatan di GuildController.
-        // $this->rollNpcAvailability($characters);
-
-        // Level NPC di-cache 300 detik (default), lihat catatan lengkap di
-        // GuildController::index() / Character::resolveNpcLevel().
         $playerMaxLevel = (int) (Character::where('user_id', $request->user()->id)->where('is_npc', false)->max('level') ?: 1);
 
         $characters->each(function (Character $c) use ($playerMaxLevel) {
@@ -48,7 +52,6 @@ class BattleController extends Controller
         return Inertia::render('Battle/Select', [
             'encounter' => $encounter,
             'characters' => $characters,
-            'preselected' => session('guild_party', []),
         ]);
     }
 
