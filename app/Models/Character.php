@@ -171,19 +171,28 @@ class Character extends Model
         return $this->leveled_magic_defense + $this->bonus_magic_defense + $this->itemBonus('magic_defense');
     }
 
+    /**
+     * BUG FIX: sebelumnya base_hp/mp/sp dihitung dari effective_physical_damage/
+     * defense/magic_damage/defense - yang UDAH TERMASUK bonus stat point + item
+     * dari stat LAIN (misal invest stat point ke Physical Attack ikut nge-gedein
+     * pool SP juga, padahal gak nyambung). Sekarang pakai leveled_X (base murni:
+     * subclass + level growth doang, TANPA bonus/item) - pool HP/MP/SP jadi
+     * cuma naik dari level, gak ikut kebawa investasi stat lain. Item dengan
+     * effect_stat='hp' spesifik TETAP nambah HP langsung (itu emang tujuannya).
+     */
     public function getEffectiveBaseHpAttribute(): int
     {
-        return $this->effective_physical_defense + $this->effective_magic_defense + $this->itemBonus('hp');
+        return $this->leveled_physical_defense + $this->leveled_magic_defense + $this->itemBonus('hp');
     }
 
     public function getEffectiveBaseMpAttribute(): int
     {
-        return $this->effective_magic_damage + $this->effective_magic_defense;
+        return $this->leveled_magic_damage + $this->leveled_magic_defense;
     }
 
     public function getEffectiveBaseSpAttribute(): int
     {
-        return $this->effective_physical_damage + $this->effective_physical_defense;
+        return $this->leveled_physical_damage + $this->leveled_physical_defense;
     }
 
     public function getEffectiveManaRegenAttribute(): int

@@ -1241,3 +1241,19 @@ Diperbaiki konsisten di semua tempat yang pakai angka ini (backend & frontend WA
 - `Characters/Show.jsx` — `estimateSkillDamage()` (estimasi damage di kartu skill, bagian 53), badge "+X% dmg/-X% cd", tampilan CD ter-reduksi, teks penjelasan
 
 Biaya EXP per poin (`(bonus_level+1) × 10`) **gak berubah** — cuma efek per poinnya yang dikecilin, jadi sekarang butuh 10x lebih banyak investasi buat dapet efek yang sama kayak sebelumnya (lebih gradual, gak gampang numpuk jadi OP).
+
+---
+
+## 55. Fix: Pool HP/MP/SP Kegedean karena Ikut Kebawa Bonus Stat Lain (v7.8)
+
+User ketemu lagi: **SP/Stamina kegedean**. Root cause: `getEffectiveBaseHpAttribute()`/`Mp`/`Sp` dihitung dari `effective_physical_damage`/`effective_physical_defense`/`effective_magic_damage`/`effective_magic_defense` — yang UDAH TERMASUK bonus stat point + item dari stat itu sendiri. Jadi kalau invest stat point/item ke **Physical Attack**, pool **SP** ikut kegedean juga (padahal SP itu turunan dari Physical Attack+Defense, gak ada hubungan langsung sama "seberapa banyak stat point yang di-invest ke Physical Attack").
+
+### Fix: pakai base murni (`leveled_X`), bukan `effective_X`
+```php
+base_hp = leveled_physical_defense + leveled_magic_defense + itemBonus('hp')
+base_mp = leveled_magic_damage + leveled_magic_defense
+base_sp = leveled_physical_damage + leveled_physical_defense
+```
+`leveled_X` = subclass base + level growth **doang**, TANPA bonus stat point atau item dari stat itu. Sekarang pool HP/MP/SP cuma naik dari **level**, gak ikut kebawa investasi ke stat combat lain. Item dengan `effect_stat='hp'` spesifik (dari bagian 39-40) **tetap** nambah HP langsung — itu emang tujuan dedicated-nya, beda dari efek tidak langsung yang barusan dihapus.
+
+Gak ada tempat lain di codebase yang pakai pola formula sama (dicek grep), jadi fix ini cukup di 1 titik.
