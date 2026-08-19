@@ -107,13 +107,17 @@ class BattleService
 
     /**
      * Scale stat monster (hp, damage, defense, exp_reward) dari level dasarnya
-     * ke level encounter, pakai rasio kompon berlapis: stat = base * ratio^(level-base).
+     * ke level encounter, pakai rasio LINEAR (bukan kompon berlapis - itu bug
+     * kritis yang sempat ada, sama kayak yang ketauan di skill damage, cuma
+     * lebih parah: party level 13 + bonus 3 = monster bisa di-roll level 16,
+     * exponent 15 -> 1.5^15 ≈ 437x lipat stat! Monster jadi gak seimbang total
+     * dibanding player yang growth-nya udah dibikin linear).
      * Agility/accuracy/strong-weak GAK di-scale (persentase/pola combat, bukan power).
      */
     public function scaledMonsterStats(Monster $monster, int $targetLevel): array
     {
         $ratio = GameSetting::getFloat('monster_level_growth_ratio', 1.5);
-        $factor = $ratio ** ($targetLevel - $monster->level);
+        $factor = 1 + (($ratio - 1) * ($targetLevel - $monster->level));
 
         return [
             'level' => $targetLevel,
@@ -133,15 +137,15 @@ class BattleService
      */
     /**
      * Scale stat NPC dari base level 1 ke level encounter yang di-roll, pakai
-     * rasio admin (beda dari rasio monster - NPC biasanya lebih "temenan",
-     * gak sekeras monster). Base HP/SP/MP dihitung ulang dari physical/magic
-     * defense+damage yang udah di-scale, regen juga ikut pakai rasio regen
-     * yang sama kayak karakter pemain.
+     * rasio LINEAR (bukan kompon berlapis, sama alasannya kayak monster di
+     * atas - biar konsisten & gak explode di level tinggi). Base HP/SP/MP
+     * dihitung ulang dari physical/magic defense+damage yang udah di-scale,
+     * regen juga ikut pakai rasio regen yang sama kayak karakter pemain.
      */
     private function npcScaledStats(Character $character, int $encounterLevel): array
     {
         $ratio = GameSetting::getFloat('npc_level_growth_ratio', 1.3);
-        $factor = $ratio ** ($encounterLevel - 1); // NPC base level selalu 1
+        $factor = 1 + (($ratio - 1) * ($encounterLevel - 1)); // NPC base level selalu 1
 
         $physicalDamage = max(1, (int) round($character->leveled_physical_damage * $factor)) + $character->bonus_physical_damage;
         $physicalDefense = max(0, (int) round($character->leveled_physical_defense * $factor)) + $character->bonus_physical_defense;

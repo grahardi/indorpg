@@ -1154,3 +1154,30 @@ $levelFactor = 1 + (($levelRatio - 1) * ($character->level - 1));
 Level 2 tetap PERSIS sama kayak contoh awal (`1 + 0.3*1 = 1.3x`), tapi level 13 cuma `1 + 0.3*12 = 4.6x` — jauh lebih masuk akal, BUKAN `23x`. Ini juga sekalian menyamakan konsistensi sama `Character::levelGrowth()` (pertumbuhan stat dasar karakter dari level) yang emang dari awal udah linear, bukan eksponensial — jadi sekarang seluruh sistem growth konsisten pakai model yang sama.
 
 Setting `skill_level_growth_ratio` di admin tetap nama & default value-nya sama (1.3), cuma CARA PAKAINYA yang diperbaiki — deskripsinya di `/admin/settings` juga udah diupdate biar akurat.
+
+---
+
+## 50. Fix Bug Kritis Lanjutan: Monster & NPC JUGA Kena Pola Eksponensial (v7.3)
+
+User nanya "apakah rumus di monster dan NPC juga aman?" setelah fix bug damage skill (bagian 49) — jawabannya **TIDAK**, pola bug yang sama (`ratio ** exponent`, kompon berlapis) ternyata ada di 2 tempat lain juga, dan **monster malah jauh lebih parah**:
+
+### Monster — paling parah
+```php
+$factor = $ratio ** ($targetLevel - $monster->level);
+```
+Party level 13 + bonus admin +3 = monster bisa di-roll sampai level 16, exponent = 15. Dengan ratio default 1.5: **`1.5^15 ≈ 437x`** lipat HP/damage/defense/reward! Monster di level segitu bisa jadi tembok HP raksasa yang gak kebunuh, ATAU kalau si player ketemu monster paling lemah dari rentang roll, malah kebalikannya jadi trivial banget — random-nya jadi liar gak terkontrol.
+
+### NPC — sama pola, sedikit lebih ringan
+```php
+$factor = $ratio ** ($encounterLevel - 1);
+```
+Party level 13 ± variance 2 = NPC bisa level 15, exponent 14. Dengan ratio default 1.3: **`1.3^14 ≈ 39x`** lipat.
+
+### Fix: linear, konsisten sama fix skill sebelumnya
+```php
+$factor = 1 + (($ratio - 1) * ($targetLevel - $monster->level));  // monster
+$factor = 1 + (($ratio - 1) * ($encounterLevel - 1));              // NPC
+```
+Sekarang **ketiga sistem growth** (skill damage, monster stat, NPC stat) konsisten pakai model linear yang sama — gak ada lagi kompon berlapis eksponensial di manapun. Dicek juga gak ada formula `**` lain yang kelewat di `BattleService`/`Character`/`Monster`.
+
+Setting `monster_level_growth_ratio` (default 1.5) dan `npc_level_growth_ratio` (default 1.3) nama & default value-nya TETAP SAMA — cuma cara pakainya yang diperbaiki. Deskripsi di `/admin/settings` juga diupdate.
