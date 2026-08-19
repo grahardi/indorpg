@@ -47,10 +47,15 @@ function itemBonusFor(character, statKey) {
 // tombol upgrade), itemBonusKey = effect_stat item yang relevan (buat nunjukkin
 // bar item, gak harus sama kayak statKey - misal Base HP gak punya statKey tapi
 // tetap punya itemBonusKey='hp').
-function StatBar({ label, baseValue, max = 100, color, suffix = '', statKey, itemBonusKey, character, isOwner, upgrading, onUpgrade }) {
+function StatBar({ label, baseValue, color, suffix = '', statKey, itemBonusKey, character, isOwner, upgrading, onUpgrade }) {
     const bonusValue = statKey ? (character[`bonus_${statKey}`] ?? 0) : 0;
     const itemValue = itemBonusKey ? itemBonusFor(character, itemBonusKey) : 0;
     const total = baseValue + bonusValue + itemValue;
+    // Skala bar dinamis: mulai 100, dobel tiap kali kelewat (100 -> 200 -> 400
+    // -> ...) - biar bar gak overflow/kelihatan gak imbang pas stat udah gede
+    // (dari level growth + stat point + item), selalu proporsional.
+    let max = 100;
+    while (total > max) max *= 2;
     const basePct = Math.max(0, Math.min(100, (baseValue / max) * 100));
     const bonusPct = Math.max(0, Math.min(100 - basePct, (bonusValue / max) * 100));
     const itemPct = Math.max(0, Math.min(100 - basePct - bonusPct, (itemValue / max) * 100));
@@ -203,42 +208,42 @@ export default function Show({ character }) {
                             Bar emas = upgrade pakai EXP/stat point, bar hijau = bonus dari item yang di-equip.
                         </p>
                         <div className="rpg-card" style={{ '--accent': accent, padding: '1.5rem' }}>
-                            <StatBar label="Base HP" baseValue={character.effective_base_hp - itemBonusFor(character, 'hp')} itemBonusKey="hp" max={150} color="#b8433a" character={character} />
-                            <StatBar label="Base MP" baseValue={character.effective_base_mp} max={150} color="#7269d1" character={character} />
-                            <StatBar label="Base SP" baseValue={character.effective_base_sp} max={150} color="#c98a3a" character={character} />
+                            <StatBar label="Base HP" baseValue={character.effective_base_hp - itemBonusFor(character, 'hp')} itemBonusKey="hp" color="#b8433a" character={character} />
+                            <StatBar label="Base MP" baseValue={character.effective_base_mp} color="#7269d1" character={character} />
+                            <StatBar label="Base SP" baseValue={character.effective_base_sp} color="#c98a3a" character={character} />
                             <StatBar
-                                label="Physical Attack" baseValue={character.effective_physical_damage - character.bonus_physical_damage - itemBonusFor(character, 'physical_damage')} max={80} color="#b8433a"
+                                label="Physical Attack" baseValue={character.effective_physical_damage - character.bonus_physical_damage - itemBonusFor(character, 'physical_damage')} color="#b8433a"
                                 statKey="physical_damage" itemBonusKey="physical_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Physical Defense" baseValue={character.effective_physical_defense - character.bonus_physical_defense - itemBonusFor(character, 'physical_defense')} max={80} color="#c98a3a"
+                                label="Physical Defense" baseValue={character.effective_physical_defense - character.bonus_physical_defense - itemBonusFor(character, 'physical_defense')} color="#c98a3a"
                                 statKey="physical_defense" itemBonusKey="physical_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Magic Attack" baseValue={character.effective_magic_damage - character.bonus_magic_damage - itemBonusFor(character, 'magic_damage')} max={80} color="#7269d1"
+                                label="Magic Attack" baseValue={character.effective_magic_damage - character.bonus_magic_damage - itemBonusFor(character, 'magic_damage')} color="#7269d1"
                                 statKey="magic_damage" itemBonusKey="magic_damage" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Magic Defense" baseValue={character.effective_magic_defense - character.bonus_magic_defense - itemBonusFor(character, 'magic_defense')} max={80} color="#3f8c94"
+                                label="Magic Defense" baseValue={character.effective_magic_defense - character.bonus_magic_defense - itemBonusFor(character, 'magic_defense')} color="#3f8c94"
                                 statKey="magic_defense" itemBonusKey="magic_defense" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
-                            <StatBar label="HP Regeneration" baseValue={character.effective_hp_regen - itemBonusFor(character, 'hp_regen')} itemBonusKey="hp_regen" max={20} color="#b8433a" character={character} />
-                            <StatBar label="Mana Regeneration" baseValue={character.effective_mana_regen - itemBonusFor(character, 'mp_regen')} itemBonusKey="mp_regen" max={20} color="#7269d1" character={character} />
-                            <StatBar label="Stamina Regeneration" baseValue={character.effective_stamina_regen - itemBonusFor(character, 'sp_regen')} itemBonusKey="sp_regen" max={20} color="#c98a3a" character={character} />
+                            <StatBar label="HP Regeneration" baseValue={character.effective_hp_regen - itemBonusFor(character, 'hp_regen')} itemBonusKey="hp_regen" color="#b8433a" character={character} />
+                            <StatBar label="Mana Regeneration" baseValue={character.effective_mana_regen - itemBonusFor(character, 'mp_regen')} itemBonusKey="mp_regen" color="#7269d1" character={character} />
+                            <StatBar label="Stamina Regeneration" baseValue={character.effective_stamina_regen - itemBonusFor(character, 'sp_regen')} itemBonusKey="sp_regen" color="#c98a3a" character={character} />
                             <StatBar
-                                label="Accuracy" baseValue={character.effective_accuracy - character.bonus_accuracy - itemBonusFor(character, 'accuracy')} max={80} color="#3f8c94"
+                                label="Accuracy" baseValue={character.effective_accuracy - character.bonus_accuracy - itemBonusFor(character, 'accuracy')} color="#3f8c94"
                                 statKey="accuracy" itemBonusKey="accuracy" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Evasion" baseValue={character.effective_evasion - character.bonus_evasion - itemBonusFor(character, 'evasion')} max={80} color="#3f8c94"
+                                label="Evasion" baseValue={character.effective_evasion - character.bonus_evasion - itemBonusFor(character, 'evasion')} color="#3f8c94"
                                 statKey="evasion" itemBonusKey="evasion" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Critical Hit" baseValue={character.effective_critical_hit - character.bonus_critical_hit - itemBonusFor(character, 'critical_hit')} max={60} color="#c9a24b" suffix="%"
+                                label="Critical Hit" baseValue={character.effective_critical_hit - character.bonus_critical_hit - itemBonusFor(character, 'critical_hit')} color="#c9a24b" suffix="%"
                                 statKey="critical_hit" itemBonusKey="critical_hit" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Critical Luck" baseValue={character.effective_critical_luck - character.bonus_critical_luck - itemBonusFor(character, 'critical_luck')} max={60} color="#c9a24b" suffix="%"
+                                label="Critical Luck" baseValue={character.effective_critical_luck - character.bonus_critical_luck - itemBonusFor(character, 'critical_luck')} color="#c9a24b" suffix="%"
                                 statKey="critical_luck" itemBonusKey="critical_luck" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                         </div>

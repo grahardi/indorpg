@@ -1058,3 +1058,17 @@ Party udah FIX begitu keluar dari Guild (disimpen di session `guild_party`). Hal
 `BattleController::select()` baca party dari `session('guild_party')` (bukan nampilin semua karakter+NPC buat dipilih ulang). Kalau session party kosong (misal user nyasar akses langsung tanpa lewat Guild), di-redirect balik ke Guild dengan pesan error.
 
 **Kedua jalur battle** (Misi Cepat di Guild maupun Explore lewat Peta) sama-sama udah nentuin party di Guild dulu sebelum sampai sini — jadi halaman Frontman ini konsisten selalu nampilin party yang FIX, gak pernah kosong/perlu dipilih ulang.
+
+---
+
+## 45. Stat Bar Skala Dinamis (v6.8)
+
+Sebelumnya tiap `StatBar` punya `max` fixed (80 buat Physical/Magic Attack&Defense/Accuracy/Evasion, 150 buat Base HP/MP/SP, 60 buat Critical Hit/Luck, 20 buat Regen) — begitu total stat (base+bonus+item) ngelewatin angka itu, bar-nya overflow/kelihatan gak imbang (kepotong/gak proporsional).
+
+**Fix**: skala bar sekarang **dinamis**, dihitung dari total stat itu sendiri:
+```
+max = 100, dobel terus (100 → 200 → 400 → 800 → ...) sampai >= total
+```
+Jadi kalau total 45 → skala tetap 100 (bar keliatan ~45% penuh). Total 120 → skala naik ke 200 (bar ~60% penuh). Total 250 → skala naik ke 400 (bar ~62% penuh, "setengahnya" sesuai instruksi). Bar SELALU proporsional gak peduli seberapa gede stat-nya (dari growth level + stat point + item), gak pernah overflow.
+
+Semua prop `max={...}` yang dulu di-pass manual ke `<StatBar>` udah dihapus (gak dipakai lagi) — `Bar`/`ResourceRow` (buat HP/SP/MP resource pool) TETAP pakai max eksplisit seperti biasa (gak berubah, itu representasi current/max yang beda konsepnya).
