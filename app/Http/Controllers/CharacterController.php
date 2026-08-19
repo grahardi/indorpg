@@ -58,7 +58,7 @@ class CharacterController extends Controller
 
     public function show(Character $character): Response
     {
-        $character->load(['subclass.gameClass', 'subclass.element', 'subclass.skills', 'skills', 'items']);
+        $character->load(['subclass.gameClass', 'subclass.element', 'subclass.skills', 'skills', 'items.element']);
 
         return Inertia::render('Characters/Show', [
             'character' => $character,

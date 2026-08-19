@@ -88,6 +88,24 @@ class Character extends Model
             ->sum('effect_value');
     }
 
+    /**
+     * Bonus damage dari item elemental (misal "+fire damage") yang lagi
+     * di-equip DAN elemennya sama kayak skill yang lagi dipakai. Item elemental
+     * lain (elemen beda) gak ngefek sama sekali buat serangan ini.
+     */
+    public function elementalDamageBonus(?int $skillElementId): int
+    {
+        if (! $skillElementId) {
+            return 0;
+        }
+
+        return $this->items
+            ->filter(fn (Item $item) => $item->pivot->is_equipped
+                && $item->effect_stat === 'elemental_damage'
+                && $item->effect_element_id === $skillElementId)
+            ->sum('effect_value');
+    }
+
     public function getAvatarUrlAttribute(): ?string
     {
         return $this->avatar_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar_path) : null;
@@ -155,7 +173,7 @@ class Character extends Model
 
     public function getEffectiveBaseHpAttribute(): int
     {
-        return $this->effective_physical_defense + $this->effective_magic_defense;
+        return $this->effective_physical_defense + $this->effective_magic_defense + $this->itemBonus('hp');
     }
 
     public function getEffectiveBaseMpAttribute(): int
@@ -172,14 +190,14 @@ class Character extends Model
     {
         $ratio = \App\Models\GameSetting::getFloat('regen_ratio', 0.1);
 
-        return max(1, (int) round($this->effective_base_mp * $ratio));
+        return max(1, (int) round($this->effective_base_mp * $ratio) + $this->itemBonus('mp_regen'));
     }
 
     public function getEffectiveStaminaRegenAttribute(): int
     {
         $ratio = \App\Models\GameSetting::getFloat('regen_ratio', 0.1);
 
-        return max(1, (int) round($this->effective_base_sp * $ratio));
+        return max(1, (int) round($this->effective_base_sp * $ratio) + $this->itemBonus('sp_regen'));
     }
 
     /**
@@ -192,7 +210,7 @@ class Character extends Model
     {
         $ratio = \App\Models\GameSetting::getFloat('regen_ratio', 0.1);
 
-        return max(1, (int) round($this->effective_base_hp * $ratio));
+        return max(1, (int) round($this->effective_base_hp * $ratio) + $this->itemBonus('hp_regen'));
     }
 
     /**

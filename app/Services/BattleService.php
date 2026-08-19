@@ -408,6 +408,9 @@ class BattleService
                 }
 
                 $offenseStat = $skill->scaling_stat === 'magic' ? $this->combatStat($participant, 'magic_damage') : $this->combatStat($participant, 'physical_damage');
+                // Item elemental (misal "+fire damage") - nambah damage kalau
+                // elemen skill yang dipakai sama kayak elemen item.
+                $offenseStat += $character->elementalDamageBonus($skill->element_id);
                 $defenseStat = $skill->scaling_stat === 'magic' ? $stats['magic_defense'] : $stats['physical_defense'];
 
                 $raw = $offenseStat * $skillStats['multiplier'];

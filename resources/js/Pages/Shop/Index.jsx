@@ -27,7 +27,19 @@ const STAT_LABEL = {
     evasion: 'Evasion',
     critical_hit: 'Critical Hit',
     critical_luck: 'Critical Luck',
+    hp: 'HP',
+    hp_regen: 'HP Regen',
+    mp_regen: 'MP Regen',
+    sp_regen: 'SP Regen',
+    elemental_damage: 'Elemental Damage',
 };
+
+function itemStatLabel(item) {
+    if (item.effect_stat === 'elemental_damage') {
+        return `${item.element?.name ?? ''} Damage`.trim();
+    }
+    return STAT_LABEL[item.effect_stat] ?? item.effect_stat;
+}
 
 export default function Index({ items, characters }) {
     const { props } = usePage();
@@ -105,7 +117,7 @@ export default function Index({ items, characters }) {
                                     </div>
                                     <p className="text-secondary small mb-2">{item.description}</p>
                                     <div className="rpg-power-type mb-2">
-                                        +{item.effect_value} {STAT_LABEL[item.effect_stat] ?? item.effect_stat}
+                                        +{item.effect_value} {itemStatLabel(item)}
                                     </div>
                                     <div className="d-flex justify-content-between align-items-center">
                                         <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#c9a24b' }}>

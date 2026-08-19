@@ -19,13 +19,13 @@ class ItemController extends Controller
             ' END';
 
         return Inertia::render('Admin/Items/Index', [
-            'items' => Item::orderByRaw($rarityOrder)->orderBy('name')->get(),
+            'items' => Item::with('element')->orderByRaw($rarityOrder)->orderBy('name')->get(),
         ]);
     }
 
     public function create(): Response
     {
-        return Inertia::render('Admin/Items/Form', ['item' => null]);
+        return Inertia::render('Admin/Items/Form', ['item' => null, 'elements' => \App\Models\Element::orderBy('name')->get()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -40,7 +40,7 @@ class ItemController extends Controller
 
     public function edit(Item $item): Response
     {
-        return Inertia::render('Admin/Items/Form', ['item' => $item]);
+        return Inertia::render('Admin/Items/Form', ['item' => $item, 'elements' => \App\Models\Element::orderBy('name')->get()]);
     }
 
     public function update(Request $request, Item $item): RedirectResponse
@@ -62,14 +62,21 @@ class ItemController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
             'rarity' => ['required', 'string', 'in:'.implode(',', Item::RARITIES)],
             'price' => ['required', 'integer', 'min:1'],
             'effect_stat' => ['required', 'string', 'in:'.implode(',', Item::EFFECT_STATS)],
+            'effect_element_id' => ['nullable', 'exists:elements,id'],
             'effect_value' => ['required', 'integer', 'min:1'],
             'drop_rate' => ['required', 'numeric', 'min:0', 'max:100'],
         ]);
+
+        if ($data['effect_stat'] !== 'elemental_damage') {
+            $data['effect_element_id'] = null;
+        }
+
+        return $data;
     }
 }

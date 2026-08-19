@@ -6,12 +6,16 @@ const RARITY_LABEL = { common: 'Common', rare: 'Rare', sr: 'SR', ur: 'UR', legen
 const EFFECT_STATS = [
     'physical_damage', 'physical_defense', 'magic_damage', 'magic_defense',
     'accuracy', 'evasion', 'critical_hit', 'critical_luck',
+    'hp', 'hp_regen', 'mp_regen', 'sp_regen',
+    'elemental_damage',
 ];
 const STAT_LABEL = {
     physical_damage: 'Physical Attack', physical_defense: 'Physical Defense',
     magic_damage: 'Magic Attack', magic_defense: 'Magic Defense',
     accuracy: 'Accuracy', evasion: 'Evasion',
     critical_hit: 'Critical Hit', critical_luck: 'Critical Luck',
+    hp: 'HP (max)', hp_regen: 'HP Regen/ronde', mp_regen: 'MP Regen/ronde', sp_regen: 'SP Regen/ronde',
+    elemental_damage: 'Elemental Damage (pilih elemen)',
 };
 
 function Field({ label, children }) {
@@ -23,7 +27,7 @@ function Field({ label, children }) {
     );
 }
 
-export default function Form({ item }) {
+export default function Form({ item, elements = [] }) {
     const isEdit = !!item;
     const { data, setData, post, put, processing, errors } = useForm({
         name: item?.name ?? '',
@@ -31,6 +35,7 @@ export default function Form({ item }) {
         rarity: item?.rarity ?? 'common',
         price: item?.price ?? 50,
         effect_stat: item?.effect_stat ?? 'physical_damage',
+        effect_element_id: item?.effect_element_id ?? '',
         effect_value: item?.effect_value ?? 10,
         drop_rate: item?.drop_rate ?? 10,
     });
@@ -81,8 +86,24 @@ export default function Form({ item }) {
                                 <select className={inputClass} value={data.effect_stat} onChange={(e) => setData('effect_stat', e.target.value)}>
                                     {EFFECT_STATS.map((s) => <option key={s} value={s}>{STAT_LABEL[s]}</option>)}
                                 </select>
+                                {data.effect_stat === 'elemental_damage' && (
+                                    <p className="text-secondary small mt-1 mb-0">
+                                        Bonus damage cuma nambah kalau skill yang dipakai elemennya sama kayak item ini.
+                                    </p>
+                                )}
                             </Field>
                         </div>
+                        {data.effect_stat === 'elemental_damage' && (
+                            <div className="col-md-6">
+                                <Field label="Elemen">
+                                    <select className={inputClass} value={data.effect_element_id} onChange={(e) => setData('effect_element_id', e.target.value)}>
+                                        <option value="">- Pilih elemen -</option>
+                                        {elements.map((el) => <option key={el.id} value={el.id}>{el.name}</option>)}
+                                    </select>
+                                    {errors.effect_element_id && <div className="text-danger small mt-1">{errors.effect_element_id}</div>}
+                                </Field>
+                            </div>
+                        )}
                         <div className="col-md-6">
                             <Field label="Jumlah Bonus">
                                 <input type="number" min="1" className={inputClass} value={data.effect_value} onChange={(e) => setData('effect_value', e.target.value)} />

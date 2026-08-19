@@ -17,7 +17,7 @@ class ShopController extends Controller
             implode(' ', array_map(fn ($r, $i) => "WHEN '{$r}' THEN {$i}", Item::RARITIES, array_keys(Item::RARITIES))).
             ' END';
 
-        $items = Item::orderByRaw($rarityOrder)->orderBy('price')->get();
+        $items = Item::with('element')->orderByRaw($rarityOrder)->orderBy('price')->get();
 
         $characters = Character::where('user_id', $request->user()->id)
             ->where('is_npc', false)

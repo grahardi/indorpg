@@ -261,7 +261,19 @@ const STAT_LABEL = {
     evasion: 'Evasion',
     critical_hit: 'Critical Hit',
     critical_luck: 'Critical Luck',
+    hp: 'HP',
+    hp_regen: 'HP Regen',
+    mp_regen: 'MP Regen',
+    sp_regen: 'SP Regen',
+    elemental_damage: 'Elemental Damage',
 };
+
+function itemStatLabel(item) {
+    if (item.effect_stat === 'elemental_damage') {
+        return `${item.element?.name ?? ''} Damage`.trim();
+    }
+    return STAT_LABEL[item.effect_stat] ?? item.effect_stat;
+}
 
 const BAG_SLOTS_PER_PAGE = 9; // grid 3x3
 const BAG_MAX_CAPACITY = 50; // sementara
@@ -312,7 +324,7 @@ function InventorySection({ character, isOwner }) {
                     <div className="rpg-subclass-name text-center mb-2" style={{ fontSize: '1.05rem' }}>{selectedItem.name}</div>
                     <p className="text-secondary small text-center mb-2">{selectedItem.description}</p>
                     <div className="rpg-power-type text-center mb-3">
-                        +{selectedItem.effect_value} {STAT_LABEL[selectedItem.effect_stat] ?? selectedItem.effect_stat}
+                        +{selectedItem.effect_value} {itemStatLabel(selectedItem)}
                     </div>
                     {isOwner && (
                         <button
