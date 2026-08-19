@@ -62,6 +62,10 @@ class CharacterController extends Controller
 
         return Inertia::render('Characters/Show', [
             'character' => $character,
+            // Buat preview damage per skill di kartu (sementara, bantu debug OP) -
+            // formula-nya PERSIS sama kayak yang beneran dipakai di battle
+            // (lihat BattleService::skillCombatStats).
+            'skillLevelGrowthRatio' => \App\Models\GameSetting::getFloat('skill_level_growth_ratio', 1.3),
         ]);
     }
 

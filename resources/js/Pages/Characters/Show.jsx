@@ -131,7 +131,7 @@ function LevelProgress({ character, accent }) {
     );
 }
 
-export default function Show({ character }) {
+export default function Show({ character, skillLevelGrowthRatio = 1.3 }) {
     const { props } = usePage();
     const accent = CLASS_ACCENT[character.subclass?.game_class?.slug] ?? '#8890a4';
     const subclass = character.subclass;
@@ -257,7 +257,7 @@ export default function Show({ character }) {
 
                 <InventorySection character={character} isOwner={isOwner} />
 
-                <LoadoutSection character={character} isOwner={isOwner} />
+                <LoadoutSection character={character} isOwner={isOwner} skillLevelGrowthRatio={skillLevelGrowthRatio} />
             </div>
         </Layout>
     );
@@ -508,7 +508,28 @@ function InventorySection({ character, isOwner }) {
     );
 }
 
-function LoadoutSection({ character, isOwner }) {
+// Estimasi damage final skill - PERSIS sama formula kayak BattleService::
+// skillCombatStats() + damage calc di autoResolve() (base/bonus split, linear
+// level growth). Gak termasuk defense musuh/crit/efektivitas elemen (itu baru
+// keitung pas battle beneran, tergantung monster yang dilawan) - jadi ini
+// "damage dasar sebelum mitigasi", bukan angka pasti yang bakal keluar tiap
+// battle. Sementara ditampilin buat bantu cek/debug kerasa OP apa nggak.
+function estimateSkillDamage(character, skill, ratio) {
+    const level = character.level ?? 1;
+    const bonusLevel = skill.pivot?.bonus_level ?? 0;
+    const levelFactor = 1 + ((ratio - 1) * (level - 1));
+    const allocFactor = 1 + (bonusLevel * 0.01);
+    const multiplier = (skill.base_multiplier ?? 1) * levelFactor * allocFactor;
+
+    const isMagic = skill.scaling_stat === 'magic';
+    const baseStat = isMagic ? character.leveled_magic_damage : character.leveled_physical_damage;
+    const bonusStat = (isMagic ? character.bonus_magic_damage : character.bonus_physical_damage) ?? 0;
+    const itemStat = itemBonusFor(character, isMagic ? 'magic_damage' : 'physical_damage');
+
+    return Math.round((baseStat * multiplier) + bonusStat + itemStat);
+}
+
+function LoadoutSection({ character, isOwner, skillLevelGrowthRatio }) {
     const subclassSkills = character.subclass?.skills ?? [];
     const tier1Skills = subclassSkills.filter((s) => s.tier === 1);
     const tier3Skills = subclassSkills.filter((s) => s.tier === 3);
@@ -585,6 +606,9 @@ function LoadoutSection({ character, isOwner }) {
                                                 )}
                                             </div>
                                             <p className="rpg-skill-desc">{s.description}</p>
+                                            <div className="mb-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: '#e8734f' }}>
+                                                ⚔️ {s.buff_type === 'heal' ? 'Heal' : s.buff_type === 'buff' ? 'Bonus %' : s.buff_type === 'nerf' ? 'Debuff x' : 'Damage'}: {estimateSkillDamage(character, s, skillLevelGrowthRatio)}
+                                            </div>
                                             <div className="d-flex gap-3 flex-wrap mb-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                                                 {s.mana_cost > 0 && <span style={{ color: '#7269d1' }}>MP {s.mana_cost}</span>}
                                                 {s.stamina_cost > 0 && <span style={{ color: '#c98a3a' }}>SP {s.stamina_cost}</span>}
@@ -619,7 +643,7 @@ function LoadoutSection({ character, isOwner }) {
                     ) : (
                         <div className="row g-3">
                             {character.skills.map((s) => (
-                                <SkillCard key={s.id} skill={s} />
+                                <SkillCard key={s.id} skill={s} damageEstimate={estimateSkillDamage(character, s, skillLevelGrowthRatio)} />
                             ))}
                         </div>
                     )}
@@ -642,14 +666,14 @@ function LoadoutSection({ character, isOwner }) {
                     <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.72rem' }}>Skill Biasa (pilih 4)</div>
                     <div className="row g-3 mb-4">
                         {tier1Skills.map((s) => (
-                            <SkillCard key={s.id} skill={s} selectable selected={selected.includes(s.id)} onClick={() => toggle(s)} />
+                            <SkillCard key={s.id} skill={s} selectable selected={selected.includes(s.id)} onClick={() => toggle(s)} damageEstimate={estimateSkillDamage(character, s, skillLevelGrowthRatio)} />
                         ))}
                     </div>
 
                     <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.72rem' }}>Ultimate (pilih 1)</div>
                     <div className="row g-3">
                         {tier3Skills.map((s) => (
-                            <SkillCard key={s.id} skill={s} selectable selected={selected.includes(s.id)} onClick={() => toggle(s)} />
+                            <SkillCard key={s.id} skill={s} selectable selected={selected.includes(s.id)} onClick={() => toggle(s)} damageEstimate={estimateSkillDamage(character, s, skillLevelGrowthRatio)} />
                         ))}
                     </div>
                 </>
@@ -658,7 +682,8 @@ function LoadoutSection({ character, isOwner }) {
     );
 }
 
-function SkillCard({ skill, selectable = false, selected = false, onClick }) {
+function SkillCard({ skill, selectable = false, selected = false, onClick, damageEstimate = null }) {
+    const estimateLabel = skill.buff_type === 'heal' ? 'Heal' : skill.buff_type === 'buff' ? 'Bonus %' : skill.buff_type === 'nerf' ? 'Debuff x' : 'Damage';
     return (
         <div className="col-md-6" key={skill.id}>
             <div
@@ -675,6 +700,11 @@ function SkillCard({ skill, selectable = false, selected = false, onClick }) {
                         {skill.name} {selected && <span style={{ color: '#c9a24b' }}>✓</span>}
                     </div>
                     <p className="rpg-skill-desc">{skill.description}</p>
+                    {damageEstimate !== null && (
+                        <div className="mb-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: '#e8734f' }}>
+                            ⚔️ {estimateLabel}: {damageEstimate}
+                        </div>
+                    )}
                     <div className="d-flex gap-3 flex-wrap" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         {skill.mana_cost > 0 && <span style={{ color: '#7269d1' }}>MP {skill.mana_cost}</span>}
                         {skill.stamina_cost > 0 && <span style={{ color: '#c98a3a' }}>SP {skill.stamina_cost}</span>}

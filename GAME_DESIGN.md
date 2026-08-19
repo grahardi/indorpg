@@ -1216,3 +1216,16 @@ User laporkan: 1 rasio (`monster_level_growth_ratio`) dipakai buat SEMUA stat mo
 Sekarang bisa disetel independen di `/admin/settings`: mau monster jadi tembok HP yang mukulnya pelan (naikkan HP ratio, turunkan damage ratio), atau glass cannon yang gampang mati tapi mukul keras (kebalikannya) — bebas dikombinasi.
 
 Setting lama `monster_level_growth_ratio` otomatis dibuang dari database pas `php artisan db:seed` (biar gak nyangkut jadi row mati/gak kepakai di admin panel).
+
+---
+
+## 53. Tampilan Damage Final di Kartu Skill — Bantu Debug OP (sementara) (v7.6)
+
+User set `skill_level_growth_ratio` ke 1 tapi masih ngerasa OP, minta cara buat lihat angka final biar bisa di-cek bareng.
+
+### `estimateSkillDamage()` — replikasi PERSIS formula battle
+Ditambahin di semua kartu skill (halaman detail karakter): Skill Point Allocation (skill yang beneran ke-loadout), picker Skill Biasa/Ultimate. Formula-nya sama persis kayak yang dipakai di `BattleService::skillCombatStats()` + damage calc (base/bonus split, linear level growth, allocation bonus) — **BEDA-nya**, ini gak termasuk defense musuh/critical hit/efektivitas elemen (itu baru keitung pas lawan monster beneran, beda-beda tiap battle). Jadi ini "damage dasar sebelum mitigasi", ditandai ikon ⚔️, label-nya nyesuain buff_type skill (Damage/Heal/Bonus %/Debuff x).
+
+`CharacterController::show()` sekarang kirim `skillLevelGrowthRatio` (dari GameSetting) ke frontend biar kalkulasinya akurat ngikutin setting admin yang lagi aktif, bukan angka hardcode.
+
+**Catatan**: ini fitur sementara buat bantu debug — kalau udah ketemu sumber OP-nya dan rasa balance-nya udah pas, bisa dipertimbangkan disederhanain lagi (atau dibiarin, karena info-nya emang berguna buat player ngerti kekuatan skill-nya sebelum battle).
