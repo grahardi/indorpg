@@ -975,3 +975,22 @@ Plus `placeholder.png` (ikon peti harta karun) buat item yang belum punya `icon_
 - **Klik slot** → masuk ke tampilan detail (gambar besar, rarity badge, nama, deskripsi, efek stat) + tombol **Equip/Lepas**
 - Tombol **"← Kembali ke Bag"** di layar detail buat balik ke grid
 - Kapasitas maksimal **50 item** per karakter (`characters:count() >= 50` dicek di `ShopController::buy()` DAN `BattleService`'s item drop logic — kalau bag penuh, drop di-skip diam-diam biar gak error pas battle)
+
+---
+
+## 40. Generate 60 Item Standar: 40 Common, 15 Rare, 5 SR (v6.3)
+
+`BulkItemSeeder` — 60 item baru dengan variasi lengkap sesuai instruksi:
+
+### Distribusi rarity (pas sesuai permintaan)
+- **40 Common**: harga 30-100 Gold, bonus stat 6-16, drop rate 15-28%
+- **15 Rare**: harga 180-380 Gold, bonus stat 22-42, drop rate 5-12%
+- **5 SR**: harga 550-950 Gold, bonus stat 40-60, drop rate 1.5-3.5%
+
+Nilai tiap item di-interpolasi dalam range rarity-nya (pakai `crc32(nama) % 100` sebagai seed) — jadi gak semua item se-tier nilainya SAMA PERSIS, ada variasi kecil natural.
+
+### Variasi stat (16 kategori)
+Physical/Magic Damage & Defense, Accuracy, Evasion, Critical Hit, Critical Luck, **HP**, **HP/MP/SP Regen** (baru dari bagian 39), dan **Elemental Damage** (Fire/Water/Earth/Wind — juga baru dari bagian 39).
+
+### Ikon: kategori, bukan per-item
+60 gambar unik gak sepadan effort-nya — jadi ikon dikelompokkin **per kategori stat** (16 ikon dari game-icons.net, sama sumbernya kayak bagian 39): pedang buat physical damage, perisai buat physical defense, tongkat sihir buat magic damage, jimat buat magic defense, mata-target buat accuracy, sepatu buat evasion, crosshair buat critical hit, dadu buat critical luck, hati buat HP, botol ramuan buat HP regen, ramuan sihir buat MP regen, otot buat SP regen, dan api/tetes air/tumpukan batu/tornado buat 4 elemen. Item dengan stat yang sama otomatis share ikon yang sama (visual konsisten per kategori).
