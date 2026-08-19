@@ -236,8 +236,15 @@ class BattleService
 
         return [
             'multiplier' => (float) $skill->base_multiplier * $levelFactor * $allocFactor,
-            'mana_cost' => max(0, (int) round($skill->mana_cost * $levelFactor)),
-            'stamina_cost' => max(0, (int) round($skill->stamina_cost * $levelFactor)),
+            // BUG FIX: sebelumnya mana_cost/stamina_cost IKUT di-scale pakai
+            // levelFactor yang sama kayak damage (naik eksponensial 1.3^level).
+            // Pool MP/SP karakter naiknya jauh lebih lambat (linear-ish dari
+            // level growth stat), jadi makin tinggi level, skill makin GAK
+            // KEMAKAN - karakter jadi sering "skip ronde" karena gak mampu
+            // bayar skill apapun. Fix: cost TETAP di base value skill, cuma
+            // damage yang naik seiring level.
+            'mana_cost' => $skill->mana_cost,
+            'stamina_cost' => $skill->stamina_cost,
             'cooldown_seconds' => max(1, (int) round($skill->cooldown_seconds * $cooldownFactor)),
         ];
     }

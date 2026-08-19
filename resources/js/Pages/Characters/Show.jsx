@@ -585,6 +585,11 @@ function LoadoutSection({ character, isOwner }) {
                                                 )}
                                             </div>
                                             <p className="rpg-skill-desc">{s.description}</p>
+                                            <div className="d-flex gap-3 flex-wrap mb-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                                {s.mana_cost > 0 && <span style={{ color: '#7269d1' }}>MP {s.mana_cost}</span>}
+                                                {s.stamina_cost > 0 && <span style={{ color: '#c98a3a' }}>SP {s.stamina_cost}</span>}
+                                                <span>CD {Math.max(1, Math.round(s.cooldown_seconds * (1 - bonus * 0.01)))}s</span>
+                                            </div>
                                             {isOwner && (
                                                 <button
                                                     className="rpg-back-link"
@@ -670,6 +675,11 @@ function SkillCard({ skill, selectable = false, selected = false, onClick }) {
                         {skill.name} {selected && <span style={{ color: '#c9a24b' }}>✓</span>}
                     </div>
                     <p className="rpg-skill-desc">{skill.description}</p>
+                    <div className="d-flex gap-3 flex-wrap" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {skill.mana_cost > 0 && <span style={{ color: '#7269d1' }}>MP {skill.mana_cost}</span>}
+                        {skill.stamina_cost > 0 && <span style={{ color: '#c98a3a' }}>SP {skill.stamina_cost}</span>}
+                        <span>CD {skill.cooldown_seconds}s</span>
+                    </div>
                 </div>
             </div>
         </div>

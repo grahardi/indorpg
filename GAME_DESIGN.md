@@ -1117,3 +1117,17 @@ Diterapkan konsisten di semua tempat item ditampilkan: Shop, Inventory Bag (grid
 `badges/ice.svg` dan `badges/moon.svg` punya struktur SVG beda dari pola standar game-icons.net (bukan cuma background rect + 1 shape path) — dicoba diproses otomatis GAGAL, jadi sesuai instruksi ("hilangkan icon yang tidak bisa transparent"), keduanya langsung dibuang dari pool (gak pernah kepakai item manapun juga, aman dihapus).
 
 **Catatan**: kalau nanti mau upload icon pack sendiri (disebut user), tinggal pakai fitur "Upload Gambar Sendiri" yang udah ada di Admin Item Form (bagian 47) — asalkan gambarnya emang transparan (PNG dengan alpha channel), bakal otomatis kena warna rarity yang sama kayak ikon pool.
+
+---
+
+## 49. Fix Bug Kritis: Karakter Terus "Skip" Battle (mana/stamina cost naik eksponensial) + Tampilan Cost/CD (v7.2)
+
+### Root cause: mana/stamina cost skill ikut naik level (harusnya cuma damage)
+`skillCombatStats()` (bagian 30, auto-scale skill per level) sebelumnya nge-scale **mana_cost DAN stamina_cost** pakai `levelFactor` yang SAMA kayak damage (`ratio^(level-1)`, default 1.3). Ini bikin biaya skill naik **eksponensial** seiring level (level 8 → cost naik ~6.3x dari base!), sementara pool MP/SP karakter naiknya jauh lebih lambat (linear-ish dari level growth stat). Efeknya: makin tinggi level, karakter makin sering **gak mampu bayar skill apapun** → battle log kebanyakan "belum ada skill siap pakai, cuma bertahan" (skip terus).
+
+**Fix**: `mana_cost`/`stamina_cost` sekarang **TETAP di base value skill** (gak ikut naik level) — cuma **damage** yang naik seiring level (sesuai desain awal, "skill auto-scale" itu emang niatnya buat damage doang). Cooldown & skill point allocation tetap kerja seperti biasa.
+
+**Konfirmasi**: mekanisme "full heal HP/SP/MP abis battle" (bagian 32) **udah bener dari awal, gak ada masalah di situ** — dicek ulang tetap utuh, root cause murni dari cost-scaling yang salah.
+
+### Tampilan CD/Mana/Stamina cost di halaman karakter
+User minta ditambahin biar transparan — sekarang tiap `SkillCard` (Loadout Battle) dan card di Skill Point Allocation nampilin baris kecil: **MP X · SP Y · CD Zs** langsung di bawah deskripsi skill. Di section allocation, CD-nya udah disesuaikan sama pengurangan dari poin yang udah diinvest (`cooldown × (1 - bonus%)`).
