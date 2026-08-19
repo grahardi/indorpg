@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Route;
 
 // Browsing publik - gak butuh login.
 Route::get('/', [GameDataController::class, 'index'])->name('classes.index');
+Route::get('/codex', [GameDataController::class, 'codex'])->name('classes.codex');
 Route::get('/guide', [GuideController::class, 'index'])->name('guide.index');
 Route::get('/subclass/{subclassId}', [GameDataController::class, 'showSubclass'])->name('subclass.show');
 Route::post('/subclass/{subclass}/avatar', [GameDataController::class, 'uploadAvatar'])->name('subclass.avatar');

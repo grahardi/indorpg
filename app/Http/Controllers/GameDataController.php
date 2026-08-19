@@ -13,9 +13,30 @@ use Inertia\Response;
 class GameDataController extends Controller
 {
     /**
-     * Menampilkan seluruh class, subclass, dan skill tier 1 (data browser, no auth).
+     * Home page: kalau udah login, tampilin Town Hub (peta interaktif klik
+     * bangunan). Guest tetap liat Codex (list class/subclass) kayak biasa.
      */
     public function index(): Response
+    {
+        if (auth()->check()) {
+            return Inertia::render('Home/TownHub');
+        }
+
+        $classes = GameClass::with(['subclasses.element', 'subclasses.skills'])
+            ->orderBy('id')
+            ->get();
+
+        return Inertia::render('Classes/Index', [
+            'classes' => $classes,
+        ]);
+    }
+
+    /**
+     * Codex (list class/subclass) - dulu cuma bisa diakses lewat '/', sekarang
+     * '/' buat user login nampilin Town Hub, jadi Codex butuh route sendiri
+     * biar tetap bisa diakses siapapun.
+     */
+    public function codex(): Response
     {
         $classes = GameClass::with(['subclasses.element', 'subclasses.skills'])
             ->orderBy('id')

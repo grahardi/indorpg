@@ -1021,3 +1021,22 @@ Sama sumbernya (game-icons.net via GitHub) tapi latar netral (`#2e3140`, bukan t
 Form (`Admin/Items/Form.jsx`) nampilin grid ikon yang tersedia (klik buat pilih, klik lagi buat batal — balik ke ikon kategori default). Pas edit item yang UDAH punya `icon_path` dari pool, ikon itu tetap muncul di picker (biar keliatan/bisa diganti), walau secara teknis udah "terpakai".
 
 Setelah satu ikon dipilih dan item disimpan, ikon itu otomatis HILANG dari picker item lain (karena sekarang statusnya "terpakai") — jadi admin gak akan sengaja pilih ikon yang sama buat 2 item beda.
+
+---
+
+## 43. Town Hub — Home Page Interaktif (v6.6, khusus user login)
+
+Gambar desa (`public/images/ui/town-hub.jpg`, di-generate AI, dikompres ke JPEG ~276KB dari PNG asli 2.4MB) jadi **home page interaktif** buat user yang udah login — klik bangunan langsung ke menu terkait, gak perlu teks menu biasa.
+
+### Mapping bangunan → fitur
+- **Bangunan tengah besar (pura kayu)** → Adventure Guild (`guild.index`)
+- **Lapak pojok kiri bawah** → Shop (`shop.index`)
+- **Gerbang belakang (2 menara)** → Pergi Adventure / Peta (`maps.index`)
+- **Bangunan kiri berdiri sendiri** → Penginapan = atur karakter/roster (`characters.index`)
+- **Bangunan kanan depan (2 lantai)** → Guild Party — **fitur belum dibangun** (nanti: bikin party TETAP + auto-adventure/skip), sementara link ke Guild aja, label hover-nya jelasin ini "segera hadir"
+
+### Implementasi
+- `GameDataController::index()`: cek `auth()->check()` — kalau login, render `Home/TownHub` (bukan Codex lagi). Guest tetap liat Codex kayak biasa.
+- **Codex jadi punya route sendiri** (`/codex`, `classes.codex`) — soalnya `/` sekarang beda isi tergantung status login, user yang login masih perlu cara akses Codex, ditambahin ke dropdown nav "Bermain"
+- `Home/TownHub.jsx`: hotspot posisinya dalam **persen** (bukan pixel absolut) relatif ke gambar 1376×768, jadi tetap presisi walau gambar responsive resize di layar beda-beda. Posisi divalidasi visual (generate overlay kotak warna-warni di atas gambar asli, dicek manual sebelum finalize)
+- Hover di hotspot: border emas + label nama+deskripsi muncul di atas bangunan. Ada juga daftar link teks kecil di bawah gambar (fallback buat aksesibilitas/kalau hotspot susah diklik di HP)
