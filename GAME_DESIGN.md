@@ -1072,3 +1072,14 @@ max = 100, dobel terus (100 → 200 → 400 → 800 → ...) sampai >= total
 Jadi kalau total 45 → skala tetap 100 (bar keliatan ~45% penuh). Total 120 → skala naik ke 200 (bar ~60% penuh). Total 250 → skala naik ke 400 (bar ~62% penuh, "setengahnya" sesuai instruksi). Bar SELALU proporsional gak peduli seberapa gede stat-nya (dari growth level + stat point + item), gak pernah overflow.
 
 Semua prop `max={...}` yang dulu di-pass manual ke `<StatBar>` udah dihapus (gak dipakai lagi) — `Bar`/`ResourceRow` (buat HP/SP/MP resource pool) TETAP pakai max eksplisit seperti biasa (gak berubah, itu representasi current/max yang beda konsepnya).
+
+---
+
+## 46. Shop: Pagination + Filter Rarity (v6.9)
+
+`Shop/Index.jsx` — sebelumnya nampilin semua item (70 biji) dalam 1 grid panjang. Sekarang:
+- **Filter rarity** (tombol: Semua/Common/Rare/SR/UR/Legendary) di atas grid, klik buat filter, otomatis balik ke halaman 1
+- **Pagination 10 item/halaman**, tombol ← / →, indikator "Halaman X / Y (Z item)"
+- Pesan "Gak ada item di rarity ini" kalau filter hasilnya kosong
+
+Semua client-side (filter + slice di JS), gak perlu request baru ke server tiap ganti halaman/filter — item list-nya dikirim sekali di awal (masih ringan, 70 item bukan angka besar).

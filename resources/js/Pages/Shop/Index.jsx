@@ -41,12 +41,26 @@ function itemStatLabel(item) {
     return STAT_LABEL[item.effect_stat] ?? item.effect_stat;
 }
 
+const ITEMS_PER_PAGE = 10;
+const RARITY_FILTERS = ['all', 'common', 'rare', 'sr', 'ur', 'legendary'];
+
 export default function Index({ items, characters }) {
     const { props } = usePage();
     const [selectedCharacterId, setSelectedCharacterId] = useState(characters[0]?.id ?? null);
+    const [rarityFilter, setRarityFilter] = useState('all');
+    const [page, setPage] = useState(0);
     const { post, processing } = useForm({});
 
     const selectedCharacter = characters.find((c) => c.id === selectedCharacterId);
+
+    const filteredItems = rarityFilter === 'all' ? items : items.filter((i) => i.rarity === rarityFilter);
+    const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
+    const pageItems = filteredItems.slice(page * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE + ITEMS_PER_PAGE);
+
+    function selectRarity(r) {
+        setRarityFilter(r);
+        setPage(0);
+    }
 
     function buy(item) {
         if (!selectedCharacterId) return;
@@ -93,54 +107,103 @@ export default function Index({ items, characters }) {
                     </div>
                 )}
 
-                <div className="row g-3">
-                    {items.map((item) => {
-                        const accent = RARITY_ACCENT[item.rarity] ?? '#8890a4';
-                        const canAfford = selectedCharacter && selectedCharacter.gold >= item.price;
+                <div className="d-flex gap-2 flex-wrap mb-4">
+                    {RARITY_FILTERS.map((r) => {
+                        const isActive = rarityFilter === r;
+                        const accent = r === 'all' ? '#c9a24b' : RARITY_ACCENT[r];
                         return (
-                            <div className="col-md-6 col-lg-4" key={item.id}>
-                                <div className="rpg-card h-100" style={{ '--accent': accent }}>
-                                    <div className="d-flex align-items-center gap-3 mb-2">
-                                        <img
-                                            src={item.icon_path ?? '/images/items/placeholder.png'}
-                                            alt={item.name}
-                                            style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }}
-                                        />
-                                        <div className="flex-grow-1">
-                                            <div className="d-flex justify-content-between align-items-start">
-                                                <div className="rpg-subclass-name" style={{ fontSize: '1rem' }}>{item.name}</div>
-                                            </div>
-                                            <span className="rpg-element-badge" style={{ '--accent': accent, color: accent, fontSize: '0.6rem' }}>
-                                                {RARITY_LABEL[item.rarity]}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <p className="text-secondary small mb-2">{item.description}</p>
-                                    <div className="rpg-power-type mb-2">
-                                        +{item.effect_value} {itemStatLabel(item)}
-                                    </div>
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#c9a24b' }}>
-                                            {item.price} Gold
-                                        </span>
-                                        <button
-                                            onClick={() => buy(item)}
-                                            className="btn btn-sm"
-                                            disabled={!canAfford || processing}
-                                            style={{
-                                                background: canAfford ? 'var(--bg-panel-hover)' : 'transparent',
-                                                border: `1px solid ${canAfford ? accent : 'var(--border-subtle)'}`,
-                                                color: canAfford ? accent : 'var(--text-muted)',
-                                            }}
-                                        >
-                                            Beli
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                            <button
+                                key={r}
+                                onClick={() => selectRarity(r)}
+                                className="btn btn-sm"
+                                style={{
+                                    background: isActive ? 'var(--bg-panel-hover)' : 'transparent',
+                                    border: `1px solid ${isActive ? accent : 'var(--border-subtle)'}`,
+                                    color: isActive ? accent : 'var(--text-muted)',
+                                }}
+                            >
+                                {r === 'all' ? 'Semua' : RARITY_LABEL[r]}
+                            </button>
                         );
                     })}
                 </div>
+
+                {filteredItems.length === 0 ? (
+                    <p className="text-secondary">Gak ada item di rarity ini.</p>
+                ) : (
+                    <div className="row g-3">
+                        {pageItems.map((item) => {
+                            const accent = RARITY_ACCENT[item.rarity] ?? '#8890a4';
+                            const canAfford = selectedCharacter && selectedCharacter.gold >= item.price;
+                            return (
+                                <div className="col-md-6 col-lg-4" key={item.id}>
+                                    <div className="rpg-card h-100" style={{ '--accent': accent }}>
+                                        <div className="d-flex align-items-center gap-3 mb-2">
+                                            <img
+                                                src={item.icon_path ?? '/images/items/placeholder.png'}
+                                                alt={item.name}
+                                                style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }}
+                                            />
+                                            <div className="flex-grow-1">
+                                                <div className="d-flex justify-content-between align-items-start">
+                                                    <div className="rpg-subclass-name" style={{ fontSize: '1rem' }}>{item.name}</div>
+                                                </div>
+                                                <span className="rpg-element-badge" style={{ '--accent': accent, color: accent, fontSize: '0.6rem' }}>
+                                                    {RARITY_LABEL[item.rarity]}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p className="text-secondary small mb-2">{item.description}</p>
+                                        <div className="rpg-power-type mb-2">
+                                            +{item.effect_value} {itemStatLabel(item)}
+                                        </div>
+                                        <div className="d-flex justify-content-between align-items-center">
+                                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#c9a24b' }}>
+                                                {item.price} Gold
+                                            </span>
+                                            <button
+                                                onClick={() => buy(item)}
+                                                className="btn btn-sm"
+                                                disabled={!canAfford || processing}
+                                                style={{
+                                                    background: canAfford ? 'var(--bg-panel-hover)' : 'transparent',
+                                                    border: `1px solid ${canAfford ? accent : 'var(--border-subtle)'}`,
+                                                    color: canAfford ? accent : 'var(--text-muted)',
+                                                }}
+                                            >
+                                                Beli
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {totalPages > 1 && (
+                    <div className="d-flex justify-content-center align-items-center gap-3 mt-4">
+                        <button
+                            onClick={() => setPage((p) => Math.max(0, p - 1))}
+                            disabled={page === 0}
+                            className="rpg-back-link"
+                            style={{ opacity: page === 0 ? 0.4 : 1 }}
+                        >
+                            &larr;
+                        </button>
+                        <span className="text-secondary small" style={{ fontFamily: 'var(--font-mono)' }}>
+                            Halaman {page + 1} / {totalPages} ({filteredItems.length} item)
+                        </span>
+                        <button
+                            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                            disabled={page >= totalPages - 1}
+                            className="rpg-back-link"
+                            style={{ opacity: page >= totalPages - 1 ? 0.4 : 1 }}
+                        >
+                            &rarr;
+                        </button>
+                    </div>
+                )}
             </div>
         </Layout>
     );
