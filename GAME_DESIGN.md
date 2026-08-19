@@ -1007,3 +1007,17 @@ Sebelumnya bag langsung tampil grid 3×3 full di halaman karakter (makan tempat)
 
 ### Bar item di Stats (segmen ke-3, beda warna)
 Tiap `StatBar` sekarang bisa nampilin 3 segmen: **base** (warna stat), **bonus stat point/EXP** (emas), **bonus item ter-equip** (hijau `#4a9960`, baru). `itemBonusFor(character, statKey)` — helper JS yang jumlahin `effect_value` dari semua item ter-equip yang match `effect_stat`-nya, dihitung di frontend (data item + pivot udah ada di `character.items`). Berlaku di semua row yang relevan: Physical/Magic Attack & Defense, Accuracy, Evasion, Critical Hit/Luck, Base HP, HP/Mana/Stamina Regen. Item elemental (`elemental_damage`) sengaja GAK masuk bar manapun (efeknya kondisional per-skill, gak representatif ditampilin sebagai angka stat statis) — ada catatan kecil di bawah card kalau karakter punya item elemental ter-equip.
+
+---
+
+## 42. Icon Picker di Admin Item Manager — 40 Ikon Pool Belum Terpakai (v6.5)
+
+### 40 ikon baru di `public/images/items/pool/`
+Sama sumbernya (game-icons.net via GitHub) tapi latar netral (`#2e3140`, bukan tinted rarity) — karena ikon ini belum terikat rarity/item spesifik. Variasi: senjata (pedang/kapak/palu/busur), armor (helm/gauntlet/celana perang), aksesoris (mahkota/cincin/medali), dan item sihir (buku/orb/scroll).
+
+### Picker di form admin (create & edit item)
+`Admin\ItemController::availableIcons()` — scan folder `pool/`, filter yang **belum ke-assign** ke item manapun di database (`Item::pluck('icon_path')`). List sisanya dikirim ke form.
+
+Form (`Admin/Items/Form.jsx`) nampilin grid ikon yang tersedia (klik buat pilih, klik lagi buat batal — balik ke ikon kategori default). Pas edit item yang UDAH punya `icon_path` dari pool, ikon itu tetap muncul di picker (biar keliatan/bisa diganti), walau secara teknis udah "terpakai".
+
+Setelah satu ikon dipilih dan item disimpan, ikon itu otomatis HILANG dari picker item lain (karena sekarang statusnya "terpakai") — jadi admin gak akan sengaja pilih ikon yang sama buat 2 item beda.

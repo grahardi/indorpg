@@ -27,7 +27,7 @@ function Field({ label, children }) {
     );
 }
 
-export default function Form({ item, elements = [] }) {
+export default function Form({ item, elements = [], availableIcons = [] }) {
     const isEdit = !!item;
     const { data, setData, post, put, processing, errors } = useForm({
         name: item?.name ?? '',
@@ -38,7 +38,15 @@ export default function Form({ item, elements = [] }) {
         effect_element_id: item?.effect_element_id ?? '',
         effect_value: item?.effect_value ?? 10,
         drop_rate: item?.drop_rate ?? 10,
+        icon_path: item?.icon_path ?? '',
     });
+
+    // Kalau lagi edit item yang UDAH punya icon_path, ikon itu sendiri gak
+    // muncul di "availableIcons" (soalnya dianggap "dipakai" oleh item ini),
+    // jadi ditambahin manual biar tetap kepilih/keliatan di picker.
+    const iconChoices = item?.icon_path && !availableIcons.includes(item.icon_path)
+        ? [item.icon_path, ...availableIcons]
+        : availableIcons;
 
     function submit(e) {
         e.preventDefault();
@@ -115,6 +123,45 @@ export default function Form({ item, elements = [] }) {
                                 <p className="text-secondary small mt-1 mb-0">Makin tinggi rarity, biasanya makin kecil angka ini.</p>
                             </Field>
                         </div>
+                    </div>
+
+                    <div className="mb-3">
+                        <label className="rpg-stat-label d-block mb-1">Gambar Item</label>
+                        <p className="text-secondary small mb-2">
+                            Pilih dari {iconChoices.length} ikon yang belum kepakai (dari game-icons.net). Klik buat pilih, klik lagi buat batal pilih (pakai default kategori).
+                        </p>
+                        {iconChoices.length === 0 ? (
+                            <p className="text-secondary small fst-italic">
+                                Semua ikon pool udah kepakai. Item ini bakal fallback ke ikon kategori otomatis.
+                            </p>
+                        ) : (
+                            <div
+                                className="rpg-card"
+                                style={{
+                                    '--accent': '#c9a24b', maxHeight: 280, overflowY: 'auto',
+                                    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: '0.5rem',
+                                }}
+                            >
+                                {iconChoices.map((path) => {
+                                    const isSelected = data.icon_path === path;
+                                    return (
+                                        <button
+                                            key={path}
+                                            type="button"
+                                            onClick={() => setData('icon_path', isSelected ? '' : path)}
+                                            title={path.split('/').pop()}
+                                            style={{
+                                                width: 56, height: 56, padding: 2, borderRadius: 8,
+                                                background: 'var(--bg-panel-hover)', cursor: 'pointer',
+                                                border: `2px solid ${isSelected ? '#c9a24b' : 'transparent'}`,
+                                            }}
+                                        >
+                                            <img src={path} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     <button type="submit" className="btn btn-outline-light mt-2" disabled={processing}>
