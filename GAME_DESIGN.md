@@ -1083,3 +1083,18 @@ Semua prop `max={...}` yang dulu di-pass manual ke `<StatBar>` udah dihapus (gak
 - Pesan "Gak ada item di rarity ini" kalau filter hasilnya kosong
 
 Semua client-side (filter + slice di JS), gak perlu request baru ke server tiap ganti halaman/filter — item list-nya dikirim sekali di awal (masih ringan, 70 item bukan angka besar).
+
+---
+
+## 47. 100 Ikon Colorful Baru + Upload Manual di Item Editor (v7.0)
+
+### 100 ikon baru, palet colorful (bukan netral/gray lagi)
+Sama sumbernya (game-icons.net via GitHub), tapi kali ini tiap ikon dikasih kombinasi **warna background + warna icon vivid** dari 10 palet berbeda (merah, biru, hijau, oranye, ungu, magenta, teal, kuning tua, indigo, merah bata) — beda total dari batch sebelumnya yang netral/gray. Distribusi kategori: senjata (20), armor (18), aksesoris (15), potion (9), gem/kristal (15), scroll/buku (11), elemental/tematik (12).
+
+**Quality pass**: batch pertama sempat ke-generate beberapa ikon gak nyambung tema RPG (kartu remi, badge polisi, dasi kupu-kupu, helm American football, simbol zodiak Gemini, mangkuk makan anjing) — hasil false-positive dari pencarian keyword luas. Semua itu di-cek visual (generate contact sheet, dicek manual) dan diganti sama ikon yang lebih sesuai (compass, lentera kertas, dll) sebelum di-commit final. Total pool sekarang **140 ikon** (40 batch pertama + 100 batch ini).
+
+### Upload gambar manual di Admin Item Editor
+Selain milih dari pool, admin sekarang bisa **upload gambar sendiri** langsung di form item (create maupun edit):
+- `Admin\ItemController::uploadIcon()` — endpoint standalone (gak butuh item sudah ada, karena item BARU belum punya ID), resize ke 256×256 (`ImageResizer`, pola sama kayak upload avatar lain), simpen ke `public/images/items/uploads/{uuid}.png`
+- Dipanggil pakai `fetch()` langsung dari form (bukan Inertia visit) — biar gak reload halaman/ilangin isian field lain yang udah diisi
+- Ada tombol "Hapus Gambar" buat reset balik ke ikon kategori default
