@@ -45,7 +45,7 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
                         disabled={!usable}
                         title={`${skill.name} (${skill.mana_cost} MP / ${skill.stamina_cost} SP)`}
                         style={{
-                            position: 'relative', width: 56, height: 56, borderRadius: 10,
+                            position: 'relative', width: 42, height: 42, borderRadius: 8,
                             background: !usable ? '#3a3d4a' : skill.tier === 3 ? 'rgba(201,162,75,0.15)' : 'var(--bg-panel-hover)',
                             border: `2px solid ${!usable ? '#5b6178' : skill.tier === 3 ? '#c9a24b' : 'var(--border-subtle)'}`,
                             opacity: usable ? 1 : 0.55, cursor: usable ? 'pointer' : 'not-allowed',
@@ -63,7 +63,7 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
                                 style={{
                                     position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 700, color: '#fff',
+                                    fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 700, color: '#fff',
                                 }}
                             >
                                 {remainingTicks}
@@ -71,7 +71,7 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
                         )}
                         <div
                             style={{
-                                position: 'absolute', bottom: 2, left: 2, fontSize: '0.6rem', fontWeight: 700,
+                                position: 'absolute', bottom: 2, left: 2, fontSize: '0.5rem', fontWeight: 700,
                                 color: '#c9a24b', background: 'rgba(11,12,18,0.8)', borderRadius: 4, padding: '0 3px',
                             }}
                         >
@@ -87,19 +87,28 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
 // Angka damage/heal/miss yang muncul sesaat lalu melayang naik & fade -
 // gantiin battle log teks yang dihapus total. Key harus BEDA tiap kali effect
 // baru muncul (biar React remount & animasi replay dari awal).
-function FloatingNumber({ effect, animKey }) {
+function FloatingNumber({ effect, animKey, side = 'center' }) {
     if (!effect || !['damage', 'miss', 'heal'].includes(effect.type)) return null;
     const isHeal = effect.type === 'heal';
     const isMiss = effect.type === 'miss';
     const color = isHeal ? '#4ad980' : isMiss ? '#c9c9c9' : '#ff5252';
     const text = isMiss ? 'MELESET' : isHeal ? `+${effect.value}` : `-${effect.value}`;
 
+    // Player (kanan, hadap monster ke kiri) -> teks nongol di SISI KANAN sprite.
+    // NPC (kiri, hadap monster ke kanan) -> teks nongol di SISI KIRI sprite.
+    // Monster -> tengah/default (dipasang manual di bawah monster oleh caller).
+    const posStyle = side === 'right'
+        ? { top: '25%', left: '100%', marginLeft: 4 }
+        : side === 'left'
+            ? { top: '25%', right: '100%', marginRight: 4 }
+            : { top: '-6%', left: '50%', transform: 'translateX(-50%)' };
+
     return (
         <div
             key={animKey}
             className="rpg-floating-number"
             style={{
-                position: 'absolute', top: '-6%', left: '50%',
+                position: 'absolute', ...posStyle,
                 fontFamily: 'var(--font-display)', fontWeight: 800,
                 fontSize: isMiss ? '0.85rem' : effect.is_critical ? '1.5rem' : '1.1rem',
                 color, textShadow: '0 2px 4px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.7)',
@@ -267,6 +276,21 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isManual, battle.participants, acting]);
 
+    // BUG FIX PENTING: sebelumnya NPC & monster CUMA gerak sebagai efek samping
+    // player ngirim aksi (klik/keyboard) - kalau player diem aja mikir, battle
+    // ikut freeze total (NPC gak nyerang, monster gak nyerang). Fix: polling
+    // otomatis tiap skillActionDelay detik, kirim "aksi kosong" (skillId=null,
+    // artinya "player skip giliran ini") - server tetap proses NPC & monster
+    // meski player belum milih apa-apa, battle jalan terus.
+    useEffect(() => {
+        if (!isManual || battle.status !== 'ongoing') return;
+        const interval = setInterval(() => {
+            if (!acting) sendManualAction(null);
+        }, skillActionDelay * 1000);
+        return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isManual, battle.status, acting, skillActionDelay]);
+
     const current = log[step] || { monster_hp: battle.monster_current_hp, participants: {} };
 
     // Skill animation (GIF) yang lagi aktif di step ini, kalau skill yang dipakai
@@ -410,16 +434,20 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     }
 
     // ===== LAYAR BATTLE BERJALAN (animasi playback) - arena scene =====
-    const participantCount = battle.participants.length;
+    // Layout baru: Player selalu di KIRI (sendiri, agak besar), Monster di
+    // TENGAH (besar), NPC ditumpuk di KANAN (kecil, sampai 2). Player & NPC
+    // sama-sama "menghadap" ke tengah (monster) - makanya floating number-nya
+    // muncul di sisi yang ngarah ke monster (kanan buat Player, kiri buat NPC).
+    const npcParticipants = battle.participants.filter((p) => p.character.user_id !== currentUserId);
+    const mainFighter = battle.participants.find((p) => p.character.user_id === currentUserId);
 
-    function renderArenaFighter(p, index, isMain) {
+    function renderFighter(p, colorIndex, isMain, positionStyle, spriteMaxHeight, side) {
         const live = current.participants[p.character_id] || {
             hp: p.current_hp, is_alive: p.is_alive,
         };
         const subclass = p.character.subclass;
         const maxHp = p.character.effective_base_hp ?? live.hp;
-        const pColor = PARTICIPANT_COLORS[index % PARTICIPANT_COLORS.length];
-        const leftPct = ((index + 1) / (participantCount + 1)) * 100;
+        const pColor = PARTICIPANT_COLORS[colorIndex % PARTICIPANT_COLORS.length];
 
         const isAnimating = activeAnimation?.characterId === p.character_id;
         const idleImage = subclass?.battle_idle_path || subclass?.full_body_path;
@@ -429,15 +457,15 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
             <div
                 key={p.id}
                 style={{
-                    position: 'absolute', bottom: '3%', left: `${leftPct}%`, transform: 'translateX(-50%)',
-                    width: '24%', textAlign: 'center', opacity: live.is_alive ? 1 : 0.4,
+                    position: 'absolute', ...positionStyle,
+                    textAlign: 'center', opacity: live.is_alive ? 1 : 0.4,
                 }}
             >
                 {isStunnedThisStep && (
                     <div
                         style={{
                             position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)',
-                            fontSize: '1.4rem', zIndex: 6, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))',
+                            fontSize: '1.2rem', zIndex: 6, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))',
                         }}
                     >
                         ⚡
@@ -456,19 +484,19 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         className="rpg-element-badge d-inline-block mb-1 ms-1"
                         style={{ '--accent': '#3f8c94', color: '#3f8c94', fontSize: '0.55rem', background: 'rgba(11,12,18,0.75)' }}
                     >
-                        🛡 Frontman
+                        🛡
                     </span>
                 )}
                 <div
                     style={{
-                        fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: live.is_alive ? pColor : '#5b6178',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.9)', marginBottom: 2,
+                        fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: live.is_alive ? pColor : '#5b6178',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.9)', marginBottom: 2, whiteSpace: 'nowrap',
                     }}
                 >
                     {p.character.name}{p.npc_encounter_level ? ` Lv.${p.npc_encounter_level}` : ''} {!live.is_alive && '☠'}
                 </div>
                 <div style={{ position: 'relative' }}>
-                    <FloatingNumber effect={current.effect?.target === p.character_id ? current.effect : null} animKey={step} />
+                    <FloatingNumber effect={current.effect?.target === p.character_id ? current.effect : null} animKey={step} side={side} />
                     {/* GIF gantiin pose idle pas skill dipakai (bukan numpuk) - ukuran &
                         posisi udah di-sync sama kanvas 364x360 yang sama. Ulti dikasih
                         glow emas berdenyut, beda dari skill biasa (bukan cuma warna). */}
@@ -482,23 +510,23 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                             <img
                                 src={activeAnimation.path}
                                 alt="skill"
-                                style={{ width: '100%', maxHeight: 110, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
+                                style={{ width: '100%', maxHeight: spriteMaxHeight, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
                             />
                         ) : idleImage ? (
                             <img
                                 src={idleImage}
                                 alt={p.character.name}
-                                style={{ width: '100%', maxHeight: 110, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
+                                style={{ width: '100%', maxHeight: spriteMaxHeight, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
                             />
                         ) : (
-                            <div className="rpg-badge-hex mx-auto" style={{ '--accent': pColor, width: 44, height: 44, fontSize: '1rem' }}>
+                            <div className="rpg-badge-hex mx-auto" style={{ '--accent': pColor, width: 40, height: 40, fontSize: '0.9rem' }}>
                                 {p.character.name.charAt(0)}
                             </div>
                         )}
                     </div>
                 </div>
-                {/* HP bar dipindah ke BAWAH sprite (sebelumnya di atas kepala). */}
-                <div style={{ width: '75%', margin: '3px auto 0' }}>
+                {/* HP bar di BAWAH sprite. */}
+                <div style={{ width: '85%', margin: '3px auto 0' }}>
                     <Bar current={live.hp} max={maxHp} color="#b8433a" />
                 </div>
             </div>
@@ -525,13 +553,13 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-subtle)', marginBottom: '1rem',
                     }}
                 >
-                    {/* Monster - lebih besar, di belakang/tengah */}
-                    <div style={{ position: 'absolute', top: '6%', left: '50%', transform: 'translateX(-50%)', width: '42%', textAlign: 'center' }}>
+                    {/* Monster - besar, tengah/atas */}
+                    <div style={{ position: 'absolute', top: '4%', left: '50%', transform: 'translateX(-50%)', width: '40%', textAlign: 'center' }}>
                         {current.monster_hp > 0 && current.text?.includes(monster.name) && current.text?.includes('kena stun') && (
                             <div
                                 style={{
-                                    position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)',
-                                    fontSize: '1.8rem', zIndex: 6, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))',
+                                    position: 'absolute', top: '18px', left: '50%', transform: 'translateX(-50%)',
+                                    fontSize: '1.6rem', zIndex: 6, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))',
                                 }}
                             >
                                 ⚡
@@ -545,28 +573,63 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         >
                             {monster.name} · Lv.{monsterLevel}
                         </div>
-                        <div style={{ position: 'relative' }}>
-                            <FloatingNumber effect={current.effect?.target === 'monster' ? current.effect : null} animKey={step} />
-                            {monster.full_body_path ? (
-                                <img
-                                    src={monster.full_body_path}
-                                    alt={monster.name}
-                                    style={{ width: '100%', maxHeight: 190, objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }}
-                                />
-                            ) : (
-                                <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
-                                    {monster.name.charAt(0)}
-                                </div>
-                            )}
-                        </div>
-                        {/* HP bar dipindah ke BAWAH sprite (sebelumnya di atas). */}
+                        {monster.full_body_path ? (
+                            <img
+                                src={monster.full_body_path}
+                                alt={monster.name}
+                                style={{ width: '100%', maxHeight: 175, objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }}
+                            />
+                        ) : (
+                            <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
+                                {monster.name.charAt(0)}
+                            </div>
+                        )}
                         <div style={{ width: '65%', margin: '3px auto 0' }}>
                             <Bar current={current.monster_hp} max={monsterMaxHp} color={MONSTER_COLOR} />
                         </div>
+                        {/* Efek (damage/heal/miss) + nama serangan monster - DI BAWAH,
+                            bukan nempel di sprite (biar gak nutupin monsternya). */}
+                        <div style={{ minHeight: 32, marginTop: 4 }}>
+                            {current.effect?.target === 'monster' && (
+                                <div
+                                    key={step}
+                                    style={{
+                                        fontFamily: 'var(--font-display)', fontWeight: 800,
+                                        fontSize: current.effect.is_critical ? '1.3rem' : '1rem',
+                                        color: current.effect.type === 'heal' ? '#4ad980' : current.effect.type === 'miss' ? '#c9c9c9' : '#ff5252',
+                                        textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                                    }}
+                                >
+                                    {current.effect.type === 'miss' ? 'MELESET' : current.effect.type === 'heal' ? `+${current.effect.value}` : `-${current.effect.value}`}
+                                    {current.effect.is_critical && '!'}
+                                </div>
+                            )}
+                            {current.is_monster_actor && current.effect?.skill_name && (
+                                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                                    {current.effect.skill_name}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Party - lebih kecil, di depan/bawah, dikroyok ke arah monster */}
-                    {battle.participants.map((p, i) => renderArenaFighter(p, i, p.character.user_id === currentUserId))}
+                    {/* Player - kiri, sendiri, agak besar. Efek muncul di sisi KANAN
+                        (ngarah ke monster). */}
+                    {mainFighter && renderFighter(
+                        mainFighter, battle.participants.indexOf(mainFighter), true,
+                        { bottom: '4%', left: '14%', transform: 'translateX(-50%)', width: '26%' },
+                        120, 'right',
+                    )}
+
+                    {/* NPC - kanan, ditumpuk (sampai 2), lebih kecil. Efek muncul di
+                        sisi KIRI (ngarah ke monster). */}
+                    {npcParticipants.map((p, i) => {
+                        const top = npcParticipants.length === 1 ? '58%' : (i === 0 ? '40%' : '72%');
+                        return renderFighter(
+                            p, battle.participants.indexOf(p), false,
+                            { top, left: '86%', transform: 'translate(-50%, -50%)', width: '18%' },
+                            80, 'left',
+                        );
+                    })}
                 </div>
 
                 {/* Mode Manual: panel HP/MP/SP + tombol skill (bukan log teks lagi -
@@ -588,8 +651,8 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
 
                     return (
                         <div className="rpg-card mb-3" style={{ '--accent': '#3f8c94', padding: '1rem' }}>
-                            <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.75rem' }}>Status Kamu</div>
-                            <div className="d-flex flex-column gap-1 mb-2">
+                            <div className="rpg-skill-group-title mb-1" style={{ fontSize: '0.75rem' }}>Status Kamu</div>
+                            <div className="d-flex flex-column gap-1">
                                 {rows.map(([label, cur, max, color]) => (
                                     <div className="d-flex align-items-center gap-2" key={label}>
                                         <span style={{ width: 26, fontSize: '0.65rem', color, fontFamily: 'var(--font-mono)' }}>{label}</span>

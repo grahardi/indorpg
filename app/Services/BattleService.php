@@ -633,7 +633,7 @@ class BattleService
             if ($justFainted) {
                 $msg .= " {$target->character->name} tumbang!";
             }
-            $log[] = $this->snapshot($battle, $msg, null, null, true, ['type' => 'damage', 'value' => $damage, 'target' => $target->character_id, 'is_critical' => false, 'is_ultimate' => false]);
+            $log[] = $this->snapshot($battle, $msg, null, null, true, ['type' => 'damage', 'value' => $damage, 'target' => $target->character_id, 'is_critical' => false, 'is_ultimate' => false, 'skill_name' => $skillName]);
 
             if (! $this->anyAlive($battle)) {
                 break;

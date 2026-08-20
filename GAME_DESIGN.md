@@ -1355,3 +1355,24 @@ Skill tier-3 (ultimate) sekarang dapet **glow emas berdenyut** (`rpg-ulti-pulse`
 Panel baru "Status Kamu" muncul di bawah arena (cuma mode Manual) — 3 bar (HP merah, SP oranye, MP ungu) lengkap sama angka current/max, plus `ManualSkillBar` (5 tombol skill icon + keybind letter di pojok, overlay angka cooldown, **abu-abu + grayscale filter** kalau lagi cooldown/gak affordable — jelas beda dari yang siap pakai).
 
 Tombol "Lewati" (skip animasi) disembunyikan di mode Manual (gak relevan, gak ada playback buat di-skip) — diganti tombol "🏳️ Menyerah" (flee) yang emang cuma relevan pas battle masih `ongoing`.
+
+---
+
+## 54. Fix Bug Battle Manual Stuck + Layout Arena Baru (Player-Monster-NPC 3 Kolom) (v7.7)
+
+### Fix bug penting: battle manual freeze kalau player diem
+**Laporan**: "stag tidak ada tindakan apa-apa, NPC gak menyerang monster juga". Root cause: `sendManualAction()` dulu CUMA ke-trigger dari klik/keyboard player - kalau player lagi mikir/gak ngapa-ngapain, NPC & monster IKUT diem total (gak ada mekanisme yang jalanin giliran mereka independen dari aksi player).
+
+**Fix**: polling otomatis tiap `skillActionDelay` detik (setting admin) - kirim `skillId=null` ("player skip giliran ini") ke `processManualTurn()`, yang tetap proses NPC (`autoPickSkill`) & monster (`executeMonsterTurn`) meskipun player belum milih skill apapun. Battle jalan terus walau player idle.
+
+### Layout arena baru: Player kiri - Monster tengah - NPC kanan (ditumpuk)
+Sebelumnya semua party (player+NPC) baris sejajar di bawah. Sekarang:
+- **Player** (karakter yang login) sendiri di **kiri**, agak besar
+- **Monster** di **tengah**, besar, HP bar di bawahnya, efek (damage/heal/miss) + nama serangan monster ditampilin **di bawah HP bar** (bukan nempel di sprite, biar gak nutupin)
+- **NPC** (sampai 2) ditumpuk di **kanan**, lebih kecil, otomatis deket monster (gak perlu tombol toggle posisi terpisah - emang defaultnya udah gitu di layout baru)
+
+**Floating damage/heal number** sekarang muncul di SISI karakter yang ngarah ke monster: Player (kiri layar) → teks di sisi **kanan** dia. NPC (kanan layar) → teks di sisi **kiri** dia. Backend `effect` dapet field baru `skill_name` (khusus serangan monster) buat ditampilin di bawah.
+
+### Penyesuaian HUD Manual
+- Ikon skill diperkecil (56px → 42px)
+- Spacing panel "Status Kamu" dirapatkan (HP/SP/MP bar lebih deket ke skill bar di bawahnya, gak ada gap besar lagi)
