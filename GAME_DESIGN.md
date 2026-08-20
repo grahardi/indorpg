@@ -1277,3 +1277,13 @@ Party level 16, bonus 3 → sekarang roll `random_int(13, 19)` — persis di sek
 
 ### Setting di-rename biar akurat
 `monster_max_level_bonus` → **`monster_level_variance`** (nama lama nyiratin "cuma nambah batas atas", padahal sekarang dipakai simetris buat batas atas MAUPUN bawah). Dipakai di 2 tempat: roll level monster (`BattleService`) dan gerbang level spawn point di Peta (`MapController`) — keduanya udah disamain ke nama baru. Setting lama otomatis dibuang pas `db:seed`.
+
+---
+
+## 49. Fix Bug: Gagal Bikin Monster Baru (kolom legacy NOT NULL) (v7.2)
+
+**Error**: `SQLSTATE[23502]: Not null violation ... null value in column "strong_against" of relation "monsters"` — gagal tiap kali bikin monster baru lewat `/admin/monsters`.
+
+**Root cause**: `strong_against`/`weak_against` kolom LAMA (1 pola string, sebelum sistem `weak_matchups`/`strong_matchups` di bagian 27) masih `NOT NULL` di database (dari migration awal), tapi `Admin\MonsterController::validated()` udah lama berhenti ngisi kedua kolom itu (fully digantikan sistem matchup baru). Insert monster baru = kedua kolom legacy itu gak pernah disertakan = Postgres nolak (NOT NULL constraint).
+
+**Fix**: migration baru, `ALTER TABLE monsters ALTER COLUMN ... DROP NOT NULL` (raw SQL, sengaja gak pakai `Schema::change()` biar gak butuh `doctrine/dbal` yang belum tentu ke-install). Kolom-kolom ini SENGAJA dibiarkan ada (bukan di-drop) buat jaga-jaga data historis, tapi sekarang boleh null — sesuai kondisi aslinya (udah gak dipakai kode manapun lagi).
