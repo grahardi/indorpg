@@ -103,11 +103,12 @@ class MonsterController extends Controller
             'skills_config.*.effect' => ['required', 'string', 'in:single,area'],
             'skills_config.*.can_stun' => ['boolean'],
             'skills_config.*.usage_ratio' => ['required', 'numeric', 'min:0', 'max:100'],
+            'skills_config.*.physical_ratio' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         if (isset($data['skills_config'])) {
             $data['skills_config'] = collect($data['skills_config'])
-                ->map(fn ($s) => [...$s, 'can_stun' => (bool) ($s['can_stun'] ?? false)])
+                ->map(fn ($s) => [...$s, 'can_stun' => (bool) ($s['can_stun'] ?? false), 'physical_ratio' => $s['physical_ratio'] ?? 100])
                 ->values()
                 ->all();
         }

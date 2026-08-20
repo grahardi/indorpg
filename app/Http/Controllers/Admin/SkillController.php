@@ -44,6 +44,7 @@ class SkillController extends Controller
             'tier' => ['required', 'integer', 'in:1,3'],
             'element_id' => ['nullable', 'exists:elements,id'],
             'scaling_stat' => ['required', 'string', 'in:physical,magic'],
+            'physical_ratio' => ['nullable', 'integer', 'min:0', 'max:100'],
             'combat_range' => ['required', 'string', 'in:close,range,area'],
             'stamina_cost' => ['required', 'integer', 'min:0'],
             'mana_cost' => ['required', 'integer', 'min:0'],

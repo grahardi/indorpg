@@ -17,6 +17,7 @@ export default function Form({ skill, elements }) {
         tier: skill.tier,
         element_id: skill.element_id ?? '',
         scaling_stat: skill.scaling_stat,
+        physical_ratio: skill.physical_ratio ?? null,
         combat_range: skill.combat_range,
         stamina_cost: skill.stamina_cost,
         mana_cost: skill.mana_cost,
@@ -69,6 +70,23 @@ export default function Form({ skill, elements }) {
                                     <option value="physical">Physical</option>
                                     <option value="magic">Magic</option>
                                 </select>
+                                <p className="text-secondary small mt-1 mb-0">
+                                    Dipakai kalau Physical % di bawah kosong (100% Physical kalau pilih Physical, 100% Magic kalau pilih Magic).
+                                </p>
+                            </Field>
+                        </div>
+                        <div className="col-md-6">
+                            <Field label="Physical % (opsional, campuran)">
+                                <input
+                                    type="number" min="0" max="100"
+                                    className={inputClass}
+                                    value={data.physical_ratio ?? ''}
+                                    placeholder={`kosong = ikut Scaling Stat (${data.scaling_stat === 'magic' ? '0' : '100'}%)`}
+                                    onChange={(e) => setData('physical_ratio', e.target.value === '' ? null : e.target.value)}
+                                />
+                                <p className="text-secondary small mt-1 mb-0">
+                                    Isi buat bikin campuran (misal 60 = 60% Physical + 40% Magic). Kosongin buat pakai Scaling Stat murni.
+                                </p>
                             </Field>
                         </div>
                         <div className="col-md-6">

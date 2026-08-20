@@ -1287,3 +1287,27 @@ Party level 16, bonus 3 → sekarang roll `random_int(13, 19)` — persis di sek
 **Root cause**: `strong_against`/`weak_against` kolom LAMA (1 pola string, sebelum sistem `weak_matchups`/`strong_matchups` di bagian 27) masih `NOT NULL` di database (dari migration awal), tapi `Admin\MonsterController::validated()` udah lama berhenti ngisi kedua kolom itu (fully digantikan sistem matchup baru). Insert monster baru = kedua kolom legacy itu gak pernah disertakan = Postgres nolak (NOT NULL constraint).
 
 **Fix**: migration baru, `ALTER TABLE monsters ALTER COLUMN ... DROP NOT NULL` (raw SQL, sengaja gak pakai `Schema::change()` biar gak butuh `doctrine/dbal` yang belum tentu ke-install). Kolom-kolom ini SENGAJA dibiarkan ada (bukan di-drop) buat jaga-jaga data historis, tapi sekarang boleh null — sesuai kondisi aslinya (udah gak dipakai kode manapun lagi).
+
+---
+
+## 50. Monster Selalu Pakai Skill (Physical/Magic Eksplisit) + Damage Campuran Persen (v7.3)
+
+### Masalah lama
+Serangan monster sebelumnya bisa "fallback" ke serangan generik yang nebak sendiri physical/magic dari perbandingan stat (`magic_damage > physical_damage`) — ambigu, gak jelas dari sisi desain skill.
+
+### Sekarang: monster SELALU nyerang lewat skill, physical/magic eksplisit
+- Setiap skill monster (`skills_config`) sekarang punya field **`physical_ratio`** (0-100, wajib diisi di admin, default 100=full physical). 0 = full magic, 100 = full physical, di antaranya = **campuran** (misal 60 = 60% physical + 40% magic, mitigasi damage juga dihitung campuran dari physical_defense+magic_defense target sesuai rasio yang sama).
+- `MonsterDefaultSkillSeeder` (baru) — jamin SEMUA monster (termasuk 12 monster dasar dari `MonsterSeeder`) punya minimal 1 skill eksplisit. Buat monster yang belum di-edit manual, `physical_ratio`-nya dihitung SEKALI dari perbandingan stat physical_damage vs magic_damage aslinya (bukan dihitung ulang tiap ronde kayak dulu — angkanya jadi TETAP, bukan ambigu).
+- Admin Monster Form: warning kalau list skill kosong ("monster ini gak bakal bisa nyerang sama sekali"), field baru "Physical %" per skill.
+
+### Skill karakter (player) juga bisa campuran
+`skills.physical_ratio` (nullable) ditambahkan sebagai REFINEMENT opsional di atas `scaling_stat` yang udah ada:
+- **Kosong** (default, semua 112 skill yang udah ada tetap kosong) → fallback ke `scaling_stat` lama (100% Physical kalau `scaling_stat='physical'`, 100% Magic kalau `'magic'`) — **gak ada yang berubah** buat skill existing, sesuai keputusan user ("pilih saja 100% pisik/magic, saya edit nanti").
+- **Diisi** (0-100) → override jadi campuran custom, admin bisa atur manual kapan aja di `/admin/skills`.
+
+### Formula damage campuran (dipakai konsisten player & monster)
+```
+offenseStat = physicalStat × (physical_ratio/100) + magicStat × (1 - physical_ratio/100)
+defenseStat = physicalDefense × (physical_ratio/100) + magicDefense × (1 - physical_ratio/100)
+```
+`Skill::resolvedPhysicalRatio()` — method helper yang nanganin fallback logic (physical_ratio eksplisit vs scaling_stat lama) di satu tempat, dipakai `BattleService` biar konsisten.

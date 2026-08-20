@@ -83,7 +83,7 @@ function MatchupSlots({ label, hint, slots, setSlots, elements, accent }) {
 
 function MonsterSkillsManager({ skills, setSkills }) {
     function addSkill() {
-        setSkills([...skills, { name: '', damage_ratio: 100, effect: 'single', can_stun: false, usage_ratio: 20 }]);
+        setSkills([...skills, { name: '', damage_ratio: 100, effect: 'single', can_stun: false, usage_ratio: 20, physical_ratio: 100 }]);
     }
 
     function updateSkill(i, field, value) {
@@ -105,16 +105,19 @@ function MonsterSkillsManager({ skills, setSkills }) {
                 </button>
             </div>
             <p className="text-secondary small mb-2">
-                Kalau kosong, monster cuma pakai serangan dasar. Tiap ronde, skill dicek berurutan pakai Skill Ratio-nya
-                (peluang % dipakai ronde itu) - kalau gak ada yang ke-roll, fallback ke serangan dasar.
+                Monster SELALU nyerang lewat skill di sini (minimal 1, wajib biar jelas physical/magic-nya - kalau
+                kosong monster otomatis dikasih 1 skill default pas seeding). Tiap ronde, skill dicek berurutan
+                pakai Skill Ratio-nya (peluang % dipakai ronde itu).
             </p>
             {skills.length === 0 && (
-                <p className="text-secondary small fst-italic">Belum ada skill custom.</p>
+                <p className="small fst-italic" style={{ color: '#c9a24b' }}>
+                    ⚠ Belum ada skill - monster ini gak bakal bisa nyerang sama sekali di battle. Tambah minimal 1.
+                </p>
             )}
             {skills.map((skill, i) => (
                 <div key={i} className="rpg-card mb-2" style={{ '--accent': '#c9a24b', padding: '0.85rem' }}>
                     <div className="row g-2 align-items-end">
-                        <div className="col-md-4">
+                        <div className="col-md-3">
                             <label className="rpg-stat-label d-block mb-1" style={{ fontSize: '0.65rem' }}>Nama Skill</label>
                             <input
                                 className="form-control form-control-sm bg-dark text-light border-secondary"
@@ -130,6 +133,17 @@ function MonsterSkillsManager({ skills, setSkills }) {
                                 className="form-control form-control-sm bg-dark text-light border-secondary"
                                 value={skill.damage_ratio}
                                 onChange={(e) => updateSkill(i, 'damage_ratio', e.target.value)}
+                            />
+                        </div>
+                        <div className="col-md-2">
+                            <label className="rpg-stat-label d-block mb-1" style={{ fontSize: '0.65rem' }}>
+                                Physical % <span className="text-secondary">(0=magic, 100=physical)</span>
+                            </label>
+                            <input
+                                type="number" min="0" max="100"
+                                className="form-control form-control-sm bg-dark text-light border-secondary"
+                                value={skill.physical_ratio ?? 100}
+                                onChange={(e) => updateSkill(i, 'physical_ratio', e.target.value)}
                             />
                         </div>
                         <div className="col-md-2">
@@ -162,7 +176,7 @@ function MonsterSkillsManager({ skills, setSkills }) {
                             />
                             <label className="form-check-label text-secondary" htmlFor={`stun-${i}`} style={{ fontSize: '0.65rem' }}>Stun</label>
                         </div>
-                        <div className="col-md-1 text-end">
+                        <div className="col-md-12 text-end">
                             <button type="button" onClick={() => removeSkill(i)} className="rpg-back-link" style={{ fontSize: '0.7rem', color: '#b8433a', borderColor: '#b8433a', background: 'none' }}>
                                 Hapus
                             </button>

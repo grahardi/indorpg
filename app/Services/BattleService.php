@@ -456,8 +456,11 @@ class BattleService
                     continue;
                 }
 
-                $scalingKey = $skill->scaling_stat === 'magic' ? 'magic_damage' : 'physical_damage';
-                $defenseStat = $skill->scaling_stat === 'magic' ? $stats['magic_defense'] : $stats['physical_defense'];
+                // Rasio campuran physical/magic (0-100) - kalau skill belum di-set
+                // physical_ratio manual, fallback ke scaling_stat lama (100%
+                // physical ATAU 100% magic, biar backward compatible).
+                $physicalRatio = $skill->resolvedPhysicalRatio() / 100;
+                $defenseStat = ($stats['physical_defense'] * $physicalRatio) + ($stats['magic_defense'] * (1 - $physicalRatio));
 
                 // BUG FIX PENTING: sebelumnya SELURUH offense stat (base + bonus
                 // stat point + bonus item) ikut dikaliin sama skillStats['multiplier']
@@ -473,11 +476,13 @@ class BattleService
                 if ($participant->npc_stat_snapshot) {
                     // NPC snapshot udah nilai final (NPC gak pernah punya stat point/item
                     // ekstra by design), jadi tetap dikaliin utuh apa adanya.
-                    $offenseStat = $this->combatStat($participant, $scalingKey);
+                    $offenseStat = ($this->combatStat($participant, 'physical_damage') * $physicalRatio)
+                        + ($this->combatStat($participant, 'magic_damage') * (1 - $physicalRatio));
                     $raw = $offenseStat * $skillStats['multiplier'];
                 } else {
-                    $baseStat = $scalingKey === 'magic_damage' ? $character->leveled_magic_damage : $character->leveled_physical_damage;
-                    $bonusStat = $character->{"bonus_{$scalingKey}"} + $character->itemBonus($scalingKey);
+                    $baseStat = ($character->leveled_physical_damage * $physicalRatio) + ($character->leveled_magic_damage * (1 - $physicalRatio));
+                    $bonusStat = (($character->bonus_physical_damage + $character->itemBonus('physical_damage')) * $physicalRatio)
+                        + (($character->bonus_magic_damage + $character->itemBonus('magic_damage')) * (1 - $physicalRatio));
                     $raw = ($baseStat * $skillStats['multiplier']) + $bonusStat;
                 }
 
@@ -564,15 +569,21 @@ class BattleService
                     $alive = $battle->participants->where('is_alive', true);
 
                     if ($alive->isNotEmpty()) {
-                        // Monster kadang pakai skill konfigurasi admin (nama, damage_ratio,
-                        // effect single/area, can_stun, usage_ratio - chance dipilih tiap
-                        // ronde), atau fallback ke serangan dasar kalau gak ada yang ke-roll.
+                        // Monster SELALU nyerang lewat skill (config admin: nama, damage_ratio,
+                        // effect single/area, can_stun, physical_ratio, usage_ratio - chance
+                        // dipilih tiap ronde). Semua monster dijamin punya minimal 1 skill
+                        // (seeder MonsterDefaultSkillSeeder) - gak ada lagi "serangan generik"
+                        // yang ambigu physical/magic-nya kayak dulu.
                         $monsterSkill = $this->pickMonsterSkill($monster);
                         $isArea = ($monsterSkill['effect'] ?? null) === 'area';
                         $targets = $isArea ? $alive : collect([$this->pickWeightedTarget($alive, $battle->frontman_character_id)]);
                         $skillName = $monsterSkill['name'] ?? null;
                         $damageRatio = $monsterSkill ? (float) ($monsterSkill['damage_ratio'] ?? 100) : 100;
                         $skillCanStun = (bool) ($monsterSkill['can_stun'] ?? false);
+                        // Dulu dideteksi otomatis (magic > physical), sekarang EKSPLISIT
+                        // dari config skill-nya - jelas tau ini serangan physical, magic,
+                        // atau campuran keduanya (0-100, biar gak ambigu lagi).
+                        $physicalRatio = ($monsterSkill ? (float) ($monsterSkill['physical_ratio'] ?? 100) : 100) / 100;
                         $verb = $skillName ? "pakai {$skillName} ke" : 'menyerang';
 
                         foreach ($targets as $target) {
@@ -586,9 +597,8 @@ class BattleService
                                 continue;
                             }
 
-                            $useMagic = $stats['magic_damage'] > $stats['physical_damage'];
-                            $offenseStat = $useMagic ? $stats['magic_damage'] : $stats['physical_damage'];
-                            $defenseStat = $useMagic ? $this->combatStat($target, 'magic_defense') : $this->combatStat($target, 'physical_defense');
+                            $offenseStat = ($stats['physical_damage'] * $physicalRatio) + ($stats['magic_damage'] * (1 - $physicalRatio));
+                            $defenseStat = ($this->combatStat($target, 'physical_defense') * $physicalRatio) + ($this->combatStat($target, 'magic_defense') * (1 - $physicalRatio));
 
                             $raw = $offenseStat * ($damageRatio / 100);
                             $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
