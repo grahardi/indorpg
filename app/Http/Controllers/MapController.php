@@ -27,7 +27,7 @@ class MapController extends Controller
         $playerMaxLevel = auth()->check()
             ? (Character::where('user_id', auth()->id())->max('level') ?? 1)
             : 1;
-        $bonus = GameSetting::getInt('monster_max_level_bonus', 3);
+        $bonus = GameSetting::getInt('monster_level_variance', 3);
 
         $spawnPoints = $map->spawnPoints()
             ->with(['monsters' => function ($q) {
@@ -62,7 +62,7 @@ class MapController extends Controller
     public function explore(SpawnPoint $spawnPoint): RedirectResponse
     {
         $playerMaxLevel = Character::where('user_id', auth()->id())->max('level') ?? 1;
-        $bonus = GameSetting::getInt('monster_max_level_bonus', 3);
+        $bonus = GameSetting::getInt('monster_level_variance', 3);
 
         if (($playerMaxLevel + $bonus) < $spawnPoint->min_monster_level) {
             return back()->with('explore_result', [

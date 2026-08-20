@@ -97,12 +97,22 @@ class BattleService
      * admin). Kalau level dasar monster udah lebih tinggi dari batas atas itu,
      * ya pakai level dasarnya aja (gak pernah di-downgrade).
      */
+    /**
+     * BUG FIX: sebelumnya roll dari $monster->level (base, SELALU 1 sekarang)
+     * sampai $partyMaxLevel+$bonus - rentangnya kelewat lebar. Party level 16
+     * misalnya, roll random_int(1, 19) BISA aja keluar level 3 (trivial banget,
+     * "langsung KO" sesuai laporan user) walau party udah tinggi. Fix: range-nya
+     * simetris di SEKITAR level party (party-bonus sampai party+bonus), persis
+     * kayak pola NPC (partyMaxLevel ± variance) - clamp minimal ke level dasar
+     * monster (biasanya 1) biar gak pernah di bawah nol/negatif.
+     */
     private function rollMonsterLevel(Monster $monster, int $partyMaxLevel): int
     {
-        $bonus = GameSetting::getInt('monster_max_level_bonus', 3);
+        $bonus = GameSetting::getInt('monster_level_variance', 3);
+        $minLevel = max($monster->level, $partyMaxLevel - $bonus);
         $maxLevel = max($monster->level, $partyMaxLevel + $bonus);
 
-        return random_int($monster->level, $maxLevel);
+        return random_int($minLevel, $maxLevel);
     }
 
     /**

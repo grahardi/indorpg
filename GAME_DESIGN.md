@@ -1257,3 +1257,23 @@ base_sp = leveled_physical_damage + leveled_physical_defense
 `leveled_X` = subclass base + level growth **doang**, TANPA bonus stat point atau item dari stat itu. Sekarang pool HP/MP/SP cuma naik dari **level**, gak ikut kebawa investasi ke stat combat lain. Item dengan `effect_stat='hp'` spesifik (dari bagian 39-40) **tetap** nambah HP langsung — itu emang tujuan dedicated-nya, beda dari efek tidak langsung yang barusan dihapus.
 
 Gak ada tempat lain di codebase yang pakai pola formula sama (dicek grep), jadi fix ini cukup di 1 titik.
+
+---
+
+## 56. Fix Bug Kritis: Rentang Roll Level Monster Gak Simetris (v7.9)
+
+User laporkan: party level 16, monster keluar level 3 — instan KO, padahal setting-nya "-3/+3".
+
+### Root cause
+`rollMonsterLevel()` roll dari `$monster->level` (base, SELALU 1 sekarang) sampai `$partyMaxLevel + $bonus` — rentangnya **kelewat lebar ke bawah**. Party level 16 + bonus 3 = `random_int(1, 19)`, yang artinya monster BISA aja ke-roll level 3 (atau bahkan level 1) walau party udah tinggi banget, karena batas bawahnya gak pernah ngikutin level party sama sekali.
+
+### Fix: rentang simetris di sekitar level party
+```php
+$minLevel = max($monster->level, $partyMaxLevel - $bonus);
+$maxLevel = max($monster->level, $partyMaxLevel + $bonus);
+return random_int($minLevel, $maxLevel);
+```
+Party level 16, bonus 3 → sekarang roll `random_int(13, 19)` — persis di sekitar level party, gak pernah jauh ke bawah lagi. Pola ini disamain sama cara NPC ngatur levelnya (`partyMaxLevel ± variance`, udah bener dari awal).
+
+### Setting di-rename biar akurat
+`monster_max_level_bonus` → **`monster_level_variance`** (nama lama nyiratin "cuma nambah batas atas", padahal sekarang dipakai simetris buat batas atas MAUPUN bawah). Dipakai di 2 tempat: roll level monster (`BattleService`) dan gerbang level spawn point di Peta (`MapController`) — keduanya udah disamain ke nama baru. Setting lama otomatis dibuang pas `db:seed`.
