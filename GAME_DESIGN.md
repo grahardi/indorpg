@@ -1448,3 +1448,13 @@ Bukan bug di engine skill-nya, tapi soal **urutan giliran**. Party dari Guild se
 
 ### Upload GIF di Skill Editor
 `/admin/skills/{id}/edit` sekarang punya section "Animasi Skill (GIF)" - upload langsung dari form (fetch(), gak reload halaman), preview GIF yang udah ke-upload, tombol "Ganti GIF" buat replace. Disimpen ke `public/images/skills/animations/skill-{id}.gif`, update `skills.animation_path` otomatis.
+
+---
+
+## 59. Fix Cooldown Skill/Ulti Jadi Countdown Real-Time (v8.2)
+
+**Laporan**: "cooldown system untuk skill tidak berjalan, ini cooldown ulti juga tidak real time, nunggu ada serangan [baru update]".
+
+**Root cause**: logic cooldown-nya sendiri sebenarnya udah bener (dihitung dari waktu asli sejak battle mulai, lihat bagian 56) — masalahnya di **tampilan**. `nowSeconds` di `ManualSkillBar` cuma dihitung ULANG setiap kali komponen re-render, dan komponen ini cuma re-render kalau ada respons server baru (abis klik skill, atau auto-poll tiap `skill_action_delay` detik). Di ANTARA respons-respons itu, angka cooldown yang ditampilin BEKU — gak keliatan ngitung mundur beneran walau di belakang layar udah jalan bener.
+
+**Fix**: `ManualSkillBar` sekarang punya timer sendiri (`setInterval` 1 detik) yang maksa komponen re-render tiap detik, independen dari kapan server ngirim update. Countdown-nya sekarang beneran "ngitung mundur detik demi detik" kayak yang diharapkan — berlaku sama buat skill biasa MAUPUN ultimate.

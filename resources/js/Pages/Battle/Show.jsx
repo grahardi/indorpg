@@ -17,6 +17,19 @@ function Bar({ current, max, color }) {
 // Bar skill icon buat mode Manual - 5 tombol (4 skill biasa + 1 ulti), overlay
 // cooldown (angka detik/tick sisa), abu-abu kalau gak affordable/lagi cooldown.
 function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings }) {
+    // BUG FIX: sebelumnya nowSeconds cuma ke-hitung SEKALI tiap kali parent
+    // re-render (yaitu abis ada respons server baru - klik skill atau
+    // auto-poll). Di antara itu, angka cooldown-nya BEKU, gak keliatan
+    // "ngitung mundur" beneran walau logic-nya sebenernya udah bener di
+    // belakang layar. Fix: tick sendiri tiap 1 detik (independen dari kapan
+    // parent re-render), biar keliatan real countdown - berlaku sama buat
+    // skill biasa MAUPUN ultimate.
+    const [, forceTick] = useState(0);
+    useEffect(() => {
+        const interval = setInterval(() => forceTick((t) => t + 1), 1000);
+        return () => clearInterval(interval);
+    }, []);
+
     if (!participant) return null;
 
     const loadout = (participant.character.subclass?.skills ?? [])
