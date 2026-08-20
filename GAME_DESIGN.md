@@ -1331,3 +1331,27 @@ defenseStat = physicalDefense × (physical_ratio/100) + magicDefense × (1 - phy
 **Root cause**: `MonsterDefaultSkillSeeder` (bagian 50) pakai `->orWhere('skills_config', '[]')` buat ngecek monster dengan skill kosong. Kolom `skills_config` tipenya `json` (bukan `jsonb`) di Postgres — tipe `json` **gak dukung operator `=`** langsung buat perbandingan, cuma `jsonb` yang bisa. Laravel nerjemahin `->orWhere()` biasa jadi SQL `=` mentah, Postgres nolak.
 
 **Fix**: ganti pakai `whereJsonLength('skills_config', 0)` — method Laravel yang khusus buat ngecek panjang array JSON, diterjemahin ke fungsi `json_array_length()` yang emang didukung tipe `json` di Postgres (bukan operator `=` biasa).
+
+---
+
+## 53. Battle Log Dihapus Total → Damage Number Floating + Reposisi HP Bar + HUD Manual (v7.6)
+
+### Battle log teks dihapus, ganti animasi visual
+Sebelumnya ada box scroll teks "Battle Log" di bawah arena. Sekarang **dihapus total** — feedback battle sepenuhnya visual:
+- **Damage number floating**: "-100" merah muncul di atas target yang kena, melayang naik & fade (CSS keyframe `rpg-float-up`, 1.1 detik)
+- **Heal**: "+50" hijau, format sama
+- **Miss**: teks "MELESET" abu-abu kecil
+- **Critical**: font lebih besar + tanda seru
+
+Backend `snapshot()` sekarang punya field `effect` terstruktur (`type`, `value`, `target`, `is_critical`, `is_ultimate`) — bukan cuma teks lagi, biar frontend gampang render animasi tanpa parsing string.
+
+### HP bar dipindah ke bawah sprite
+Sebelumnya HP bar di ATAS nama+sprite (deket kepala). Sekarang dipindah ke **bawah sprite** — berlaku buat semua karakter/NPC party maupun monster.
+
+### Animasi Ultimate dibedain (bukan cuma warna)
+Skill tier-3 (ultimate) sekarang dapet **glow emas berdenyut** (`rpg-ulti-pulse`, CSS keyframe animasi filter drop-shadow) di sekitar sprite pas dipakai — beda total dari skill biasa, gak cuma soal warna GIF-nya doang.
+
+### HUD Mode Manual: HP/MP/SP + skill bar
+Panel baru "Status Kamu" muncul di bawah arena (cuma mode Manual) — 3 bar (HP merah, SP oranye, MP ungu) lengkap sama angka current/max, plus `ManualSkillBar` (5 tombol skill icon + keybind letter di pojok, overlay angka cooldown, **abu-abu + grayscale filter** kalau lagi cooldown/gak affordable — jelas beda dari yang siap pakai).
+
+Tombol "Lewati" (skip animasi) disembunyikan di mode Manual (gak relevan, gak ada playback buat di-skip) — diganti tombol "🏳️ Menyerah" (flee) yang emang cuma relevan pas battle masih `ongoing`.

@@ -46,10 +46,11 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
                         title={`${skill.name} (${skill.mana_cost} MP / ${skill.stamina_cost} SP)`}
                         style={{
                             position: 'relative', width: 56, height: 56, borderRadius: 10,
-                            background: skill.tier === 3 ? 'rgba(201,162,75,0.15)' : 'var(--bg-panel-hover)',
-                            border: `2px solid ${skill.tier === 3 ? '#c9a24b' : 'var(--border-subtle)'}`,
-                            opacity: usable ? 1 : 0.4, cursor: usable ? 'pointer' : 'not-allowed',
+                            background: !usable ? '#3a3d4a' : skill.tier === 3 ? 'rgba(201,162,75,0.15)' : 'var(--bg-panel-hover)',
+                            border: `2px solid ${!usable ? '#5b6178' : skill.tier === 3 ? '#c9a24b' : 'var(--border-subtle)'}`,
+                            opacity: usable ? 1 : 0.55, cursor: usable ? 'pointer' : 'not-allowed',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                            filter: usable ? 'none' : 'grayscale(0.8)',
                         }}
                     >
                         {skill.icon_path ? (
@@ -83,6 +84,33 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
     );
 }
 
+// Angka damage/heal/miss yang muncul sesaat lalu melayang naik & fade -
+// gantiin battle log teks yang dihapus total. Key harus BEDA tiap kali effect
+// baru muncul (biar React remount & animasi replay dari awal).
+function FloatingNumber({ effect, animKey }) {
+    if (!effect || !['damage', 'miss', 'heal'].includes(effect.type)) return null;
+    const isHeal = effect.type === 'heal';
+    const isMiss = effect.type === 'miss';
+    const color = isHeal ? '#4ad980' : isMiss ? '#c9c9c9' : '#ff5252';
+    const text = isMiss ? 'MELESET' : isHeal ? `+${effect.value}` : `-${effect.value}`;
+
+    return (
+        <div
+            key={animKey}
+            className="rpg-floating-number"
+            style={{
+                position: 'absolute', top: '-6%', left: '50%',
+                fontFamily: 'var(--font-display)', fontWeight: 800,
+                fontSize: isMiss ? '0.85rem' : effect.is_critical ? '1.5rem' : '1.1rem',
+                color, textShadow: '0 2px 4px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.7)',
+                zIndex: 9, pointerEvents: 'none', whiteSpace: 'nowrap',
+            }}
+        >
+            {text}{effect.is_critical && '!'}
+        </div>
+    );
+}
+
 export default function Show({ battle: initialBattle, battleBackground, keyBindings = {}, skillActionDelay = 2 }) {
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
@@ -111,7 +139,6 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     const [userSkipped, setUserSkipped] = useState(false);
     const timerRef = useRef(null);
     const finishedSoundPlayed = useRef(false);
-    const logBoxRef = useRef(null);
 
     // Status yang beneran ditampilin - kalau user klik Lewati, dianggap
     // "menyerah" (gak nunggu hasil), TERLEPAS dari status asli battle di
@@ -144,15 +171,6 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
         return () => clearTimeout(timerRef.current);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step, log.length, intervalMs, isManual, battle.status]);
-
-    // Auto-scroll KE DALAM box log doang (bukan scrollIntoView, yang ternyata
-    // ikut nge-scroll seluruh halaman kalau box-nya deket tepi viewport) -
-    // biar posisi halaman/toolbar gak ikut geser tiap baris log baru muncul.
-    useEffect(() => {
-        if (logBoxRef.current) {
-            logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
-        }
-    }, [step]);
 
     // Trigger efek suara sesuai isi baris log yang baru muncul.
     useEffect(() => {
@@ -250,7 +268,6 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     }, [isManual, battle.participants, acting]);
 
     const current = log[step] || { monster_hp: battle.monster_current_hp, participants: {} };
-    const visibleLog = log.slice(0, step + 1);
 
     // Skill animation (GIF) yang lagi aktif di step ini, kalau skill yang dipakai
     // punya animation_path. Ilang otomatis pas step ganti (gak di-track manual).
@@ -260,18 +277,9 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
         if (!participant) return null;
         const skill = participant.character.subclass?.skills?.find((s) => s.id === current.skill_id);
         if (!skill?.animation_path) return null;
-        return { path: skill.animation_path, characterId: current.actor_character_id };
+        return { path: skill.animation_path, characterId: current.actor_character_id, isUltimate: skill.tier === 3 };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step]);
-
-    function logLineColor(text) {
-        const map = { [monster.name]: MONSTER_COLOR };
-        battle.participants.forEach((p, i) => {
-            map[p.character.name] = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
-        });
-        const speaker = Object.keys(map).find((name) => text.startsWith(name));
-        return speaker ? map[speaker] : 'var(--text-secondary)';
-    }
 
     // Karakter "utama" buat layar hasil - punya user yang login, fallback ke yang pertama.
     const mainIndex = battle.participants.findIndex((p) => p.character.user_id === currentUserId);
@@ -451,9 +459,6 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         🛡 Frontman
                     </span>
                 )}
-                <div style={{ width: '75%', margin: '0 auto 3px' }}>
-                    <Bar current={live.hp} max={maxHp} color="#b8433a" />
-                </div>
                 <div
                     style={{
                         fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: live.is_alive ? pColor : '#5b6178',
@@ -462,25 +467,40 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                 >
                     {p.character.name}{p.npc_encounter_level ? ` Lv.${p.npc_encounter_level}` : ''} {!live.is_alive && '☠'}
                 </div>
-                {/* GIF gantiin pose idle pas skill dipakai (bukan numpuk) - ukuran &
-                    posisi udah di-sync sama kanvas 364x360 yang sama. */}
-                {isAnimating ? (
-                    <img
-                        src={activeAnimation.path}
-                        alt="skill"
-                        style={{ width: '100%', maxHeight: 110, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
-                    />
-                ) : idleImage ? (
-                    <img
-                        src={idleImage}
-                        alt={p.character.name}
-                        style={{ width: '100%', maxHeight: 110, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
-                    />
-                ) : (
-                    <div className="rpg-badge-hex mx-auto" style={{ '--accent': pColor, width: 44, height: 44, fontSize: '1rem' }}>
-                        {p.character.name.charAt(0)}
+                <div style={{ position: 'relative' }}>
+                    <FloatingNumber effect={current.effect?.target === p.character_id ? current.effect : null} animKey={step} />
+                    {/* GIF gantiin pose idle pas skill dipakai (bukan numpuk) - ukuran &
+                        posisi udah di-sync sama kanvas 364x360 yang sama. Ulti dikasih
+                        glow emas berdenyut, beda dari skill biasa (bukan cuma warna). */}
+                    <div
+                        style={isAnimating && activeAnimation.isUltimate ? {
+                            filter: 'drop-shadow(0 0 14px rgba(201,162,75,0.9)) drop-shadow(0 0 4px rgba(255,255,255,0.6))',
+                            animation: 'rpg-ulti-pulse 0.5s ease-in-out infinite alternate',
+                        } : undefined}
+                    >
+                        {isAnimating ? (
+                            <img
+                                src={activeAnimation.path}
+                                alt="skill"
+                                style={{ width: '100%', maxHeight: 110, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
+                            />
+                        ) : idleImage ? (
+                            <img
+                                src={idleImage}
+                                alt={p.character.name}
+                                style={{ width: '100%', maxHeight: 110, objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
+                            />
+                        ) : (
+                            <div className="rpg-badge-hex mx-auto" style={{ '--accent': pColor, width: 44, height: 44, fontSize: '1rem' }}>
+                                {p.character.name.charAt(0)}
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
+                {/* HP bar dipindah ke BAWAH sprite (sebelumnya di atas kepala). */}
+                <div style={{ width: '75%', margin: '3px auto 0' }}>
+                    <Bar current={live.hp} max={maxHp} color="#b8433a" />
+                </div>
             </div>
         );
     }
@@ -517,9 +537,6 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                                 ⚡
                             </div>
                         )}
-                        <div style={{ width: '65%', margin: '0 auto 3px' }}>
-                            <Bar current={current.monster_hp} max={monsterMaxHp} color={MONSTER_COLOR} />
-                        </div>
                         <div
                             style={{
                                 fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: MONSTER_COLOR,
@@ -528,32 +545,75 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         >
                             {monster.name} · Lv.{monsterLevel}
                         </div>
-                        {monster.full_body_path ? (
-                            <img
-                                src={monster.full_body_path}
-                                alt={monster.name}
-                                style={{ width: '100%', maxHeight: 190, objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }}
-                            />
-                        ) : (
-                            <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
-                                {monster.name.charAt(0)}
-                            </div>
-                        )}
+                        <div style={{ position: 'relative' }}>
+                            <FloatingNumber effect={current.effect?.target === 'monster' ? current.effect : null} animKey={step} />
+                            {monster.full_body_path ? (
+                                <img
+                                    src={monster.full_body_path}
+                                    alt={monster.name}
+                                    style={{ width: '100%', maxHeight: 190, objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }}
+                                />
+                            ) : (
+                                <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
+                                    {monster.name.charAt(0)}
+                                </div>
+                            )}
+                        </div>
+                        {/* HP bar dipindah ke BAWAH sprite (sebelumnya di atas). */}
+                        <div style={{ width: '65%', margin: '3px auto 0' }}>
+                            <Bar current={current.monster_hp} max={monsterMaxHp} color={MONSTER_COLOR} />
+                        </div>
                     </div>
 
                     {/* Party - lebih kecil, di depan/bawah, dikroyok ke arah monster */}
                     {battle.participants.map((p, i) => renderArenaFighter(p, i, p.character.user_id === currentUserId))}
                 </div>
 
-                {/* Battle Log */}
-                <div className="rpg-skill-group-title">Battle Log</div>
-                <div ref={logBoxRef} className="rpg-card" style={{ '--accent': '#8890a4', fontSize: '0.85rem', height: 300, overflowY: 'auto' }}>
-                    {visibleLog.map((entry, i) => (
-                        <p key={i} className="mb-1" style={{ color: logLineColor(entry.text) }}>{entry.text}</p>
-                    ))}
-                </div>
+                {/* Mode Manual: panel HP/MP/SP + tombol skill (bukan log teks lagi -
+                    semua feedback lewat animasi damage number floating di atas). */}
+                {isManual && (() => {
+                    const myParticipant = battle.participants.find((p) => p.character.user_id === currentUserId);
+                    if (!myParticipant) return null;
+                    const live = current.participants[myParticipant.character_id] || {
+                        hp: myParticipant.current_hp, stamina: myParticipant.current_stamina, mana: myParticipant.current_mana,
+                    };
+                    const maxHp = myParticipant.character.effective_base_hp;
+                    const maxSp = myParticipant.character.effective_base_sp;
+                    const maxMp = myParticipant.character.effective_base_mp;
+                    const rows = [
+                        ['HP', live.hp, maxHp, '#b8433a'],
+                        ['SP', live.stamina, maxSp, '#c98a3a'],
+                        ['MP', live.mana, maxMp, '#7269d1'],
+                    ];
 
-                {/* Toolbar di bawah - bukan di atas, biar gak ketutup pas battle log auto-scroll */}
+                    return (
+                        <div className="rpg-card mb-3" style={{ '--accent': '#3f8c94', padding: '1rem' }}>
+                            <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.75rem' }}>Status Kamu</div>
+                            <div className="d-flex flex-column gap-1 mb-2">
+                                {rows.map(([label, cur, max, color]) => (
+                                    <div className="d-flex align-items-center gap-2" key={label}>
+                                        <span style={{ width: 26, fontSize: '0.65rem', color, fontFamily: 'var(--font-mono)' }}>{label}</span>
+                                        <div className="flex-grow-1"><Bar current={cur} max={max} color={color} /></div>
+                                        <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', width: 64, textAlign: 'right' }}>
+                                            {cur}/{max}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            <ManualSkillBar
+                                participant={myParticipant}
+                                battle={battle}
+                                onUseSkill={sendManualAction}
+                                disabled={acting || battle.status !== 'ongoing'}
+                                keyBindings={keyBindings}
+                                skillActionDelay={skillActionDelay}
+                            />
+                        </div>
+                    );
+                })()}
+
+                {/* Toolbar - Suara selalu ada, Lewati cuma relevan buat mode Auto (mode
+                    Manual gak ada "playback" yang bisa di-skip). */}
                 <div className="d-flex justify-content-center gap-2 mt-3">
                     <button
                         onClick={() => setSoundOn((s) => !s)}
@@ -565,7 +625,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                     >
                         {soundOn ? '🔊 Suara' : '🔇 Suara'}
                     </button>
-                    {!finished && (
+                    {!isManual && !finished && (
                         <button
                             onClick={skipToEnd}
                             className="btn btn-sm"
@@ -577,8 +637,33 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                             Lewati ▶▶
                         </button>
                     )}
+                    {isManual && battle.status === 'ongoing' && (
+                        <button
+                            onClick={() => router.post(route('battles.flee', battle.token))}
+                            className="btn btn-sm"
+                            style={{
+                                background: 'var(--bg-panel)', border: `1px solid ${MONSTER_COLOR}`,
+                                color: MONSTER_COLOR, borderRadius: 6, fontSize: '0.8rem', padding: '0.4rem 1rem', fontWeight: 600,
+                            }}
+                        >
+                            🏳️ Menyerah
+                        </button>
+                    )}
                 </div>
             </div>
+
+            {/* Animasi damage number & glow ultimate - inline style tag biar gak perlu file CSS terpisah. */}
+            <style>{`
+                @keyframes rpg-float-up {
+                    0% { transform: translate(-50%, 0); opacity: 1; }
+                    100% { transform: translate(-50%, -46px); opacity: 0; }
+                }
+                .rpg-floating-number { animation: rpg-float-up 1.1s ease-out forwards; }
+                @keyframes rpg-ulti-pulse {
+                    0% { filter: drop-shadow(0 0 8px rgba(201,162,75,0.7)) drop-shadow(0 0 2px rgba(255,255,255,0.5)); }
+                    100% { filter: drop-shadow(0 0 20px rgba(201,162,75,1)) drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
+                }
+            `}</style>
         </div>
     );
 }
