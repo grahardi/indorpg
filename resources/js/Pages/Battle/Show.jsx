@@ -594,8 +594,10 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-subtle)', marginBottom: '1rem',
                     }}
                 >
-                    {/* Monster - besar, tengah/atas */}
-                    <div style={{ position: 'absolute', top: '4%', left: '50%', transform: 'translateX(-50%)', width: '40%', textAlign: 'center' }}>
+                    {/* Monster - besar, tengah/atas. Digeser lebih ke atas & dikecilin
+                        dikit (dari sebelumnya) - biar ada ruang cukup di bawah buat
+                        mini-log gak ke-potong sama overflow:hidden arena. */}
+                    <div style={{ position: 'absolute', top: '1%', left: '50%', transform: 'translateX(-50%)', width: '38%', textAlign: 'center' }}>
                         {current.monster_hp > 0 && current.text?.includes(monster.name) && current.text?.includes('kena stun') && (
                             <div
                                 style={{
@@ -618,7 +620,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                             <img
                                 src={monster.full_body_path}
                                 alt={monster.name}
-                                style={{ width: '100%', maxHeight: 175, objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }}
+                                style={{ width: '100%', maxHeight: 145, objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }}
                             />
                         ) : (
                             <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
@@ -630,7 +632,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         </div>
                         {/* Efek (damage/heal/miss) + nama serangan monster - DI BAWAH,
                             bukan nempel di sprite (biar gak nutupin monsternya). */}
-                        <div style={{ minHeight: 32, marginTop: 4 }}>
+                        <div style={{ minHeight: 24, marginTop: 2 }}>
                             {current.effect?.target === 'monster' && (
                                 <div
                                     key={step}
@@ -652,14 +654,17 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                             )}
                         </div>
                         {/* Mini-log - mirip battle log tapi cuma 1 baris terakhir, "ngambang"
-                            di sisa ruang kosong (bukan box gede kayak sebelumnya). */}
+                            di sisa ruang kosong (bukan box gede kayak sebelumnya). Dibatasi
+                            1 baris (whiteSpace nowrap + ellipsis) biar gak dorong konten
+                            di bawahnya keluar batas arena (overflow:hidden). */}
                         {current.text && (
                             <div
                                 key={`log-${step}`}
                                 style={{
-                                    fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
-                                    marginTop: 4, padding: '2px 8px', background: 'rgba(11,12,18,0.55)', borderRadius: 6,
+                                    fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
+                                    marginTop: 3, padding: '2px 8px', background: 'rgba(11,12,18,0.55)', borderRadius: 6,
                                     textShadow: '0 1px 2px rgba(0,0,0,0.9)', lineHeight: 1.3,
+                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                 }}
                             >
                                 {current.text}

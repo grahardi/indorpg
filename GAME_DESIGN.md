@@ -1458,3 +1458,13 @@ Bukan bug di engine skill-nya, tapi soal **urutan giliran**. Party dari Guild se
 **Root cause**: logic cooldown-nya sendiri sebenarnya udah bener (dihitung dari waktu asli sejak battle mulai, lihat bagian 56) — masalahnya di **tampilan**. `nowSeconds` di `ManualSkillBar` cuma dihitung ULANG setiap kali komponen re-render, dan komponen ini cuma re-render kalau ada respons server baru (abis klik skill, atau auto-poll tiap `skill_action_delay` detik). Di ANTARA respons-respons itu, angka cooldown yang ditampilin BEKU — gak keliatan ngitung mundur beneran walau di belakang layar udah jalan bener.
 
 **Fix**: `ManualSkillBar` sekarang punya timer sendiri (`setInterval` 1 detik) yang maksa komponen re-render tiap detik, independen dari kapan server ngirim update. Countdown-nya sekarang beneran "ngitung mundur detik demi detik" kayak yang diharapkan — berlaku sama buat skill biasa MAUPUN ultimate.
+
+---
+
+## 60. Fix Mini-Log Gak Kelihatan (Ke-potong Overflow Arena) (v8.3)
+
+**Laporan**: mini-log 1 baris (bagian 55) gak muncul di mode Manual.
+
+**Root cause**: kontainer arena punya `overflow: hidden` (buat sudut rounded background tetap rapi). Tumpukan konten di kolom monster (gambar + nama + HP bar + efek damage + nama skill + mini-log) kepanjangan secara vertikal, ngelewatin batas bawah arena — mini-log-nya KE-RENDER tapi ke-potong/gak kelihatan karena posisinya udah di luar area yang keliatan.
+
+**Fix**: gambar monster digeser ke atas dikit (`top: 4% → 1%`) dan dikecilin dikit (`maxHeight: 175 → 145`), area efek dirapatkan (`minHeight: 32 → 24`), mini-log dibatasi 1 baris tegas (`whiteSpace: nowrap` + `textOverflow: ellipsis`, gak bakal wrap ke 2 baris walau teksnya panjang) — total ruang vertikal yang dibutuhin lebih kecil, muat dalam batas arena.
