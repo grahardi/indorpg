@@ -1311,3 +1311,13 @@ offenseStat = physicalStat × (physical_ratio/100) + magicStat × (1 - physical_
 defenseStat = physicalDefense × (physical_ratio/100) + magicDefense × (1 - physical_ratio/100)
 ```
 `Skill::resolvedPhysicalRatio()` — method helper yang nanganin fallback logic (physical_ratio eksplisit vs scaling_stat lama) di satu tempat, dipakai `BattleService` biar konsisten.
+
+---
+
+## 51. Fix Bug: Gambar Map Gak Muncul (Maps/Show.jsx gak pernah baca background_path) (v7.4)
+
+**Laporan**: upload gambar map lewat admin berhasil, tapi pas buka halaman Peta tetap blank/hitam, cuma spawn point yang keliatan.
+
+**Root cause**: `Maps/Show.jsx` dari awal dibuat (v-lama, sebelum fitur upload background ada) pakai `background: 'radial-gradient(...)'` hardcode sebagai placeholder — dan **gak pernah diupdate** buat baca `map.background_path` pas fitur upload background ditambahin belakangan (bagian 32/38). Jadi biarpun `Admin\MapController::uploadBackground()` beneran nyimpen gambar & path-nya dengan benar ke database, halaman publik yang nampilin peta gak pernah pakai data itu.
+
+**Fix**: `Maps/Show.jsx` sekarang cek `map.background_path` — kalau ada, pakai `backgroundImage: url(...)` (`cover`, center); kalau belum di-upload, fallback ke gradient placeholder kayak sebelumnya.

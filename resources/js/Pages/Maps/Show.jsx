@@ -59,12 +59,16 @@ export default function Show({ map, spawnPoints }) {
                     </div>
                 )}
 
-                {/* Area peta - background placeholder sampai ada art peta beneran */}
+                {/* Area peta - pakai gambar yang di-upload admin (map.background_path),
+                    fallback ke gradient placeholder kalau belum ada gambar. */}
                 <div
                     style={{
                         position: 'relative',
                         aspectRatio: '16 / 9',
-                        background: 'radial-gradient(circle at 30% 20%, #1e2230, var(--bg-panel) 70%)',
+                        backgroundImage: map.background_path ? `url(${map.background_path})` : undefined,
+                        background: map.background_path ? undefined : 'radial-gradient(circle at 30% 20%, #1e2230, var(--bg-panel) 70%)',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
                         border: '1px solid var(--border-subtle)',
                         borderRadius: 12,
                         overflow: 'hidden',
