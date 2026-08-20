@@ -68,6 +68,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/encounters/{encounter}/select', [BattleController::class, 'select'])->name('encounters.select');
     Route::post('/encounters/{encounter}/start', [BattleController::class, 'start'])->name('encounters.start');
     Route::get('/battles/{battle}', [BattleController::class, 'show'])->name('battles.show');
+    Route::post('/battles/{battle}/act', [BattleController::class, 'act'])->name('battles.act');
     Route::post('/battles/{battle}/flee', [BattleController::class, 'flee'])->name('battles.flee');
 });
 

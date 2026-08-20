@@ -20,7 +20,7 @@ class BattleService
      * langsung auto-resolve sampai selesai (semi-auto: player cuma pilih party,
      * pertarungan jalan otomatis).
      */
-    public function startBattle(Encounter $encounter, array $characterIds, ?int $frontmanCharacterId = null): Battle
+    public function startBattle(Encounter $encounter, array $characterIds, ?int $frontmanCharacterId = null, string $mode = 'auto'): Battle
     {
         $monster = $encounter->monster;
         $characters = Character::with(['subclass.skills', 'skills', 'items'])->whereIn('id', $characterIds)->get();
@@ -45,6 +45,7 @@ class BattleService
             'status' => 'ongoing',
             'round_number' => 1,
             'battle_log' => [],
+            'mode' => in_array($mode, ['auto', 'manual']) ? $mode : 'auto',
         ]);
 
         foreach ($characters as $character) {
@@ -86,6 +87,16 @@ class BattleService
                 // NPC selalu mulai fresh (full HP), jadi selalu true.
                 'is_alive' => $character->is_npc ? true : $character->current_hp > 0,
             ]);
+        }
+
+        // Mode auto: sepenuhnya di-resolve server sekarang juga (kayak sebelumnya).
+        // Mode manual: battle-nya DIBIARKAN ongoing, player kontrol lewat
+        // BattleController::act() satu giliran per request HTTP.
+        if ($battle->mode === 'manual') {
+            $battle->battle_log = [$this->snapshot($battle, "{$monster->name} (Lv.{$battle->monster_level}) muncul menghadang!")];
+            $battle->save();
+
+            return $battle->fresh(['participants.character.subclass', 'monster']);
         }
 
         return $this->autoResolve($battle);
@@ -283,23 +294,357 @@ class BattleService
     }
 
     /**
-     * Jalankan seluruh battle otomatis dari awal sampai menang/kalah.
-     * Tiap step dicatat sebagai snapshot (HP monster + semua participant saat itu)
-     * biar frontend bisa "putar ulang" secara animasi.
+     * Satu participant pakai 1 skill - dipisah jadi method sendiri (dulu inline
+     * di loop) biar bisa dipanggil dari 2 tempat: auto-resolve (loop biasa)
+     * DAN mode manual (1 aksi per request HTTP dari player). Logic-nya PERSIS
+     * sama, gak ada yang berubah - cuma direlokasi biar reusable.
+     */
+    private function executeParticipantSkill(Battle $battle, BattleParticipant $participant, Skill $skill, array &$log): void
+    {
+        $monster = $battle->monster;
+        $stats = $battle->monster_stats;
+        $character = $participant->character;
+        $skillStats = $this->skillCombatStats($character, $skill);
+
+        $participant->current_stamina = max(0, $participant->current_stamina - $skillStats['stamina_cost']);
+        $participant->current_mana = max(0, $participant->current_mana - $skillStats['mana_cost']);
+
+        // === HEAL: gak nyerang monster sama sekali, nambah HP/MP/SP teman.
+        // Basis kekuatan heal = Magic Attack pemberi (sama kayak Buff -
+        // itu basis buff/serangan). combat_range='area' -> semua yang hidup
+        // ikut disembuhin, bukan cuma 1 target ===
+        if ($skill->buff_type === 'heal') {
+            $isAreaHeal = $skill->combat_range === 'area';
+            $targets = $isAreaHeal
+                ? $battle->participants->where('is_alive', true)
+                : collect([$this->pickHealTarget($battle, $skill)])->filter();
+
+            if ($targets->isEmpty()) {
+                $participant->save();
+                $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name}, tapi gak ada yang perlu disembuhin.", $character->id, $skill->id);
+
+                return;
+            }
+
+            // Sama kayak damage biasa: multiplier skill CUMA ngefek ke base
+            // Magic Attack (subclass+level), bonus stat point/item ditambah
+            // flat - biar gak numpuk perkalian sama growth level skill.
+            $healPower = $character->is_npc
+                ? $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier']
+                : ($character->leveled_magic_damage * $skillStats['multiplier']) + $character->bonus_magic_damage + $character->itemBonus('magic_damage');
+            $healAmount = max(1, (int) round($healPower));
+            $resource = $skill->heal_resource ?? 'hp';
+            $resourceLabel = strtoupper($resource);
+            $healedNames = [];
+
+            foreach ($targets as $target) {
+                [$before, $max] = $this->resourceLevel($target, $resource);
+                $after = min($max, $before + $healAmount);
+                $actualHeal = $after - $before;
+
+                match ($resource) {
+                    'mp' => $target->current_mana = $after,
+                    'sp' => $target->current_stamina = $after,
+                    default => $target->current_hp = $after,
+                };
+                $target->save();
+                $healedNames[] = "{$target->character->name} (+{$actualHeal})";
+            }
+            if (! $targets->contains('id', $participant->id)) {
+                $participant->save();
+            }
+
+            $namesText = implode(', ', $healedNames);
+            $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText} {$resourceLabel}", $character->id, $skill->id);
+
+            return;
+        }
+
+        // === BUFF: nambah daya serang ally buat serangan BERIKUTNYA
+        // (one-shot, dikonsumsi pas dia nyerang, abis itu reset). Basis
+        // kekuatan = Magic Attack pemberi buff (45 magic attack = +45%
+        // damage, biar Magic Attack ada gunanya buat karakter support
+        // juga, gak cuma buat nyerang langsung). combat_range='area' ->
+        // semua yang hidup kebagian buff. ===
+        if ($skill->buff_type === 'buff') {
+            $buffStat = $skill->buff_stat ?? 'attack';
+            $isAreaBuff = $skill->combat_range === 'area';
+            $alive = $battle->participants->where('is_alive', true);
+
+            if ($isAreaBuff) {
+                $targets = $alive;
+            } elseif ($buffStat === 'defense') {
+                // Buff defense single-target: prioritas ke yang HP-nya
+                // paling kepotong (paling butuh perlindungan).
+                $targets = collect([$this->pickHealTarget($battle, $skill)])->filter();
+            } else {
+                // Buff attack single-target: kasih ke attacker terkuat di party.
+                $targets = collect([$alive->sortByDesc(fn ($p) => $this->combatStat($p, 'physical_damage') + $this->combatStat($p, 'magic_damage'))->first()])->filter();
+            }
+
+            // Sama kayak damage/heal: multiplier skill CUMA ngefek ke base
+            // Magic Attack, bonus stat point/item ditambah flat.
+            $bonusPercent = $character->is_npc
+                ? $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier']
+                : ($character->leveled_magic_damage * $skillStats['multiplier']) + $character->bonus_magic_damage + $character->itemBonus('magic_damage');
+            $buffMultiplier = 1 + ($bonusPercent / 100);
+            $bonusRounded = round($bonusPercent);
+            $buffedNames = [];
+
+            foreach ($targets as $target) {
+                $target->buff_multiplier = $buffMultiplier;
+                $target->buff_stat = $buffStat;
+                $target->save();
+                $buffedNames[] = $target->character->name;
+            }
+            if (! $targets->contains('id', $participant->id)) {
+                $participant->save();
+            }
+
+            $namesText = implode(', ', $buffedNames);
+            $verb = $buffStat === 'defense' ? 'defense-nya naik' : 'serangan berikutnya';
+            $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText}: {$verb} +{$bonusRounded}%!", $character->id, $skill->id);
+
+            return;
+        }
+
+        // === NERF: gak nyerang langsung, cuma nge-debuff monster (hit
+        // BERIKUTNYA ke monster, siapapun yang mukul, kena dikali multiplier
+        // skill ini - one-shot, abis dipakai sekali langsung reset) ===
+        if ($skill->buff_type === 'nerf') {
+            $participant->save();
+            $battle->monster_debuff_multiplier = $skillStats['multiplier'];
+            $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name}: serangan berikutnya ke {$monster->name} jadi {$skillStats['multiplier']}x damage!", $character->id, $skill->id);
+
+            return;
+        }
+
+        // === SERANGAN BIASA (buff_type = 'none', default) ===
+        // Cek Accuracy (ofensif) vs evasion bawaan monster - bisa meleset total.
+        // Accuracy/critical GAK di-scale NPC (sama kayak monster: cuma power
+        // stat yang naik, bukan akurasi/crit).
+        $hitChance = max(50, min(99, 100 + $character->effective_accuracy - 90 - $monster->agility));
+        if (random_int(1, 100) > $hitChance) {
+            $participant->save();
+            $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!", $character->id, $skill->id);
+
+            return;
+        }
+
+        // Rasio campuran physical/magic (0-100) - kalau skill belum di-set
+        // physical_ratio manual, fallback ke scaling_stat lama (100%
+        // physical ATAU 100% magic, biar backward compatible).
+        $physicalRatio = $skill->resolvedPhysicalRatio() / 100;
+        $defenseStat = ($stats['physical_defense'] * $physicalRatio) + ($stats['magic_defense'] * (1 - $physicalRatio));
+
+        // BUG FIX PENTING: sebelumnya SELURUH offense stat (base + bonus
+        // stat point + bonus item) ikut dikaliin sama skillStats['multiplier']
+        // (yang levelnya sendiri udah naik dari level karakter). Efeknya 2
+        // sistem growth NUMPUK SECARA PERKALIAN (bukan cuma dijumlah) - kalau
+        // karakter udah invest banyak stat point + item (misal +44+68=112 dari
+        // total 175 Physical Attack), bonus segede itu ikut kelipatgandain sama
+        // skill multiplier juga, hasilnya damage meledak jauh di atas wajar.
+        // Fix: skill multiplier CUMA ngefek ke base stat (subclass + level
+        // growth doang), bonus stat point/item/elemental ditambah FLAT di luar
+        // perkalian - biar investasi ke stat point/item kerasa proporsional,
+        // gak ikut "digandakan" sama pertumbuhan level skill.
+        if ($participant->npc_stat_snapshot) {
+            // NPC snapshot udah nilai final (NPC gak pernah punya stat point/item
+            // ekstra by design), jadi tetap dikaliin utuh apa adanya.
+            $offenseStat = ($this->combatStat($participant, 'physical_damage') * $physicalRatio)
+                + ($this->combatStat($participant, 'magic_damage') * (1 - $physicalRatio));
+            $raw = $offenseStat * $skillStats['multiplier'];
+        } else {
+            $baseStat = ($character->leveled_physical_damage * $physicalRatio) + ($character->leveled_magic_damage * (1 - $physicalRatio));
+            $bonusStat = (($character->bonus_physical_damage + $character->itemBonus('physical_damage')) * $physicalRatio)
+                + (($character->bonus_magic_damage + $character->itemBonus('magic_damage')) * (1 - $physicalRatio));
+            $raw = ($baseStat * $skillStats['multiplier']) + $bonusStat;
+        }
+
+        // Item elemental (misal "+fire damage") - juga FLAT, gak ikut dikali
+        // multiplier skill (sama alasannya kayak bonus stat point/item di atas).
+        $raw += $character->elementalDamageBonus($skill->element_id);
+
+        $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
+
+        $note = '';
+        $matchupMultiplier = $monster->matchupMultiplier($skill->combat_range, $skill->element_id);
+        if ($matchupMultiplier > 1) {
+            $mitigated *= $matchupMultiplier;
+            $note = ' (Efektif!)';
+        } elseif ($matchupMultiplier < 1) {
+            $mitigated *= $matchupMultiplier;
+            $note = ' (Kurang efektif...)';
+        }
+
+        // Roll critical hit.
+        $isCrit = random_int(1, 100) <= $character->effective_critical_luck;
+        if ($isCrit) {
+            $mitigated *= (1 + $character->effective_critical_hit / 100);
+            $note .= ' CRITICAL!';
+        }
+
+        // Buff dari skill support sebelumnya (kalau ada) - one-shot,
+        // konsumsi begitu karakter ini nyerang, abis itu reset. Cuma
+        // buff tipe 'attack' yang kekonsumsi di sini (buff 'defense'
+        // dikonsumsi pas KENA serangan, bukan pas nyerang).
+        if ($participant->buff_multiplier && $participant->buff_stat !== 'defense') {
+            $mitigated *= (float) $participant->buff_multiplier;
+            $note .= ' (Buff!)';
+            $participant->buff_multiplier = null;
+            $participant->buff_stat = null;
+        }
+
+        // Debuff dari skill nerf sebelumnya (kalau ada) - one-shot, konsumsi
+        // langsung abis dipakai di sini, siapapun yang mukul duluan.
+        if ($battle->monster_debuff_multiplier) {
+            $mitigated *= (float) $battle->monster_debuff_multiplier;
+            $note .= ' (Lemah!)';
+            $battle->monster_debuff_multiplier = null;
+        }
+
+        $damage = max(1, (int) round($mitigated));
+        $battle->monster_current_hp = max(0, $battle->monster_current_hp - $damage);
+
+        // Stun - EVENT TERPISAH dari critical hit (roll sendiri, dice beda),
+        // cuma persentase peluangnya kebetulan sama (Critical Luck). Jadi bisa
+        // crit doang, stun doang, keduanya, atau gak dua-duanya - independen.
+        if ($skill->can_stun && $battle->monster_current_hp > 0) {
+            $isStun = random_int(1, 100) <= $character->effective_critical_luck;
+            if ($isStun) {
+                $battle->monster_stunned = true;
+                $note .= ' STUN!';
+            }
+        }
+
+        $participant->save();
+
+        $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: {$damage} damage ke {$monster->name}{$note}", $character->id, $skill->id);
+
+        if ($battle->monster_current_hp <= 0) {
+            $log[] = $this->snapshot($battle, "{$monster->name} kalah!");
+        }
+    }
+
+    /**
+     * Giliran monster nyerang - dipisah jadi method sendiri (dulu inline di
+     * loop), sama persis logic-nya, cuma direlokasi biar reusable dari mode
+     * manual juga.
+     */
+    private function executeMonsterTurn(Battle $battle, array &$log): void
+    {
+        $monster = $battle->monster;
+        $stats = $battle->monster_stats;
+
+        if ($battle->monster_stunned) {
+            // Kena stun dari skill player ronde ini -> skip nyerang balik.
+            $log[] = $this->snapshot($battle, "{$monster->name} kena stun, skip giliran!", null, null, true);
+            $battle->monster_stunned = false;
+
+            return;
+        }
+
+        // BUG FIX PENTING: sebelumnya pakai participants()->where(...)->get()
+        // yang query FRESH ke database, hasilnya instance PHP BEDA dari yang
+        // udah di-cache di $battle->participants. Fix: filter collection yang
+        // UDAH di-load (instance sama), bukan query baru.
+        $alive = $battle->participants->where('is_alive', true);
+
+        if ($alive->isEmpty()) {
+            return;
+        }
+
+        // Monster SELALU nyerang lewat skill (config admin: nama, damage_ratio,
+        // effect single/area, can_stun, physical_ratio, usage_ratio - chance
+        // dipilih tiap giliran). Semua monster dijamin punya minimal 1 skill
+        // (seeder MonsterDefaultSkillSeeder) - gak ada lagi "serangan generik"
+        // yang ambigu physical/magic-nya kayak dulu.
+        $monsterSkill = $this->pickMonsterSkill($monster);
+        $isArea = ($monsterSkill['effect'] ?? null) === 'area';
+        $targets = $isArea ? $alive : collect([$this->pickWeightedTarget($alive, $battle->frontman_character_id)]);
+        $skillName = $monsterSkill['name'] ?? null;
+        $damageRatio = $monsterSkill ? (float) ($monsterSkill['damage_ratio'] ?? 100) : 100;
+        $skillCanStun = (bool) ($monsterSkill['can_stun'] ?? false);
+        // Dulu dideteksi otomatis (magic > physical), sekarang EKSPLISIT
+        // dari config skill-nya - jelas tau ini serangan physical, magic,
+        // atau campuran keduanya (0-100, biar gak ambigu lagi).
+        $physicalRatio = ($monsterSkill ? (float) ($monsterSkill['physical_ratio'] ?? 100) : 100) / 100;
+        $verb = $skillName ? "pakai {$skillName} ke" : 'menyerang';
+
+        foreach ($targets as $target) {
+            $character = $target->character;
+
+            // Cek akurasi monster vs Evasion (defensif) karakter.
+            $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $character->effective_evasion));
+            if (random_int(1, 100) > $hitChance) {
+                $log[] = $this->snapshot($battle, "{$monster->name} {$verb} {$target->character->name}: MELESET!", null, null, true);
+
+                continue;
+            }
+
+            $offenseStat = ($stats['physical_damage'] * $physicalRatio) + ($stats['magic_damage'] * (1 - $physicalRatio));
+            $defenseStat = ($this->combatStat($target, 'physical_defense') * $physicalRatio) + ($this->combatStat($target, 'magic_defense') * (1 - $physicalRatio));
+
+            $raw = $offenseStat * ($damageRatio / 100);
+            $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
+
+            // Buff defense (kalau ada) - one-shot, konsumsi pas KENA
+            // serangan ini, ngurangin damage yang masuk.
+            $defenseBuffNote = '';
+            if ($target->buff_multiplier && $target->buff_stat === 'defense') {
+                $mitigated /= (float) $target->buff_multiplier;
+                $defenseBuffNote = ' (Terlindungi!)';
+                $target->buff_multiplier = null;
+                $target->buff_stat = null;
+            }
+
+            $damage = max(1, (int) round($mitigated));
+
+            $target->current_hp = max(0, $target->current_hp - $damage);
+            $justFainted = false;
+            if ($target->current_hp <= 0) {
+                $target->is_alive = false;
+                $justFainted = true;
+            } elseif ($skillCanStun) {
+                $target->is_stunned = true;
+            }
+            $target->save();
+
+            $msg = "{$monster->name} {$verb} {$target->character->name}: {$damage} damage{$defenseBuffNote}.";
+            if ($skillCanStun && ! $justFainted) {
+                $msg .= " {$target->character->name} kena stun!";
+            }
+            if ($justFainted) {
+                $msg .= " {$target->character->name} tumbang!";
+            }
+            $log[] = $this->snapshot($battle, $msg, null, null, true);
+
+            if (! $this->anyAlive($battle)) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * Jalankan seluruh battle otomatis dari awal sampai menang/kalah (mode
+     * AUTO). Tiap step dicatat sebagai snapshot biar frontend bisa "putar
+     * ulang" secara animasi. GAK BERBASIS RONDE SINKRON lagi secara konsep -
+     * "ronde" di sini cuma satuan waktu internal (dikontrol skill_action_delay
+     * admin), siapa aja bisa gerak begitu skill-nya gak cooldown, gak nunggu
+     * "giliran".
      */
     public function autoResolve(Battle $battle): Battle
     {
         $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'participants.character.skills', 'participants.character.items', 'monster']);
         $monster = $battle->monster;
-        $stats = $battle->monster_stats; // snapshot stat yang udah di-scale sesuai level encounter
 
         $log = [];
         $log[] = $this->snapshot($battle, "{$monster->name} (Lv.{$battle->monster_level}) muncul menghadang!");
 
-        $round = 1;
+        $tick = 1;
 
-        while ($battle->monster_current_hp > 0 && $this->anyAlive($battle) && $round <= self::MAX_ROUNDS) {
-            // Regen HP/stamina/mana tiap awal ronde, dibatasi pool max (snapshot
+        while ($battle->monster_current_hp > 0 && $this->anyAlive($battle) && $tick <= self::MAX_ROUNDS) {
+            // Regen HP/stamina/mana tiap awal tick, dibatasi pool max (snapshot
             // NPC kalau NPC, effective_* karakter kalau player).
             foreach ($battle->participants as $participant) {
                 if (! $participant->is_alive) {
@@ -316,336 +661,47 @@ class BattleService
                     continue;
                 }
 
-                // Kena stun dari skill monster ronde sebelumnya -> skip giliran, efek abis dipakai sekali.
+                // Kena stun dari skill monster sebelumnya -> skip giliran, efek abis dipakai sekali.
                 if ($participant->is_stunned) {
-                    $log[] = $this->snapshot($battle, "{$participant->character->name} kena stun, skip ronde!", $participant->character_id);
+                    $log[] = $this->snapshot($battle, "{$participant->character->name} kena stun, skip giliran!", $participant->character_id);
                     $participant->is_stunned = false;
                     $participant->save();
                     continue;
                 }
 
-                $skill = $this->autoPickSkill($battle, $participant, $round);
+                $skill = $this->autoPickSkill($battle, $participant, $tick);
                 if (! $skill) {
                     $log[] = $this->snapshot($battle, "{$participant->character->name} belum ada skill siap pakai, cuma bertahan.");
                     continue;
                 }
 
-                $character = $participant->character;
-                $skillStats = $this->skillCombatStats($character, $skill);
-
-                $participant->current_stamina = max(0, $participant->current_stamina - $skillStats['stamina_cost']);
-                $participant->current_mana = max(0, $participant->current_mana - $skillStats['mana_cost']);
-
-                // === HEAL: gak nyerang monster sama sekali, nambah HP/MP/SP teman.
-                // Basis kekuatan heal = Magic Attack pemberi (sama kayak Buff -
-                // itu basis buff/serangan). combat_range='area' -> semua yang hidup
-                // ikut disembuhin, bukan cuma 1 target ===
-                if ($skill->buff_type === 'heal') {
-                    $isAreaHeal = $skill->combat_range === 'area';
-                    $targets = $isAreaHeal
-                        ? $battle->participants->where('is_alive', true)
-                        : collect([$this->pickHealTarget($battle, $skill)])->filter();
-
-                    if ($targets->isEmpty()) {
-                        $participant->save();
-                        $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name}, tapi gak ada yang perlu disembuhin.", $character->id, $skill->id);
-                        continue;
-                    }
-
-                    // Sama kayak damage biasa: multiplier skill CUMA ngefek ke base
-                    // Magic Attack (subclass+level), bonus stat point/item ditambah
-                    // flat - biar gak numpuk perkalian sama growth level skill.
-                    $healPower = $character->is_npc
-                        ? $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier']
-                        : ($character->leveled_magic_damage * $skillStats['multiplier']) + $character->bonus_magic_damage + $character->itemBonus('magic_damage');
-                    $healAmount = max(1, (int) round($healPower));
-                    $resource = $skill->heal_resource ?? 'hp';
-                    $resourceLabel = strtoupper($resource);
-                    $healedNames = [];
-
-                    foreach ($targets as $target) {
-                        [$before, $max] = $this->resourceLevel($target, $resource);
-                        $after = min($max, $before + $healAmount);
-                        $actualHeal = $after - $before;
-
-                        match ($resource) {
-                            'mp' => $target->current_mana = $after,
-                            'sp' => $target->current_stamina = $after,
-                            default => $target->current_hp = $after,
-                        };
-                        $target->save();
-                        $healedNames[] = "{$target->character->name} (+{$actualHeal})";
-                    }
-                    if (! $targets->contains('id', $participant->id)) {
-                        $participant->save();
-                    }
-
-                    $namesText = implode(', ', $healedNames);
-                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText} {$resourceLabel}", $character->id, $skill->id);
-
-                    continue;
-                }
-
-                // === BUFF: nambah daya serang ally buat serangan BERIKUTNYA
-                // (one-shot, dikonsumsi pas dia nyerang, abis itu reset). Basis
-                // kekuatan = Magic Attack pemberi buff (45 magic attack = +45%
-                // damage, biar Magic Attack ada gunanya buat karakter support
-                // juga, gak cuma buat nyerang langsung). combat_range='area' ->
-                // semua yang hidup kebagian buff. ===
-                if ($skill->buff_type === 'buff') {
-                    $buffStat = $skill->buff_stat ?? 'attack';
-                    $isAreaBuff = $skill->combat_range === 'area';
-                    $alive = $battle->participants->where('is_alive', true);
-
-                    if ($isAreaBuff) {
-                        $targets = $alive;
-                    } elseif ($buffStat === 'defense') {
-                        // Buff defense single-target: prioritas ke yang HP-nya
-                        // paling kepotong (paling butuh perlindungan).
-                        $targets = collect([$this->pickHealTarget($battle, $skill)])->filter();
-                    } else {
-                        // Buff attack single-target: kasih ke attacker terkuat di party.
-                        $targets = collect([$alive->sortByDesc(fn ($p) => $this->combatStat($p, 'physical_damage') + $this->combatStat($p, 'magic_damage'))->first()])->filter();
-                    }
-
-                    // Sama kayak damage/heal: multiplier skill CUMA ngefek ke base
-                    // Magic Attack, bonus stat point/item ditambah flat.
-                    $bonusPercent = $character->is_npc
-                        ? $this->combatStat($participant, 'magic_damage') * $skillStats['multiplier']
-                        : ($character->leveled_magic_damage * $skillStats['multiplier']) + $character->bonus_magic_damage + $character->itemBonus('magic_damage');
-                    $buffMultiplier = 1 + ($bonusPercent / 100);
-                    $bonusRounded = round($bonusPercent);
-                    $buffedNames = [];
-
-                    foreach ($targets as $target) {
-                        $target->buff_multiplier = $buffMultiplier;
-                        $target->buff_stat = $buffStat;
-                        $target->save();
-                        $buffedNames[] = $target->character->name;
-                    }
-                    if (! $targets->contains('id', $participant->id)) {
-                        $participant->save();
-                    }
-
-                    $namesText = implode(', ', $buffedNames);
-                    $verb = $buffStat === 'defense' ? 'defense-nya naik' : 'serangan berikutnya';
-                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText}: {$verb} +{$bonusRounded}%!", $character->id, $skill->id);
-
-                    continue;
-                }
-
-                // === NERF: gak nyerang langsung, cuma nge-debuff monster (hit
-                // BERIKUTNYA ke monster, siapapun yang mukul, kena dikali multiplier
-                // skill ini - one-shot, abis dipakai sekali langsung reset) ===
-                if ($skill->buff_type === 'nerf') {
-                    $participant->save();
-                    $battle->monster_debuff_multiplier = $skillStats['multiplier'];
-                    $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name}: serangan berikutnya ke {$monster->name} jadi {$skillStats['multiplier']}x damage!", $character->id, $skill->id);
-
-                    continue;
-                }
-
-                // === SERANGAN BIASA (buff_type = 'none', default) ===
-                // Cek Accuracy (ofensif) vs evasion bawaan monster - bisa meleset total.
-                // Accuracy/critical GAK di-scale NPC (sama kayak monster: cuma power
-                // stat yang naik, bukan akurasi/crit).
-                $hitChance = max(50, min(99, 100 + $character->effective_accuracy - 90 - $monster->agility));
-                if (random_int(1, 100) > $hitChance) {
-                    $participant->save();
-                    $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!", $character->id, $skill->id);
-                    continue;
-                }
-
-                // Rasio campuran physical/magic (0-100) - kalau skill belum di-set
-                // physical_ratio manual, fallback ke scaling_stat lama (100%
-                // physical ATAU 100% magic, biar backward compatible).
-                $physicalRatio = $skill->resolvedPhysicalRatio() / 100;
-                $defenseStat = ($stats['physical_defense'] * $physicalRatio) + ($stats['magic_defense'] * (1 - $physicalRatio));
-
-                // BUG FIX PENTING: sebelumnya SELURUH offense stat (base + bonus
-                // stat point + bonus item) ikut dikaliin sama skillStats['multiplier']
-                // (yang levelnya sendiri udah naik dari level karakter). Efeknya 2
-                // sistem growth NUMPUK SECARA PERKALIAN (bukan cuma dijumlah) - kalau
-                // karakter udah invest banyak stat point + item (misal +44+68=112 dari
-                // total 175 Physical Attack), bonus segede itu ikut kelipatgandain sama
-                // skill multiplier juga, hasilnya damage meledak jauh di atas wajar.
-                // Fix: skill multiplier CUMA ngefek ke base stat (subclass + level
-                // growth doang), bonus stat point/item/elemental ditambah FLAT di luar
-                // perkalian - biar investasi ke stat point/item kerasa proporsional,
-                // gak ikut "digandakan" sama pertumbuhan level skill.
-                if ($participant->npc_stat_snapshot) {
-                    // NPC snapshot udah nilai final (NPC gak pernah punya stat point/item
-                    // ekstra by design), jadi tetap dikaliin utuh apa adanya.
-                    $offenseStat = ($this->combatStat($participant, 'physical_damage') * $physicalRatio)
-                        + ($this->combatStat($participant, 'magic_damage') * (1 - $physicalRatio));
-                    $raw = $offenseStat * $skillStats['multiplier'];
-                } else {
-                    $baseStat = ($character->leveled_physical_damage * $physicalRatio) + ($character->leveled_magic_damage * (1 - $physicalRatio));
-                    $bonusStat = (($character->bonus_physical_damage + $character->itemBonus('physical_damage')) * $physicalRatio)
-                        + (($character->bonus_magic_damage + $character->itemBonus('magic_damage')) * (1 - $physicalRatio));
-                    $raw = ($baseStat * $skillStats['multiplier']) + $bonusStat;
-                }
-
-                // Item elemental (misal "+fire damage") - juga FLAT, gak ikut dikali
-                // multiplier skill (sama alasannya kayak bonus stat point/item di atas).
-                $raw += $character->elementalDamageBonus($skill->element_id);
-
-                $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
-
-                $note = '';
-                $matchupMultiplier = $monster->matchupMultiplier($skill->combat_range, $skill->element_id);
-                if ($matchupMultiplier > 1) {
-                    $mitigated *= $matchupMultiplier;
-                    $note = ' (Efektif!)';
-                } elseif ($matchupMultiplier < 1) {
-                    $mitigated *= $matchupMultiplier;
-                    $note = ' (Kurang efektif...)';
-                }
-
-                // Roll critical hit.
-                $isCrit = random_int(1, 100) <= $character->effective_critical_luck;
-                if ($isCrit) {
-                    $mitigated *= (1 + $character->effective_critical_hit / 100);
-                    $note .= ' CRITICAL!';
-                }
-
-                // Buff dari skill support sebelumnya (kalau ada) - one-shot,
-                // konsumsi begitu karakter ini nyerang, abis itu reset. Cuma
-                // buff tipe 'attack' yang kekonsumsi di sini (buff 'defense'
-                // dikonsumsi pas KENA serangan, bukan pas nyerang).
-                if ($participant->buff_multiplier && $participant->buff_stat !== 'defense') {
-                    $mitigated *= (float) $participant->buff_multiplier;
-                    $note .= ' (Buff!)';
-                    $participant->buff_multiplier = null;
-                    $participant->buff_stat = null;
-                }
-
-                // Debuff dari skill nerf sebelumnya (kalau ada) - one-shot, konsumsi
-                // langsung abis dipakai di sini, siapapun yang mukul duluan.
-                if ($battle->monster_debuff_multiplier) {
-                    $mitigated *= (float) $battle->monster_debuff_multiplier;
-                    $note .= ' (Lemah!)';
-                    $battle->monster_debuff_multiplier = null;
-                }
-
-                $damage = max(1, (int) round($mitigated));
-                $battle->monster_current_hp = max(0, $battle->monster_current_hp - $damage);
-
-                // Stun - EVENT TERPISAH dari critical hit (roll sendiri, dice beda),
-                // cuma persentase peluangnya kebetulan sama (Critical Luck). Jadi bisa
-                // crit doang, stun doang, keduanya, atau gak dua-duanya - independen.
-                if ($skill->can_stun && $battle->monster_current_hp > 0) {
-                    $isStun = random_int(1, 100) <= $character->effective_critical_luck;
-                    if ($isStun) {
-                        $battle->monster_stunned = true;
-                        $note .= ' STUN!';
-                    }
-                }
-
-                $participant->save();
-
-                $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: {$damage} damage ke {$monster->name}{$note}", $character->id, $skill->id);
+                $this->executeParticipantSkill($battle, $participant, $skill, $log);
 
                 if ($battle->monster_current_hp <= 0) {
-                    $log[] = $this->snapshot($battle, "{$monster->name} kalah!");
                     break;
                 }
             }
 
             if ($battle->monster_current_hp > 0) {
-                if ($battle->monster_stunned) {
-                    // Kena stun dari skill player ronde ini -> skip nyerang balik.
-                    $log[] = $this->snapshot($battle, "{$monster->name} kena stun, skip ronde!", null, null, true);
-                    $battle->monster_stunned = false;
-                } else {
-                    // BUG FIX PENTING: sebelumnya pakai participants()->where(...)->get()
-                    // yang query FRESH ke database, hasilnya instance PHP BEDA dari yang
-                    // udah di-cache di $battle->participants. Jadi pas monster nyerang &
-                    // nge-set is_alive=false di instance "asing" itu, collection utama
-                    // yang dipakai loop ronde berikutnya (dan snapshot, dan anyAlive())
-                    // masih "basi" - tetap nganggep karakter itu hidup, jadi masih ikut
-                    // nyerang lagi DAN HP-nya ikut ke-regen balik. Fix: filter collection
-                    // yang UDAH di-load (instance sama), bukan query baru.
-                    $alive = $battle->participants->where('is_alive', true);
-
-                    if ($alive->isNotEmpty()) {
-                        // Monster SELALU nyerang lewat skill (config admin: nama, damage_ratio,
-                        // effect single/area, can_stun, physical_ratio, usage_ratio - chance
-                        // dipilih tiap ronde). Semua monster dijamin punya minimal 1 skill
-                        // (seeder MonsterDefaultSkillSeeder) - gak ada lagi "serangan generik"
-                        // yang ambigu physical/magic-nya kayak dulu.
-                        $monsterSkill = $this->pickMonsterSkill($monster);
-                        $isArea = ($monsterSkill['effect'] ?? null) === 'area';
-                        $targets = $isArea ? $alive : collect([$this->pickWeightedTarget($alive, $battle->frontman_character_id)]);
-                        $skillName = $monsterSkill['name'] ?? null;
-                        $damageRatio = $monsterSkill ? (float) ($monsterSkill['damage_ratio'] ?? 100) : 100;
-                        $skillCanStun = (bool) ($monsterSkill['can_stun'] ?? false);
-                        // Dulu dideteksi otomatis (magic > physical), sekarang EKSPLISIT
-                        // dari config skill-nya - jelas tau ini serangan physical, magic,
-                        // atau campuran keduanya (0-100, biar gak ambigu lagi).
-                        $physicalRatio = ($monsterSkill ? (float) ($monsterSkill['physical_ratio'] ?? 100) : 100) / 100;
-                        $verb = $skillName ? "pakai {$skillName} ke" : 'menyerang';
-
-                        foreach ($targets as $target) {
-                            $character = $target->character;
-
-                            // Cek akurasi monster vs Evasion (defensif) karakter.
-                            $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $character->effective_evasion));
-                            if (random_int(1, 100) > $hitChance) {
-                                $log[] = $this->snapshot($battle, "{$monster->name} {$verb} {$target->character->name}: MELESET!", null, null, true);
-
-                                continue;
-                            }
-
-                            $offenseStat = ($stats['physical_damage'] * $physicalRatio) + ($stats['magic_damage'] * (1 - $physicalRatio));
-                            $defenseStat = ($this->combatStat($target, 'physical_defense') * $physicalRatio) + ($this->combatStat($target, 'magic_defense') * (1 - $physicalRatio));
-
-                            $raw = $offenseStat * ($damageRatio / 100);
-                            $mitigated = max($raw - ($defenseStat * 0.5), $raw * 0.1);
-
-                            // Buff defense (kalau ada) - one-shot, konsumsi pas KENA
-                            // serangan ini, ngurangin damage yang masuk.
-                            $defenseBuffNote = '';
-                            if ($target->buff_multiplier && $target->buff_stat === 'defense') {
-                                $mitigated /= (float) $target->buff_multiplier;
-                                $defenseBuffNote = ' (Terlindungi!)';
-                                $target->buff_multiplier = null;
-                                $target->buff_stat = null;
-                            }
-
-                            $damage = max(1, (int) round($mitigated));
-
-                            $target->current_hp = max(0, $target->current_hp - $damage);
-                            $justFainted = false;
-                            if ($target->current_hp <= 0) {
-                                $target->is_alive = false;
-                                $justFainted = true;
-                            } elseif ($skillCanStun) {
-                                $target->is_stunned = true;
-                            }
-                            $target->save();
-
-                            $msg = "{$monster->name} {$verb} {$target->character->name}: {$damage} damage{$defenseBuffNote}.";
-                            if ($skillCanStun && ! $justFainted) {
-                                $msg .= " {$target->character->name} kena stun!";
-                            }
-                            if ($justFainted) {
-                                $msg .= " {$target->character->name} tumbang!";
-                            }
-                            $log[] = $this->snapshot($battle, $msg, null, null, true);
-
-                            if (! $this->anyAlive($battle)) {
-                                break;
-                            }
-                        }
-                    }
-                }
+                $this->executeMonsterTurn($battle, $log);
             }
 
-            $round++;
-            $battle->round_number = $round;
+            $tick++;
+            $battle->round_number = $tick;
         }
 
+        $this->finalizeBattle($battle, $log);
+
+        return $battle->fresh(['participants.character.subclass', 'monster']);
+    }
+
+    /**
+     * Selesain battle - cek menang/kalah/timeout, kasih reward, full-heal
+     * party. Dipisah dari autoResolve() biar bisa dipanggil dari mode manual
+     * juga (pas battle berakhir di tengah proses manual).
+     */
+    private function finalizeBattle(Battle $battle, array &$log): void
+    {
         if ($battle->monster_current_hp <= 0) {
             $battle->status = 'won';
             $this->onVictory($battle, $log);
@@ -653,7 +709,7 @@ class BattleService
             $battle->status = 'lost';
             $log[] = $this->snapshot($battle, 'Seluruh party tumbang. Kalah...');
         } else {
-            // Kena cap max round tanpa hasil -> anggap seri/kabur biar gak nge-hang.
+            // Kena cap max tick tanpa hasil -> anggap seri/kabur biar gak nge-hang.
             $battle->status = 'fled';
             $log[] = $this->snapshot($battle, 'Pertarungan terlalu lama, party mundur.');
         }
@@ -676,23 +732,122 @@ class BattleService
                 'current_mana' => $character->effective_base_mp,
             ]);
         }
+    }
 
-        return $battle->fresh(['participants.character.subclass', 'monster']);
+    /**
+     * MODE MANUAL: 1 giliran/aksi yang di-trigger player lewat HTTP request
+     * (klik tombol skill atau tekan keyboard). Player kontrol karakternya
+     * SENDIRI (skillId null = "nunggu", gak pakai skill apapun giliran ini),
+     * NPC teman party & monster tetap AUTO (autoPickSkill/pickMonsterSkill).
+     * Return log DELTA aja (bukan seluruh log dari awal) biar frontend bisa
+     * nge-append tanpa render ulang semuanya.
+     */
+    public function processManualTurn(Battle $battle, Character $actingCharacter, ?int $skillId): array
+    {
+        $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'participants.character.skills', 'participants.character.items', 'monster']);
+
+        $log = [];
+        $monster = $battle->monster;
+
+        // Regen dulu tiap giliran, sama kayak mode auto.
+        foreach ($battle->participants as $p) {
+            if (! $p->is_alive) {
+                continue;
+            }
+            $p->current_hp = min($this->combatStat($p, 'base_hp'), $p->current_hp + $this->combatStat($p, 'hp_regen'));
+            $p->current_stamina = min($this->combatStat($p, 'base_sp'), $p->current_stamina + $this->combatStat($p, 'stamina_regen'));
+            $p->current_mana = min($this->combatStat($p, 'base_mp'), $p->current_mana + $this->combatStat($p, 'mana_regen'));
+        }
+
+        $playerParticipant = $battle->participants->firstWhere('character_id', $actingCharacter->id);
+
+        foreach ($battle->participants as $participant) {
+            if (! $participant->is_alive || $battle->monster_current_hp <= 0) {
+                continue;
+            }
+
+            if ($participant->is_stunned) {
+                $log[] = $this->snapshot($battle, "{$participant->character->name} kena stun, skip giliran!", $participant->character_id);
+                $participant->is_stunned = false;
+                $participant->save();
+
+                continue;
+            }
+
+            // Karakter yang dikontrol player: pakai skill yang DIPILIH player
+            // (bukan AI). NPC teman & karakter lain: tetap AI (autoPickSkill).
+            if ($playerParticipant && $participant->id === $playerParticipant->id) {
+                if (! $skillId) {
+                    continue; // player pilih "nunggu" / belum kirim aksi
+                }
+
+                $skill = $participant->character->subclass->skills->firstWhere('id', $skillId);
+                if (! $skill || ! in_array($skillId, $participant->loadout_skill_ids ?? [])) {
+                    continue; // skill invalid/gak ada di loadout, diemin
+                }
+
+                $scaled = $this->skillCombatStats($participant->character, $skill);
+                $cooldowns = $participant->skill_cooldowns ?? [];
+                $lastUsed = $cooldowns[$skill->id] ?? null;
+                $delay = GameSetting::getFloat('skill_action_delay', 2);
+                $ticksLocked = $lastUsed === null ? 0 : max(1, (int) ceil($scaled['cooldown_seconds'] / $delay));
+                $currentTick = $battle->round_number;
+
+                $onCooldown = $lastUsed !== null && ($currentTick - $lastUsed) < $ticksLocked;
+                $affordable = $scaled['stamina_cost'] <= $participant->current_stamina && $scaled['mana_cost'] <= $participant->current_mana;
+
+                if ($onCooldown || ! $affordable) {
+                    continue; // request invalid (harusnya udah dicegah di frontend), diemin aja
+                }
+
+                $cooldowns[$skill->id] = $currentTick;
+                $participant->skill_cooldowns = $cooldowns;
+            } else {
+                $skill = $this->autoPickSkill($battle, $participant, $battle->round_number);
+                if (! $skill) {
+                    $log[] = $this->snapshot($battle, "{$participant->character->name} belum ada skill siap pakai, cuma bertahan.");
+
+                    continue;
+                }
+            }
+
+            $this->executeParticipantSkill($battle, $participant, $skill, $log);
+
+            if ($battle->monster_current_hp <= 0) {
+                break;
+            }
+        }
+
+        if ($battle->monster_current_hp > 0 && $this->anyAlive($battle)) {
+            $this->executeMonsterTurn($battle, $log);
+        }
+
+        $battle->round_number += 1;
+
+        if ($battle->monster_current_hp <= 0 || ! $this->anyAlive($battle) || $battle->round_number > self::MAX_ROUNDS) {
+            $this->finalizeBattle($battle, $log);
+        } else {
+            $battle->battle_log = array_merge($battle->battle_log ?? [], $log);
+            $battle->save();
+        }
+
+        return $log;
     }
 
     /**
      * AI: pilih skill ber-multiplier tertinggi yang affordable DAN gak lagi cooldown.
-     * cooldown_seconds ditranslate ke "berapa ronde terkunci" (asumsi ~2.5 detik/ronde,
-     * sesuai pacing animasi playback di frontend).
+     * cooldown_seconds ditranslate ke "berapa tick terkunci" pakai skill_action_delay
+     * (setting admin, default 2 detik/tick) - bukan hardcode 2.5 lagi.
      */
-    private function autoPickSkill(Battle $battle, BattleParticipant $participant, int $currentRound): ?Skill
+    private function autoPickSkill(Battle $battle, BattleParticipant $participant, int $currentTick): ?Skill
     {
         $loadoutIds = $participant->loadout_skill_ids ?? [];
         $skills = $participant->character->subclass->skills->whereIn('id', $loadoutIds);
         $cooldowns = $participant->skill_cooldowns ?? [];
         $character = $participant->character;
+        $delay = GameSetting::getFloat('skill_action_delay', 2);
 
-        $usable = $skills->filter(function (Skill $skill) use ($battle, $participant, $cooldowns, $currentRound, $character) {
+        $usable = $skills->filter(function (Skill $skill) use ($battle, $participant, $cooldowns, $currentTick, $character, $delay) {
             $scaled = $this->skillCombatStats($character, $skill);
 
             $affordable = $scaled['stamina_cost'] <= $participant->current_stamina
@@ -709,14 +864,14 @@ class BattleService
                 return false;
             }
 
-            $lastUsedRound = $cooldowns[$skill->id] ?? null;
-            if ($lastUsedRound === null) {
+            $lastUsedTick = $cooldowns[$skill->id] ?? null;
+            if ($lastUsedTick === null) {
                 return true;
             }
 
-            $roundsLocked = max(1, (int) ceil($scaled['cooldown_seconds'] / 2.5));
+            $ticksLocked = max(1, (int) ceil($scaled['cooldown_seconds'] / $delay));
 
-            return ($currentRound - $lastUsedRound) >= $roundsLocked;
+            return ($currentTick - $lastUsedTick) >= $ticksLocked;
         });
 
         if ($usable->isEmpty()) {
@@ -725,7 +880,7 @@ class BattleService
 
         $chosen = $usable->sortByDesc(fn (Skill $s) => $this->skillCombatStats($character, $s)['multiplier'])->first();
 
-        $cooldowns[$chosen->id] = $currentRound;
+        $cooldowns[$chosen->id] = $currentTick;
         $participant->skill_cooldowns = $cooldowns;
 
         return $chosen;

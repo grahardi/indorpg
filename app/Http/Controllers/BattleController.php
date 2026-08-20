@@ -61,15 +61,56 @@ class BattleController extends Controller
             'character_ids' => ['required', 'array', 'min:2', 'max:3'],
             'character_ids.*' => ['exists:characters,id'],
             'frontman_character_id' => ['nullable', 'integer', 'in:'.implode(',', $request->input('character_ids', []))],
+            'mode' => ['nullable', 'string', 'in:auto,manual'],
         ]);
 
         $this->ensureOwnedCharacterInParty($request, $data['character_ids']);
         $this->ensureNoBusyNpcInParty($data['character_ids']);
         $this->ensureNoFaintedCharacterInParty($data['character_ids']);
 
-        $battle = $this->battleService->startBattle($encounter, $data['character_ids'], $data['frontman_character_id'] ?? null);
+        $battle = $this->battleService->startBattle(
+            $encounter,
+            $data['character_ids'],
+            $data['frontman_character_id'] ?? null,
+            $data['mode'] ?? 'auto',
+        );
 
         return redirect()->route('battles.show', $battle);
+    }
+
+    /**
+     * Mode MANUAL: 1 giliran/aksi per request - player klik tombol skill
+     * (atau tekan keyboard) di frontend, ini yang mroses giliran itu ke server
+     * dan balikin log delta + state terbaru. Response JSON (bukan Inertia
+     * redirect/render) biar responsif, gak reload halaman tiap aksi.
+     */
+    public function act(Request $request, Battle $battle)
+    {
+        if ($battle->mode !== 'manual' || $battle->status !== 'ongoing') {
+            return response()->json(['error' => 'Battle ini bukan mode manual atau udah selesai.'], 422);
+        }
+
+        $data = $request->validate([
+            'skill_id' => ['nullable', 'integer', 'exists:skills,id'],
+        ]);
+
+        // Karakter yang dikontrol = karakter PEMAIN INI (bukan NPC/karakter
+        // orang lain) yang ada di party battle ini.
+        $actingCharacter = Character::where('user_id', $request->user()->id)
+            ->whereIn('id', $battle->participants()->pluck('character_id'))
+            ->first();
+
+        if (! $actingCharacter) {
+            return response()->json(['error' => 'Kamu gak punya karakter di battle ini.'], 403);
+        }
+
+        $log = $this->battleService->processManualTurn($battle, $actingCharacter, $data['skill_id'] ?? null);
+        $battle->refresh()->load(['participants.character.subclass', 'monster']);
+
+        return response()->json([
+            'battle' => $battle,
+            'log' => $log,
+        ]);
     }
 
     public function show(Battle $battle): Response|RedirectResponse
@@ -96,6 +137,13 @@ class BattleController extends Controller
         return Inertia::render('Battle/Show', [
             'battle' => $battle,
             'battleBackground' => $battle->monster->battleBackgroundPath(),
+            'keyBindings' => [
+                'skill1' => \App\Models\GameSetting::get('skill_key_1', 'Q'),
+                'skill2' => \App\Models\GameSetting::get('skill_key_2', 'W'),
+                'skill3' => \App\Models\GameSetting::get('skill_key_3', 'A'),
+                'skill4' => \App\Models\GameSetting::get('skill_key_4', 'S'),
+                'ulti' => \App\Models\GameSetting::get('skill_key_ulti', 'R'),
+            ],
         ]);
     }
 
