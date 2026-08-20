@@ -47,10 +47,17 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
     return (
         <div className="d-flex justify-content-center gap-2 mt-3 flex-wrap">
             {slots.map((skill, i) => {
-                const lastUsed = cooldowns[skill.id];
-                const remainingSeconds = lastUsed !== undefined ? Math.ceil(skill.cooldown_seconds - (nowSeconds - lastUsed)) : 0;
+                // BUG FIX: paksa semua nilai jadi Number eksplisit - kalau ada
+                // field yang somehow kebaca sebagai string (misal dari JSON
+                // encoding PHP yang gak konsisten), perbandingan >= / - bisa
+                // salah diam-diam (JS coercion gak selalu sesuai harapan) dan
+                // bikin skill KELIATAN usable padahal cooldown/gak affordable.
+                const lastUsed = cooldowns[skill.id] !== undefined ? Number(cooldowns[skill.id]) : undefined;
+                const cooldownSeconds = Number(skill.cooldown_seconds);
+                const remainingSeconds = lastUsed !== undefined ? Math.ceil(cooldownSeconds - (nowSeconds - lastUsed)) : 0;
                 const onCooldown = remainingSeconds > 0;
-                const affordable = participant.current_mana >= skill.mana_cost && participant.current_stamina >= skill.stamina_cost;
+                const affordable = Number(participant.current_mana) >= Number(skill.mana_cost)
+                    && Number(participant.current_stamina) >= Number(skill.stamina_cost);
                 const usable = !onCooldown && affordable && !disabled;
 
                 return (
@@ -131,6 +138,64 @@ function FloatingNumber({ effect, animKey, side = 'center' }) {
             }}
         >
             {text}{effect.is_critical && '!'}
+        </div>
+    );
+}
+
+// Panel HP/SP/MP mode Manual - regen-nya di-interpolasi REAL-TIME (nambah
+// dikit-dikit tiap detik di client, bukan cuma "loncat" pas ada respons
+// server baru) berdasarkan rate regen karakter (misal +10/detik), tapi tetap
+// di-sinkronin ulang ke nilai AUTORITATIF dari server tiap kali battle state
+// berubah (gak numpuk drift).
+function PlayerStatusPanel({ participant, live, skillActionDelay }) {
+    const [, forceTick] = useState(0);
+    const syncRef = useRef({ time: Date.now(), hp: live.hp, sp: live.stamina, mp: live.mana });
+
+    // Setiap kali nilai AUTORITATIF dari server berubah, reset titik sinkronnya
+    // (biar interpolasi mulai dari angka yang bener, bukan numpuk error).
+    useEffect(() => {
+        syncRef.current = { time: Date.now(), hp: live.hp, sp: live.stamina, mp: live.mana };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [live.hp, live.stamina, live.mana]);
+
+    useEffect(() => {
+        const interval = setInterval(() => forceTick((t) => t + 1), 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const character = participant.character;
+    const maxHp = character.effective_base_hp;
+    const maxSp = character.effective_base_sp;
+    const maxMp = character.effective_base_mp;
+
+    // Rate regen per DETIK (bukan per tick/ronde) - regen server jalan sekali
+    // tiap skillActionDelay detik, jadi rate/detik = jumlah regen / delay.
+    const hpPerSec = (character.effective_hp_regen ?? 0) / skillActionDelay;
+    const spPerSec = (character.effective_stamina_regen ?? 0) / skillActionDelay;
+    const mpPerSec = (character.effective_mana_regen ?? 0) / skillActionDelay;
+
+    const elapsed = (Date.now() - syncRef.current.time) / 1000;
+    const displayHp = Math.min(maxHp, syncRef.current.hp + hpPerSec * elapsed);
+    const displaySp = Math.min(maxSp, syncRef.current.sp + spPerSec * elapsed);
+    const displayMp = Math.min(maxMp, syncRef.current.mp + mpPerSec * elapsed);
+
+    const rows = [
+        ['HP', Math.round(displayHp), maxHp, '#b8433a', hpPerSec],
+        ['SP', Math.round(displaySp), maxSp, '#c98a3a', spPerSec],
+        ['MP', Math.round(displayMp), maxMp, '#7269d1', mpPerSec],
+    ];
+
+    return (
+        <div className="d-flex flex-column gap-1">
+            {rows.map(([label, cur, max, color, perSec]) => (
+                <div className="d-flex align-items-center gap-2" key={label}>
+                    <span style={{ width: 26, fontSize: '0.65rem', color, fontFamily: 'var(--font-mono)' }}>{label}</span>
+                    <div className="flex-grow-1"><Bar current={cur} max={max} color={color} /></div>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', width: 84, textAlign: 'right' }}>
+                        {cur}/{max} <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>(+{perSec.toFixed(1)}/s)</span>
+                    </span>
+                </div>
+            ))}
         </div>
     );
 }
@@ -700,29 +765,11 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                     const live = current.participants[myParticipant.character_id] || {
                         hp: myParticipant.current_hp, stamina: myParticipant.current_stamina, mana: myParticipant.current_mana,
                     };
-                    const maxHp = myParticipant.character.effective_base_hp;
-                    const maxSp = myParticipant.character.effective_base_sp;
-                    const maxMp = myParticipant.character.effective_base_mp;
-                    const rows = [
-                        ['HP', live.hp, maxHp, '#b8433a'],
-                        ['SP', live.stamina, maxSp, '#c98a3a'],
-                        ['MP', live.mana, maxMp, '#7269d1'],
-                    ];
 
                     return (
                         <div className="rpg-card mb-3" style={{ '--accent': '#3f8c94', padding: '1rem' }}>
                             <div className="rpg-skill-group-title mb-1" style={{ fontSize: '0.75rem' }}>Status Kamu</div>
-                            <div className="d-flex flex-column gap-1">
-                                {rows.map(([label, cur, max, color]) => (
-                                    <div className="d-flex align-items-center gap-2" key={label}>
-                                        <span style={{ width: 26, fontSize: '0.65rem', color, fontFamily: 'var(--font-mono)' }}>{label}</span>
-                                        <div className="flex-grow-1"><Bar current={cur} max={max} color={color} /></div>
-                                        <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', width: 64, textAlign: 'right' }}>
-                                            {cur}/{max}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
+                            <PlayerStatusPanel participant={myParticipant} live={live} skillActionDelay={skillActionDelay} />
                             <ManualSkillBar
                                 participant={myParticipant}
                                 battle={battle}

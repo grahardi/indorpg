@@ -1468,3 +1468,15 @@ Bukan bug di engine skill-nya, tapi soal **urutan giliran**. Party dari Guild se
 **Root cause**: kontainer arena punya `overflow: hidden` (buat sudut rounded background tetap rapi). Tumpukan konten di kolom monster (gambar + nama + HP bar + efek damage + nama skill + mini-log) kepanjangan secara vertikal, ngelewatin batas bawah arena — mini-log-nya KE-RENDER tapi ke-potong/gak kelihatan karena posisinya udah di luar area yang keliatan.
 
 **Fix**: gambar monster digeser ke atas dikit (`top: 4% → 1%`) dan dikecilin dikit (`maxHeight: 175 → 145`), area efek dirapatkan (`minHeight: 32 → 24`), mini-log dibatasi 1 baris tegas (`whiteSpace: nowrap` + `textOverflow: ellipsis`, gak bakal wrap ke 2 baris walau teksnya panjang) — total ruang vertikal yang dibutuhin lebih kecil, muat dalam batas arena.
+
+---
+
+## 61. Fix Skill Cooldown Grey + HP/SP/MP Regen Real-Time (v8.4)
+
+**Laporan**: ulti cooldown udah bener, tapi skill (tier-1) biasa gagal keliatan grey pas cooldown - diklik malah keliatan "meleset terus" (padahal seharusnya blocked, bukan diproses jadi serangan meleset).
+
+### Fix: perkuat pengecekan cooldown/afford di frontend
+Kemungkinan besar celahnya di tipe data — nilai dari JSON (cooldown timestamp, mana/stamina cost) sekarang dipaksa jadi `Number()` eksplisit sebelum dibandingin, biar gak ada kemungkinan perbandingan `>=`/pengurangan salah diam-diam gara-gara type coercion JS yang gak konsisten. Kalau tombol beneran `disabled` (browser native), klik gak akan pernah nyampe ke server sama sekali — jadi begitu perhitungan `usable`-nya presisi, gak mungkin lagi ke-klik pas seharusnya cooldown/gak mampu bayar.
+
+### HP/SP/MP regen real-time (fitur baru)
+Sesuai request "misal 10/s gitu" — panel "Status Kamu" sekarang direfactor jadi komponen `PlayerStatusPanel` dengan **interpolasi real-time**: bar HP/SP/MP nambah dikit-dikit tiap detik di browser (bukan cuma "loncat" pas ada respons server baru), berdasarkan rate regen karakter (`effective_hp_regen` dkk, dikonversi ke per-detik dari `skill_action_delay`). Nilai display di-sinkronin ulang ke angka AUTORITATIF dari server tiap kali ada update beneran (gak numpuk drift/salah). Label kecil "(+X.X/s)" ditambahin di samping tiap bar biar rate-nya keliatan jelas.
