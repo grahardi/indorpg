@@ -113,7 +113,13 @@ export default function Layout({ children }) {
                         {user ? (
                             <>
                                 <NavDropdown label="Karakter" items={karakterItems} />
-                                <NavDropdown label={user.username} items={[{ href: route('settings.index'), label: '⚙ Pengaturan' }]} />
+                                <Link
+                                    href={route('settings.index')}
+                                    className="text-decoration-none"
+                                    style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
+                                >
+                                    ⚙ Pengaturan
+                                </Link>
                                 <button
                                     onClick={() => router.post(route('logout'))}
                                     className="text-decoration-none"

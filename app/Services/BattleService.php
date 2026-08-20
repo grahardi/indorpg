@@ -776,6 +776,10 @@ class BattleService
         }
 
         $playerParticipant = $battle->participants->firstWhere('character_id', $actingCharacter->id);
+        // Waktu ASLI (detik) sejak battle dibuat - dipakai buat cooldown SEMUA
+        // actor (player+NPC), tapi masing-masing tetap independen (storage-nya
+        // per-participant, cuma REFERENSI jamnya yang sama-sama "jam dinding").
+        $nowSeconds = (float) now()->diffInSeconds($battle->created_at);
 
         foreach ($battle->participants as $participant) {
             if (! $participant->is_alive || $battle->monster_current_hp <= 0) {
@@ -791,7 +795,7 @@ class BattleService
             }
 
             // Karakter yang dikontrol player: pakai skill yang DIPILIH player
-            // (bukan AI). NPC teman & karakter lain: tetap AI (autoPickSkill).
+            // (bukan AI). NPC teman & karakter lain: tetap AI (autoPickSkillRealtime).
             if ($playerParticipant && $participant->id === $playerParticipant->id) {
                 if (! $skillId) {
                     continue; // player pilih "nunggu" / belum kirim aksi
@@ -805,21 +809,24 @@ class BattleService
                 $scaled = $this->skillCombatStats($participant->character, $skill);
                 $cooldowns = $participant->skill_cooldowns ?? [];
                 $lastUsed = $cooldowns[$skill->id] ?? null;
-                $delay = GameSetting::getFloat('skill_action_delay', 2);
-                $ticksLocked = $lastUsed === null ? 0 : max(1, (int) ceil($scaled['cooldown_seconds'] / $delay));
-                $currentTick = $battle->round_number;
 
-                $onCooldown = $lastUsed !== null && ($currentTick - $lastUsed) < $ticksLocked;
+                // BUG FIX: sebelumnya pakai battle.round_number (counter GLOBAL
+                // sama-sama dipakai semua actor) buat ngukur cooldown - kesannya
+                // "kena delay dari aksi siapa aja". Sekarang pakai $nowSeconds
+                // (waktu asli), dibandingin LANGSUNG ke skill->cooldown_seconds -
+                // independen per karakter, presisinya juga lebih akurat (gak ada
+                // pembulatan ke satuan tick lagi).
+                $onCooldown = $lastUsed !== null && ($nowSeconds - $lastUsed) < $scaled['cooldown_seconds'];
                 $affordable = $scaled['stamina_cost'] <= $participant->current_stamina && $scaled['mana_cost'] <= $participant->current_mana;
 
                 if ($onCooldown || ! $affordable) {
                     continue; // request invalid (harusnya udah dicegah di frontend), diemin aja
                 }
 
-                $cooldowns[$skill->id] = $currentTick;
+                $cooldowns[$skill->id] = $nowSeconds;
                 $participant->skill_cooldowns = $cooldowns;
             } else {
-                $skill = $this->autoPickSkill($battle, $participant, $battle->round_number);
+                $skill = $this->autoPickSkillRealtime($battle, $participant, $nowSeconds);
                 if (! $skill) {
                     $log[] = $this->snapshot($battle, "{$participant->character->name} belum ada skill siap pakai, cuma bertahan.");
 
@@ -855,6 +862,62 @@ class BattleService
      * cooldown_seconds ditranslate ke "berapa tick terkunci" pakai skill_action_delay
      * (setting admin, default 2 detik/tick) - bukan hardcode 2.5 lagi.
      */
+    /**
+     * Versi REALTIME dari autoPickSkill() - khusus mode MANUAL. Bedanya: pakai
+     * detik ASLI (elapsed sejak battle dibuat) buat ngukur cooldown, bukan
+     * "tick" bersama kayak autoPickSkill() (yang dipakai mode Auto doang).
+     *
+     * BUG FIX PENTING: sebelumnya delay-nya ke-itung pakai battle.round_number
+     * (counter GLOBAL yang sama buat semua participant), jadi walau storage
+     * cooldown_seconds-nya per-participant, REFERENSI WAKTU-nya nyampur -
+     * kesannya "delay ketauan dari aksi siapa aja yang jalan", padahal
+     * mestinya tiap karakter/NPC punya cooldown independen sendiri-sendiri.
+     * Fix: pakai now()->diffInSeconds($battle->created_at) - waktu ASLI yang
+     * jalan terus gak peduli siapa yang barusan gerak, dibandingin LANGSUNG ke
+     * skill->cooldown_seconds (gak perlu bulat-bulatin ke satuan tick lagi,
+     * jadi presisinya juga lebih akurat).
+     */
+    private function autoPickSkillRealtime(Battle $battle, BattleParticipant $participant, float $nowSeconds): ?Skill
+    {
+        $loadoutIds = $participant->loadout_skill_ids ?? [];
+        $skills = $participant->character->subclass->skills->whereIn('id', $loadoutIds);
+        $cooldowns = $participant->skill_cooldowns ?? [];
+        $character = $participant->character;
+
+        $usable = $skills->filter(function (Skill $skill) use ($battle, $participant, $cooldowns, $nowSeconds, $character) {
+            $scaled = $this->skillCombatStats($character, $skill);
+
+            $affordable = $scaled['stamina_cost'] <= $participant->current_stamina
+                && $scaled['mana_cost'] <= $participant->current_mana;
+
+            if (! $affordable) {
+                return false;
+            }
+
+            if ($skill->buff_type === 'heal' && ! $this->healTargetNeeded($battle, $skill)) {
+                return false;
+            }
+
+            $lastUsedSeconds = $cooldowns[$skill->id] ?? null;
+            if ($lastUsedSeconds === null) {
+                return true;
+            }
+
+            return ($nowSeconds - $lastUsedSeconds) >= $scaled['cooldown_seconds'];
+        });
+
+        if ($usable->isEmpty()) {
+            return null;
+        }
+
+        $chosen = $usable->sortByDesc(fn (Skill $s) => $this->skillCombatStats($character, $s)['multiplier'])->first();
+
+        $cooldowns[$chosen->id] = $nowSeconds;
+        $participant->skill_cooldowns = $cooldowns;
+
+        return $chosen;
+    }
+
     private function autoPickSkill(Battle $battle, BattleParticipant $participant, int $currentTick): ?Skill
     {
         $loadoutIds = $participant->loadout_skill_ids ?? [];

@@ -1395,3 +1395,18 @@ Ruang kosong di bawah efek+nama serangan monster sekarang diisi **1 baris teks t
 
 ### Ikon skill 48px
 Ukuran ikon skill manual disesuaikan dari 42px → 48px sesuai permintaan.
+
+---
+
+## 56. Delay Skill Jadi Waktu Asli Per-Karakter (bukan Tick Bersama) + Hapus Toggle Mode di Frontman + Fix Nav (v7.9)
+
+### Fix konsep: delay skill sekarang bener-bener independen per karakter
+**Laporan**: "delay skill ini per player kan, bukan per skill kluar - jadi pas NPC pakai skill, punya saya harusnya gak kena delay". Ketemu akar masalahnya: cooldown di mode Manual sebelumnya diukur pakai `battle.round_number` — counter GLOBAL yang sama dipakai buat SEMUA actor (player, NPC, monster) sebagai "referensi jam". Walau storage cooldown-nya emang udah per-participant, REFERENSI WAKTU yang dipakai buat ngukur "udah berapa lama" itu sama-sama satu jam bersama.
+
+**Fix**: ganti total ke **waktu asli** (`now()->diffInSeconds($battle->created_at)`, detik beneran sejak battle mulai) - dibandingin LANGSUNG ke `skill->cooldown_seconds` (gak perlu dibulatin ke satuan "tick" pakai `skill_action_delay` lagi, jadi presisinya juga lebih akurat). `autoPickSkillRealtime()` (method baru, khusus mode Manual) dipisah dari `autoPickSkill()` lama (tetap dipakai mode Auto, gak disentuh sama sekali biar gak ada risiko regresi). Frontend `ManualSkillBar` juga diupdate ngukur cooldown dari `Date.now() - battle.created_at`, bukan `battle.round_number`.
+
+### Toggle Auto/Manual dihapus dari halaman Frontman
+Sekarang preferensi dari menu Pengaturan otomatis dipakai, gak perlu pilih ulang tiap battle - halaman Frontman cuma nampilin info mode yang lagi aktif + link ke Pengaturan kalau mau ganti.
+
+### Fix nav: tombol username diganti langsung jadi link Pengaturan
+Sebelumnya nama user di nav jadi dropdown (ternyata gak fungsi dengan baik) - sekarang langsung jadi link "⚙ Pengaturan" tanpa perlu dropdown.

@@ -16,7 +16,7 @@ function Bar({ current, max, color }) {
 
 // Bar skill icon buat mode Manual - 5 tombol (4 skill biasa + 1 ulti), overlay
 // cooldown (angka detik/tick sisa), abu-abu kalau gak affordable/lagi cooldown.
-function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings, skillActionDelay }) {
+function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings }) {
     if (!participant) return null;
 
     const loadout = (participant.character.subclass?.skills ?? [])
@@ -26,15 +26,17 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
     const slots = [...tier1, ...ulti];
     const keyLabels = [keyBindings.skill1, keyBindings.skill2, keyBindings.skill3, keyBindings.skill4, keyBindings.ulti];
     const cooldowns = participant.skill_cooldowns ?? {};
-    const currentTick = battle.round_number;
+    // Waktu asli (detik) sejak battle mulai - dipakai buat cooldown, BUKAN
+    // "tick" bersama - independen per karakter, dibandingin langsung ke
+    // skill.cooldown_seconds (presisi, gak dibulatin ke satuan tick lagi).
+    const nowSeconds = (Date.now() - new Date(battle.created_at).getTime()) / 1000;
 
     return (
         <div className="d-flex justify-content-center gap-2 mt-3 flex-wrap">
             {slots.map((skill, i) => {
-                const ticksLocked = Math.max(1, Math.ceil(skill.cooldown_seconds / skillActionDelay));
                 const lastUsed = cooldowns[skill.id];
-                const remainingTicks = lastUsed !== undefined ? ticksLocked - (currentTick - lastUsed) : 0;
-                const onCooldown = remainingTicks > 0;
+                const remainingSeconds = lastUsed !== undefined ? Math.ceil(skill.cooldown_seconds - (nowSeconds - lastUsed)) : 0;
+                const onCooldown = remainingSeconds > 0;
                 const affordable = participant.current_mana >= skill.mana_cost && participant.current_stamina >= skill.stamina_cost;
                 const usable = !onCooldown && affordable && !disabled;
 
@@ -66,7 +68,7 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
                                     fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 700, color: '#fff',
                                 }}
                             >
-                                {remainingTicks}
+                                {remainingSeconds}
                             </div>
                         )}
                         <div
@@ -683,7 +685,6 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                                 onUseSkill={sendManualAction}
                                 disabled={acting || battle.status !== 'ongoing'}
                                 keyBindings={keyBindings}
-                                skillActionDelay={skillActionDelay}
                             />
                         </div>
                     );
