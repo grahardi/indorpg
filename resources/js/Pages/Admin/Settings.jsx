@@ -27,6 +27,7 @@ export default function Settings({ settings }) {
                         <Link href={route('admin.skills.index')} className="rpg-back-link">Skill</Link>
                         <Link href={route('admin.maps.index')} className="rpg-back-link">Map</Link>
                         <Link href={route('admin.items.index')} className="rpg-back-link">Item</Link>
+                        <Link href={route('admin.audio.index')} className="rpg-back-link">Audio</Link>
                     </div>
                 </div>
 

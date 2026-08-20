@@ -151,6 +151,11 @@ class BattleController extends Controller
                 'ulti' => \App\Models\GameSetting::get('skill_key_ulti', 'R'),
             ],
             'skillActionDelay' => \App\Models\GameSetting::getFloat('skill_action_delay', 2),
+            // Path audio custom (null kalau belum di-upload admin = fallback ke
+            // suara sintesis default di battleAudio.js).
+            'audioSettings' => collect(\App\Http\Controllers\Admin\AudioController::SLOTS)
+                ->mapWithKeys(fn ($label, $key) => [$key => \App\Models\GameSetting::get($key, '') ?: null])
+                ->toArray(),
         ]);
     }
 

@@ -122,7 +122,7 @@ function FloatingNumber({ effect, animKey, side = 'center' }) {
     );
 }
 
-export default function Show({ battle: initialBattle, battleBackground, keyBindings = {}, skillActionDelay = 2 }) {
+export default function Show({ battle: initialBattle, battleBackground, keyBindings = {}, skillActionDelay = 2, audioSettings = {} }) {
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
     const isManual = initialBattle.mode === 'manual';
@@ -183,16 +183,42 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step, log.length, intervalMs, isManual, battle.status]);
 
-    // Trigger efek suara sesuai isi baris log yang baru muncul.
+    // Trigger efek suara sesuai isi baris log yang baru muncul - pakai data
+    // 'effect' terstruktur (bukan text-matching doang), plus custom audio
+    // dari admin (audioSettings) kalau ada, fallback ke sintesis kalau kosong.
     useEffect(() => {
         if (!soundOn) return;
         const entry = log[step];
         if (!entry) return;
-        const text = entry.text;
-        if (text.includes('CRITICAL')) battleAudio.critical();
-        else if (text.includes('MELESET')) battleAudio.miss();
-        else if (text.includes('damage')) battleAudio.hit();
-        else if (text.includes('muncul menghadang')) battleAudio.cast();
+
+        if (entry.text?.includes('dapat item')) {
+            battleAudio.itemDrop(audioSettings.audio_item_drop);
+            return;
+        }
+        if (entry.text?.includes('muncul menghadang')) {
+            battleAudio.cast(audioSettings.audio_battle_start);
+            return;
+        }
+
+        const effect = entry.effect;
+        if (effect?.type === 'miss') {
+            battleAudio.miss(audioSettings.audio_miss);
+            return;
+        }
+        if (effect?.type === 'damage') {
+            if (effect.is_critical) {
+                battleAudio.critical(audioSettings.audio_critical);
+            } else if (entry.is_monster_actor) {
+                // Monster yang nyerang party -> "kena serangan" (beda dari nyerang monster).
+                battleAudio.hitTaken(audioSettings.audio_hit_taken);
+            } else if (effect.is_ultimate) {
+                battleAudio.ultimate(audioSettings.audio_ultimate);
+            } else if (entry.skill_id) {
+                battleAudio.skill(audioSettings.audio_skill);
+            } else {
+                battleAudio.hit(audioSettings.audio_skill);
+            }
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step]);
 
@@ -200,8 +226,8 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     // user nge-skip (dianggap menyerah, gak ada suara menang/kalah).
     useEffect(() => {
         if (!finished || finishedSoundPlayed.current || !soundOn || userSkipped) return;
-        if (battle.status === 'won') battleAudio.victory();
-        else if (battle.status === 'lost') battleAudio.defeat();
+        if (battle.status === 'won') battleAudio.victory(audioSettings.audio_victory);
+        else if (battle.status === 'lost') battleAudio.defeat(audioSettings.audio_defeat);
         finishedSoundPlayed.current = true;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [finished]);

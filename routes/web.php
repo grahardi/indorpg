@@ -80,6 +80,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/settings', [AdminSettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
 
+    Route::get('/audio', [\App\Http\Controllers\Admin\AudioController::class, 'index'])->name('audio.index');
+    Route::post('/audio/{key}/upload', [\App\Http\Controllers\Admin\AudioController::class, 'upload'])->name('audio.upload');
+    Route::delete('/audio/{key}', [\App\Http\Controllers\Admin\AudioController::class, 'reset'])->name('audio.reset');
+
     Route::get('/monsters', [AdminMonsterController::class, 'index'])->name('monsters.index');
     Route::get('/monsters/create', [AdminMonsterController::class, 'create'])->name('monsters.create');
     Route::post('/monsters', [AdminMonsterController::class, 'store'])->name('monsters.store');

@@ -1410,3 +1410,28 @@ Sekarang preferensi dari menu Pengaturan otomatis dipakai, gak perlu pilih ulang
 
 ### Fix nav: tombol username diganti langsung jadi link Pengaturan
 Sebelumnya nama user di nav jadi dropdown (ternyata gak fungsi dengan baik) - sekarang langsung jadi link "⚙ Pengaturan" tanpa perlu dropdown.
+
+---
+
+## 57. Pengaturan Audio di Admin — Upload Custom Sound per Event Battle (v8.0)
+
+Halaman baru `/admin/audio` — admin bisa upload file audio custom (MP3/WAV/OGG, maks 2MB) buat gantiin suara sintesis default (Web Audio API) di 9 event battle:
+
+| Event | Kapan trigger |
+|---|---|
+| Battle Mulai | Monster muncul di awal battle |
+| Pakai Skill (biasa) | Karakter/NPC pakai skill non-ultimate, kena target |
+| Pakai Skill Ultimate | Skill tier-3 (ultimate) dipakai, kena target |
+| Critical Hit | Damage critical (siapapun yang nyerang) |
+| Serangan Meleset | Hit chance gagal (siapapun) |
+| Kena Serangan Monster | Monster nyerang balik ke party, kena |
+| Dapat Item Drop | Item drop abis menang battle (fitur baru, sebelumnya gak ada suara sama sekali) |
+| Menang Battle | Battle selesai, status won |
+| Kalah Battle | Battle selesai, status lost |
+
+### Implementasi
+- `GameSetting` dipakai buat nyimpen PATH file (bukan cuma angka/teks kayak setting lain) — kosong = fallback ke suara sintesis
+- `Admin\AudioController` — upload (validasi mimes mp3/wav/ogg/m4a, replace file lama otomatis) & reset (hapus file, balik ke default) per slot
+- `battleAudio.js` — tiap fungsi terima `customUrl` opsional, coba `new Audio(url).play()` duluan, fallback ke `beep()` sintesis kalau kosong/gagal (di-cache per URL biar gak re-fetch tiap trigger)
+- `Battle/Show.jsx` — sound trigger di-rewrite pakai data `effect` terstruktur (bukan text-matching lagi), bisa bedain: skill vs ultimate (cek `is_ultimate` dari effect), nyerang vs kena serang (`is_monster_actor`), dan deteksi item drop dari teks "dapat item"
+- Tambah 2 suara sintesis BARU sebagai fallback: `skill` (beda dari `hit` biasa) dan `itemDrop`, plus `ultimate` yang lebih megah (4-note chord) dibanding `critical`
