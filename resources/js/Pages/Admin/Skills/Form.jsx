@@ -1,4 +1,5 @@
 import { Head, useForm, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import Layout from '../../../Layout';
 
 function Field({ label, children }) {
@@ -30,9 +31,38 @@ export default function Form({ skill, elements }) {
         required_level: skill.required_level,
     });
 
+    const [animationPath, setAnimationPath] = useState(skill.animation_path ?? null);
+    const [uploadingAnim, setUploadingAnim] = useState(false);
+
     function submit(e) {
         e.preventDefault();
         put(route('admin.skills.update', skill.id));
+    }
+
+    // Upload GIF animasi - fetch() langsung (bukan Inertia visit), biar gak
+    // reload halaman/ilangin isian form lain yang lagi diedit.
+    async function handleAnimationUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploadingAnim(true);
+        try {
+            const formData = new FormData();
+            formData.append('animation', file);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const res = await fetch(route('admin.skills.upload-animation', skill.id), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData,
+            });
+            if (!res.ok) throw new Error('Upload gagal');
+            const json = await res.json();
+            setAnimationPath(json.path);
+        } catch (err) {
+            alert('Upload GIF gagal, coba lagi.');
+        } finally {
+            setUploadingAnim(false);
+            e.target.value = '';
+        }
     }
 
     const inputClass = 'form-control bg-dark text-light border-secondary';
@@ -182,6 +212,26 @@ export default function Form({ skill, elements }) {
                                     </label>
                                 </div>
                             </Field>
+                        </div>
+                    </div>
+
+                    <div className="mb-3">
+                        <label className="rpg-stat-label d-block mb-1">Animasi Skill (GIF)</label>
+                        <p className="text-secondary small mb-2">
+                            Gantiin pose idle karakter jadi GIF ini pas skill dipakai di battle. Kosong = tetap pakai pose idle biasa.
+                        </p>
+                        <div className="d-flex align-items-center gap-3">
+                            {animationPath && (
+                                <img
+                                    src={animationPath}
+                                    alt="Preview animasi"
+                                    style={{ width: 90, height: 90, objectFit: 'contain', background: 'var(--bg-panel-hover)', borderRadius: 8, border: '2px solid #c9a24b' }}
+                                />
+                            )}
+                            <label className="btn btn-sm btn-outline-light mb-0" style={{ cursor: uploadingAnim ? 'wait' : 'pointer' }}>
+                                {uploadingAnim ? 'Mengupload...' : animationPath ? 'Ganti GIF' : 'Upload GIF'}
+                                <input type="file" accept="image/gif" onChange={handleAnimationUpload} disabled={uploadingAnim} hidden />
+                            </label>
                         </div>
                     </div>
 

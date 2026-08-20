@@ -94,6 +94,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/skills', [AdminSkillController::class, 'index'])->name('skills.index');
     Route::get('/skills/{skill}/edit', [AdminSkillController::class, 'edit'])->name('skills.edit');
     Route::put('/skills/{skill}', [AdminSkillController::class, 'update'])->name('skills.update');
+    Route::post('/skills/{skill}/upload-animation', [AdminSkillController::class, 'uploadAnimation'])->name('skills.upload-animation');
 
     Route::get('/maps', [AdminMapController::class, 'index'])->name('maps.index');
     Route::get('/maps/create', [AdminMapController::class, 'create'])->name('maps.create');

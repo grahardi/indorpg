@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Element;
 use App\Models\Skill;
 use App\Models\Subclass;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -68,5 +69,28 @@ class SkillController extends Controller
         $skill->update($data);
 
         return redirect()->route('admin.skills.index')->with('success', 'Skill diupdate.');
+    }
+
+    /**
+     * Upload GIF animasi skill (dipakai buat ganti pose idle karakter pas skill
+     * ini dipakai di battle - lihat SkillAnimationSeeder & Battle/Show.jsx).
+     * Dipanggil via fetch() langsung (bukan Inertia visit), biar gak reload
+     * halaman/ilangin isian form lain yang lagi diedit.
+     */
+    public function uploadAnimation(Request $request, Skill $skill): JsonResponse
+    {
+        $request->validate([
+            'animation' => ['required', 'file', 'mimes:gif', 'max:5120'],
+        ]);
+
+        $filename = "skill-{$skill->id}.gif";
+        $relativePath = "images/skills/animations/{$filename}";
+
+        @mkdir(public_path('images/skills/animations'), 0755, true);
+        $request->file('animation')->move(public_path('images/skills/animations'), $filename);
+
+        $skill->update(['animation_path' => '/'.$relativePath]);
+
+        return response()->json(['path' => '/'.$relativePath]);
     }
 }

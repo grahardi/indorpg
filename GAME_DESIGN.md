@@ -1435,3 +1435,16 @@ Halaman baru `/admin/audio` — admin bisa upload file audio custom (MP3/WAV/OGG
 - `battleAudio.js` — tiap fungsi terima `customUrl` opsional, coba `new Audio(url).play()` duluan, fallback ke `beep()` sintesis kalau kosong/gagal (di-cache per URL biar gak re-fetch tiap trigger)
 - `Battle/Show.jsx` — sound trigger di-rewrite pakai data `effect` terstruktur (bukan text-matching lagi), bisa bedain: skill vs ultimate (cek `is_ultimate` dari effect), nyerang vs kena serang (`is_monster_actor`), dan deteksi item drop dari teks "dapat item"
 - Tambah 2 suara sintesis BARU sebagai fallback: `skill` (beda dari `hit` biasa) dan `itemDrop`, plus `ultimate` yang lebih megah (4-note chord) dibanding `critical`
+
+---
+
+## 58. Fix Setting Manual Gak Nyantol + NPC Gak Kebagian Giliran + Upload GIF Skill (v8.1)
+
+### Fix bug: setting Manual selalu balik ke Auto
+**Root cause**: `User` model pakai PHP attribute `#[Fillable(['name', 'username', 'email', 'password'])]` — `default_battle_mode` **gak ada di list itu**. Jadi `$request->user()->update(['default_battle_mode' => ...])` di `SettingsController` diam-diam GAGAL (mass assignment protection Laravel), value-nya gak pernah beneran ke-save ke database, selalu balik baca default 'auto' dari migration. Fix: tambahin `default_battle_mode` ke Fillable list.
+
+### Fix: NPC kelihatan gak pernah nyerang
+Bukan bug di engine skill-nya, tapi soal **urutan giliran**. Party dari Guild selalu tersusun [karakter kamu, NPC, NPC] - dan loop battle sebelumnya SELALU proses sesuai urutan itu tiap ronde (karaktermu duluan). Kalau serangan kamu cukup buat ngalahin monster, loop langsung `break` SEBELUM giliran NPC ke-proses - keliatan kayak "NPC gak pernah nyerang" padahal cuma emang gak kebagian giliran (monster keburu mati). Fix: urutan giliran di-**acak tiap ronde** (`$battle->participants->shuffle()`), diterapkan di mode Auto maupun Manual - NPC sekarang punya kesempatan adil gerak duluan.
+
+### Upload GIF di Skill Editor
+`/admin/skills/{id}/edit` sekarang punya section "Animasi Skill (GIF)" - upload langsung dari form (fetch(), gak reload halaman), preview GIF yang udah ke-upload, tombol "Ganti GIF" buat replace. Disimpen ke `public/images/skills/animations/skill-{id}.gif`, update `skills.animation_path` otomatis.

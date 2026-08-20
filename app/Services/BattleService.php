@@ -672,7 +672,14 @@ class BattleService
                 $participant->current_mana = min($this->combatStat($participant, 'base_mp'), $participant->current_mana + $this->combatStat($participant, 'mana_regen'));
             }
 
-            foreach ($battle->participants as $participant) {
+            // BUG FIX: sebelumnya urutan giliran SELALU sama tiap ronde (karakter
+            // pemain duluan, NPC belakangan - ngikutin urutan party dari Guild).
+            // Efeknya: kalau serangan karaktermu udah cukup buat ngalahin monster,
+            // loop LANGSUNG berhenti (monster_current_hp <= 0) SEBELUM giliran NPC
+            // - kelihatan kayak "NPC gak pernah nyerang" padahal cuma emang gak
+            // pernah kebagian giliran. Fix: acak urutan tiap ronde, biar NPC juga
+            // adil kesempatan gerak duluan.
+            foreach ($battle->participants->shuffle() as $participant) {
                 if (! $participant->is_alive || $battle->monster_current_hp <= 0) {
                     continue;
                 }
@@ -781,7 +788,9 @@ class BattleService
         // per-participant, cuma REFERENSI jamnya yang sama-sama "jam dinding").
         $nowSeconds = (float) now()->diffInSeconds($battle->created_at);
 
-        foreach ($battle->participants as $participant) {
+        // Urutan giliran diacak juga (sama alasannya kayak mode Auto) - biar NPC
+        // gak selalu kebagian giliran belakangan.
+        foreach ($battle->participants->shuffle() as $participant) {
             if (! $participant->is_alive || $battle->monster_current_hp <= 0) {
                 continue;
             }
