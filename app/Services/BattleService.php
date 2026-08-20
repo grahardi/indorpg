@@ -336,6 +336,8 @@ class BattleService
             $resource = $skill->heal_resource ?? 'hp';
             $resourceLabel = strtoupper($resource);
             $healedNames = [];
+            $firstHealTarget = null;
+            $firstHealAmount = null;
 
             foreach ($targets as $target) {
                 [$before, $max] = $this->resourceLevel($target, $resource);
@@ -349,13 +351,21 @@ class BattleService
                 };
                 $target->save();
                 $healedNames[] = "{$target->character->name} (+{$actualHeal})";
+                if ($firstHealTarget === null) {
+                    $firstHealTarget = $target->character_id;
+                    $firstHealAmount = $actualHeal;
+                }
             }
             if (! $targets->contains('id', $participant->id)) {
                 $participant->save();
             }
 
             $namesText = implode(', ', $healedNames);
-            $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText} {$resourceLabel}", $character->id, $skill->id);
+            $log[] = $this->snapshot($battle, "{$character->name} pakai {$skill->name} ke {$namesText} {$resourceLabel}", $character->id, $skill->id, false, [
+                'type' => 'heal',
+                'value' => $firstHealAmount,
+                'target' => $firstHealTarget,
+            ]);
 
             return;
         }
@@ -426,7 +436,7 @@ class BattleService
         $hitChance = max(50, min(99, 100 + $character->effective_accuracy - 90 - $monster->agility));
         if (random_int(1, 100) > $hitChance) {
             $participant->save();
-            $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!", $character->id, $skill->id);
+            $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!", $character->id, $skill->id, false, ['type' => 'miss', 'target' => 'monster']);
 
             return;
         }
@@ -519,7 +529,13 @@ class BattleService
 
         $participant->save();
 
-        $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: {$damage} damage ke {$monster->name}{$note}", $character->id, $skill->id);
+        $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: {$damage} damage ke {$monster->name}{$note}", $character->id, $skill->id, false, [
+            'type' => 'damage',
+            'value' => $damage,
+            'target' => 'monster',
+            'is_critical' => $isCrit,
+            'is_ultimate' => $skill->tier === 3,
+        ]);
 
         if ($battle->monster_current_hp <= 0) {
             $log[] = $this->snapshot($battle, "{$monster->name} kalah!");
@@ -577,7 +593,7 @@ class BattleService
             // Cek akurasi monster vs Evasion (defensif) karakter.
             $hitChance = max(50, min(99, 100 + $monster->accuracy - 90 - $character->effective_evasion));
             if (random_int(1, 100) > $hitChance) {
-                $log[] = $this->snapshot($battle, "{$monster->name} {$verb} {$target->character->name}: MELESET!", null, null, true);
+                $log[] = $this->snapshot($battle, "{$monster->name} {$verb} {$target->character->name}: MELESET!", null, null, true, ['type' => 'miss', 'target' => $target->character_id]);
 
                 continue;
             }
@@ -617,7 +633,7 @@ class BattleService
             if ($justFainted) {
                 $msg .= " {$target->character->name} tumbang!";
             }
-            $log[] = $this->snapshot($battle, $msg, null, null, true);
+            $log[] = $this->snapshot($battle, $msg, null, null, true, ['type' => 'damage', 'value' => $damage, 'target' => $target->character_id, 'is_critical' => false, 'is_ultimate' => false]);
 
             if (! $this->anyAlive($battle)) {
                 break;
@@ -980,7 +996,15 @@ class BattleService
         return $battle->participants->contains('is_alive', true);
     }
 
-    private function snapshot(Battle $battle, string $text, ?int $actorCharacterId = null, ?int $skillId = null, bool $isMonsterActor = false): array
+    /**
+     * Tambah field 'effect' terstruktur (bukan cuma teks) - dipakai frontend
+     * buat nampilin damage number/ikon meleset/heal floating di atas sprite,
+     * gantiin battle log teks yang dihapus total. $effect: null (gak ada efek
+     * visual, misal cuma "belum ada skill siap pakai") atau array
+     * ['type' => 'damage'|'miss'|'heal'|'crit', 'value' => int|null,
+     * 'target' => 'monster'|int (character_id), 'is_ultimate' => bool].
+     */
+    private function snapshot(Battle $battle, string $text, ?int $actorCharacterId = null, ?int $skillId = null, bool $isMonsterActor = false, ?array $effect = null): array
     {
         return [
             'text' => $text,
@@ -988,6 +1012,7 @@ class BattleService
             'actor_character_id' => $actorCharacterId,
             'skill_id' => $skillId,
             'is_monster_actor' => $isMonsterActor,
+            'effect' => $effect,
             'participants' => $battle->participants->mapWithKeys(fn ($p) => [
                 $p->character_id => ['hp' => $p->current_hp, 'stamina' => $p->current_stamina, 'mana' => $p->current_mana, 'is_alive' => $p->is_alive],
             ])->toArray(),

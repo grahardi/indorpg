@@ -14,11 +14,88 @@ function Bar({ current, max, color }) {
     );
 }
 
-export default function Show({ battle, battleBackground }) {
+// Bar skill icon buat mode Manual - 5 tombol (4 skill biasa + 1 ulti), overlay
+// cooldown (angka detik/tick sisa), abu-abu kalau gak affordable/lagi cooldown.
+function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings, skillActionDelay }) {
+    if (!participant) return null;
+
+    const loadout = (participant.character.subclass?.skills ?? [])
+        .filter((s) => (participant.loadout_skill_ids ?? []).includes(s.id));
+    const tier1 = loadout.filter((s) => s.tier === 1);
+    const ulti = loadout.filter((s) => s.tier === 3);
+    const slots = [...tier1, ...ulti];
+    const keyLabels = [keyBindings.skill1, keyBindings.skill2, keyBindings.skill3, keyBindings.skill4, keyBindings.ulti];
+    const cooldowns = participant.skill_cooldowns ?? {};
+    const currentTick = battle.round_number;
+
+    return (
+        <div className="d-flex justify-content-center gap-2 mt-3 flex-wrap">
+            {slots.map((skill, i) => {
+                const ticksLocked = Math.max(1, Math.ceil(skill.cooldown_seconds / skillActionDelay));
+                const lastUsed = cooldowns[skill.id];
+                const remainingTicks = lastUsed !== undefined ? ticksLocked - (currentTick - lastUsed) : 0;
+                const onCooldown = remainingTicks > 0;
+                const affordable = participant.current_mana >= skill.mana_cost && participant.current_stamina >= skill.stamina_cost;
+                const usable = !onCooldown && affordable && !disabled;
+
+                return (
+                    <button
+                        key={skill.id}
+                        onClick={() => usable && onUseSkill(skill.id)}
+                        disabled={!usable}
+                        title={`${skill.name} (${skill.mana_cost} MP / ${skill.stamina_cost} SP)`}
+                        style={{
+                            position: 'relative', width: 56, height: 56, borderRadius: 10,
+                            background: skill.tier === 3 ? 'rgba(201,162,75,0.15)' : 'var(--bg-panel-hover)',
+                            border: `2px solid ${skill.tier === 3 ? '#c9a24b' : 'var(--border-subtle)'}`,
+                            opacity: usable ? 1 : 0.4, cursor: usable ? 'pointer' : 'not-allowed',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                        }}
+                    >
+                        {skill.icon_path ? (
+                            <img src={skill.icon_path} alt={skill.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        ) : (
+                            <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', padding: 2 }}>{skill.name}</span>
+                        )}
+                        {onCooldown && (
+                            <div
+                                style={{
+                                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 700, color: '#fff',
+                                }}
+                            >
+                                {remainingTicks}
+                            </div>
+                        )}
+                        <div
+                            style={{
+                                position: 'absolute', bottom: 2, left: 2, fontSize: '0.6rem', fontWeight: 700,
+                                color: '#c9a24b', background: 'rgba(11,12,18,0.8)', borderRadius: 4, padding: '0 3px',
+                            }}
+                        >
+                            {keyLabels[i]}
+                        </div>
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+export default function Show({ battle: initialBattle, battleBackground, keyBindings = {}, skillActionDelay = 2 }) {
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
+    const isManual = initialBattle.mode === 'manual';
+
+    // Mode manual: battle state di-mutate LOKAL (bukan di-replay dari log
+    // pre-resolved kayak auto) - tiap aksi manual update state ini via fetch().
+    const [liveBattle, setLiveBattle] = useState(initialBattle);
+    const [liveLog, setLiveLog] = useState(initialBattle.battle_log || []);
+    const [acting, setActing] = useState(false);
+    const battle = isManual ? liveBattle : initialBattle;
     const monster = battle.monster;
-    const log = battle.battle_log || [];
+    const log = isManual ? liveLog : (battle.battle_log || []);
 
     // Level & stat monster yang beneran dipakai battle ini (udah di-scale
     // sesuai level encounter) - fallback ke stat statis monster kalau battle
@@ -52,13 +129,21 @@ export default function Show({ battle, battleBackground }) {
     }, [log.length]);
 
     useEffect(() => {
+        if (isManual) {
+            // Mode manual: gak ada animasi playback (log tumbuh live dari aksi
+            // player), langsung tampilin state terkini setiap kali log berubah.
+            setStep(log.length - 1);
+            setFinished(battle.status !== 'ongoing');
+            return;
+        }
         if (step >= log.length - 1) {
             setFinished(true);
             return;
         }
         timerRef.current = setTimeout(() => setStep((s) => s + 1), intervalMs);
         return () => clearTimeout(timerRef.current);
-    }, [step, log.length, intervalMs]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [step, log.length, intervalMs, isManual, battle.status]);
 
     // Auto-scroll KE DALAM box log doang (bukan scrollIntoView, yang ternyata
     // ikut nge-scroll seluruh halaman kalau box-nya deket tepi viewport) -
@@ -117,6 +202,52 @@ export default function Show({ battle, battleBackground }) {
         setFinished(true);
         setUserSkipped(true);
     }
+
+    // Kirim 1 aksi manual (klik skill / keyboard) ke server, update state
+    // lokal dari response (battle terbaru + log delta yang di-append).
+    async function sendManualAction(skillId) {
+        if (acting || battle.status !== 'ongoing') return;
+        setActing(true);
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const res = await fetch(route('battles.act', battle.token), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ skill_id: skillId }),
+            });
+            const json = await res.json();
+            if (json.battle) {
+                setLiveBattle(json.battle);
+                setLiveLog((prev) => [...prev, ...(json.log || [])]);
+            }
+        } catch (err) {
+            // Diemin - biar player bisa coba lagi, gak perlu alert intrusif tiap gagal request.
+        } finally {
+            setActing(false);
+        }
+    }
+
+    // Keyboard shortcut mode manual: default Q W A S buat skill 1-4, R buat ulti
+    // (bisa diubah admin). Cari participant milik player yang login, resolve
+    // skill dari loadout-nya, kirim aksi kalau tombol yang dipencet cocok.
+    useEffect(() => {
+        if (!isManual) return;
+        function handleKeyDown(e) {
+            const myParticipant = battle.participants.find((p) => p.character.user_id === currentUserId);
+            if (!myParticipant) return;
+            const loadout = (myParticipant.character.subclass?.skills ?? [])
+                .filter((s) => (myParticipant.loadout_skill_ids ?? []).includes(s.id));
+            const tier1 = loadout.filter((s) => s.tier === 1);
+            const ulti = loadout.find((s) => s.tier === 3);
+            const key = e.key.toUpperCase();
+            const slotMap = { [keyBindings.skill1]: tier1[0], [keyBindings.skill2]: tier1[1], [keyBindings.skill3]: tier1[2], [keyBindings.skill4]: tier1[3], [keyBindings.ulti]: ulti };
+            const skill = slotMap[key];
+            if (skill) sendManualAction(skill.id);
+        }
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isManual, battle.participants, acting]);
 
     const current = log[step] || { monster_hp: battle.monster_current_hp, participants: {} };
     const visibleLog = log.slice(0, step + 1);

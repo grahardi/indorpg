@@ -5,6 +5,7 @@ export default function Select({ encounter, characters }) {
     const { data, setData, post, processing, errors } = useForm({
         character_ids: characters.map((c) => c.id),
         frontman_character_id: null,
+        mode: 'auto',
     });
 
     function submit(e) {
@@ -97,6 +98,42 @@ export default function Select({ encounter, characters }) {
                                 </div>
                             )}
                             <div className="text-truncate mt-1" style={{ fontSize: '0.78rem', color: '#b8433a' }}>{encounter.monster.name}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rpg-card mb-4" style={{ '--accent': '#3f8c94', padding: '1.25rem' }}>
+                    <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem', color: '#3f8c94' }}>Mode Battle</div>
+                    <div className="row g-2">
+                        <div className="col-6">
+                            <button
+                                type="button"
+                                onClick={() => setData('mode', 'auto')}
+                                className="w-100 text-start p-2"
+                                style={{
+                                    background: data.mode === 'auto' ? 'var(--bg-panel-hover)' : 'transparent',
+                                    border: `2px solid ${data.mode === 'auto' ? '#3f8c94' : 'var(--border-subtle)'}`,
+                                    borderRadius: 8, color: data.mode === 'auto' ? '#3f8c94' : 'var(--text-secondary)',
+                                }}
+                            >
+                                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>⚡ Auto</div>
+                                <div className="text-secondary" style={{ fontSize: '0.72rem' }}>Server jalanin semua otomatis, tinggal nonton.</div>
+                            </button>
+                        </div>
+                        <div className="col-6">
+                            <button
+                                type="button"
+                                onClick={() => setData('mode', 'manual')}
+                                className="w-100 text-start p-2"
+                                style={{
+                                    background: data.mode === 'manual' ? 'var(--bg-panel-hover)' : 'transparent',
+                                    border: `2px solid ${data.mode === 'manual' ? '#3f8c94' : 'var(--border-subtle)'}`,
+                                    borderRadius: 8, color: data.mode === 'manual' ? '#3f8c94' : 'var(--text-secondary)',
+                                }}
+                            >
+                                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>🎮 Manual</div>
+                                <div className="text-secondary" style={{ fontSize: '0.72rem' }}>Kontrol skill karaktermu sendiri (klik/keyboard).</div>
+                            </button>
                         </div>
                     </div>
                 </div>

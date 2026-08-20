@@ -144,6 +144,7 @@ class BattleController extends Controller
                 'skill4' => \App\Models\GameSetting::get('skill_key_4', 'S'),
                 'ulti' => \App\Models\GameSetting::get('skill_key_ulti', 'R'),
             ],
+            'skillActionDelay' => \App\Models\GameSetting::getFloat('skill_action_delay', 2),
         ]);
     }
 
