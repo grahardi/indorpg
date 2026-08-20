@@ -1321,3 +1321,13 @@ defenseStat = physicalDefense × (physical_ratio/100) + magicDefense × (1 - phy
 **Root cause**: `Maps/Show.jsx` dari awal dibuat (v-lama, sebelum fitur upload background ada) pakai `background: 'radial-gradient(...)'` hardcode sebagai placeholder — dan **gak pernah diupdate** buat baca `map.background_path` pas fitur upload background ditambahin belakangan (bagian 32/38). Jadi biarpun `Admin\MapController::uploadBackground()` beneran nyimpen gambar & path-nya dengan benar ke database, halaman publik yang nampilin peta gak pernah pakai data itu.
 
 **Fix**: `Maps/Show.jsx` sekarang cek `map.background_path` — kalau ada, pakai `backgroundImage: url(...)` (`cover`, center); kalau belum di-upload, fallback ke gradient placeholder kayak sebelumnya.
+
+---
+
+## 52. Fix Bug: Seeder Gagal - Perbandingan Kolom JSON Postgres (v7.5)
+
+**Error**: `SQLSTATE[42883]: Undefined function: operator does not exist: json = unknown` pas jalanin `php artisan migrate --seed`.
+
+**Root cause**: `MonsterDefaultSkillSeeder` (bagian 50) pakai `->orWhere('skills_config', '[]')` buat ngecek monster dengan skill kosong. Kolom `skills_config` tipenya `json` (bukan `jsonb`) di Postgres — tipe `json` **gak dukung operator `=`** langsung buat perbandingan, cuma `jsonb` yang bisa. Laravel nerjemahin `->orWhere()` biasa jadi SQL `=` mentah, Postgres nolak.
+
+**Fix**: ganti pakai `whereJsonLength('skills_config', 0)` — method Laravel yang khusus buat ngecek panjang array JSON, diterjemahin ke fungsi `json_array_length()` yang emang didukung tipe `json` di Postgres (bukan operator `=` biasa).

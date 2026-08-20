@@ -21,7 +21,14 @@ class MonsterDefaultSkillSeeder extends Seeder
      */
     public function run(): void
     {
-        foreach (Monster::whereNull('skills_config')->orWhere('skills_config', '[]')->get() as $monster) {
+        // BUG FIX: kolom skills_config tipe json (bukan jsonb) di Postgres GAK
+        // BISA dibandingkan pakai '=' langsung (operator does not exist: json =
+        // unknown) - harus pakai whereJsonLength buat ngecek array kosong.
+        $monsters = Monster::where(function ($q) {
+            $q->whereNull('skills_config')->orWhereJsonLength('skills_config', 0);
+        })->get();
+
+        foreach ($monsters as $monster) {
             // Rasio physical ditentuin dari perbandingan stat asli monster -
             // sekali aja di sini, jadi angka TETAP (bukan ambigu/berubah-ubah).
             $total = $monster->physical_damage + $monster->magic_damage;
