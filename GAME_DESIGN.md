@@ -1480,3 +1480,17 @@ Kemungkinan besar celahnya di tipe data — nilai dari JSON (cooldown timestamp,
 
 ### HP/SP/MP regen real-time (fitur baru)
 Sesuai request "misal 10/s gitu" — panel "Status Kamu" sekarang direfactor jadi komponen `PlayerStatusPanel` dengan **interpolasi real-time**: bar HP/SP/MP nambah dikit-dikit tiap detik di browser (bukan cuma "loncat" pas ada respons server baru), berdasarkan rate regen karakter (`effective_hp_regen` dkk, dikonversi ke per-detik dari `skill_action_delay`). Nilai display di-sinkronin ulang ke angka AUTORITATIF dari server tiap kali ada update beneran (gak numpuk drift/salah). Label kecil "(+X.X/s)" ditambahin di samping tiap bar biar rate-nya keliatan jelas.
+
+---
+
+## 62. Fix Race Condition Auto-Poll vs Klik Player (Cooldown "Reset" Random) + Ulti 15s Seragam (v8.5)
+
+**Laporan**: "skill cooldown masih error, ada yang langsung reset kayak refresh page, terus diklik malah meleset. apa timernya gak sama ya."
+
+### Root cause: race condition antara auto-poll dan klik manual
+Guard "jangan kirim request baru kalau masih ada yang diproses" sebelumnya pakai **state React** (`acting`), yang bisa "telat" 1 render dibanding kondisi aslinya (closure lama, misal di dalam `setInterval` auto-poll, bisa masih baca `acting=false` versi lama). Kalau klik player dan auto-poll kebetulan nembak NYARIS BERSAMAAN, DUA-DUANYA bisa lolos pengecekan itu — 2 request kepr proses server BARENGAN, dan response yang **datang belakangan nimpa** state duluan. Efeknya keliatan random: kadang seperti "reset", kadang skill yang baru dipakai malah ke-treat kayak belum kepakai lagi.
+
+**Fix**: guard utama sekarang pakai `useRef` (`actingRef`), yang NILAINYA SELALU sinkron real-time (gak nunggu render kayak state) — dicek dan di-set di satu langkah synchronous sebelum request dikirim, jadi gak mungkin lagi 2 request lolos bersamaan gak peduli seberapa presisi timing-nya. State `acting` tetap ada, cuma buat keperluan UI (nge-disable tombol pas lagi proses).
+
+### Ultimate skill: cooldown 15 detik seragam
+Semua skill tier-3 (ultimate, di semua 14 subclass) sekarang punya `cooldown_seconds = 15` — konsisten dan gampang diprediksi, gak variatif per skill lagi kayak sebelumnya.

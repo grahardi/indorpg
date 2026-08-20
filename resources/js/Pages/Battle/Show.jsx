@@ -210,6 +210,17 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     const [liveBattle, setLiveBattle] = useState(initialBattle);
     const [liveLog, setLiveLog] = useState(initialBattle.battle_log || []);
     const [acting, setActing] = useState(false);
+    // BUG FIX PENTING: state React (`acting`) BISA lag 1 render di belakang
+    // closure lama (misal auto-poll interval yang closure-nya "beku" dari
+    // render sebelumnya) - jadi kadang 2 request (auto-poll + klik player)
+    // nyaris bersamaan bisa DUA-DUANYA lolos guard "if (acting) return"
+    // (karena keduanya masih baca acting=false versi lama). Efeknya: 2 giliran
+    // ke-proses BARENGAN di server, response yang DATANG BELAKANGAN nimpa
+    // state duluan - keliatan kayak "cooldown/skill reset" random padahal
+    // sebenernya race condition. Fix: pakai ref (selalu sinkron, gak nunggu
+    // render) buat guard-nya, state `acting` tetap ada cuma buat keperluan UI
+    // (disable tombol pas lagi proses).
+    const actingRef = useRef(false);
     const battle = isManual ? liveBattle : initialBattle;
     const monster = battle.monster;
     const log = isManual ? liveLog : (battle.battle_log || []);
@@ -339,7 +350,8 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     // Kirim 1 aksi manual (klik skill / keyboard) ke server, update state
     // lokal dari response (battle terbaru + log delta yang di-append).
     async function sendManualAction(skillId) {
-        if (acting || battle.status !== 'ongoing') return;
+        if (actingRef.current || battle.status !== 'ongoing') return;
+        actingRef.current = true;
         setActing(true);
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
@@ -356,6 +368,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
         } catch (err) {
             // Diemin - biar player bisa coba lagi, gak perlu alert intrusif tiap gagal request.
         } finally {
+            actingRef.current = false;
             setActing(false);
         }
     }
@@ -391,11 +404,11 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     useEffect(() => {
         if (!isManual || battle.status !== 'ongoing') return;
         const interval = setInterval(() => {
-            if (!acting) sendManualAction(null);
+            if (!actingRef.current) sendManualAction(null);
         }, skillActionDelay * 1000);
         return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isManual, battle.status, acting, skillActionDelay]);
+    }, [isManual, battle.status, skillActionDelay]);
 
     const current = log[step] || { monster_hp: battle.monster_current_hp, participants: {} };
 
