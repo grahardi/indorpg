@@ -1,11 +1,12 @@
-import { Link, Head, useForm } from '@inertiajs/react';
+import { Link, Head, useForm, usePage } from '@inertiajs/react';
 import Layout from '../../Layout';
 
 export default function Select({ encounter, characters }) {
+    const { props } = usePage();
     const { data, setData, post, processing, errors } = useForm({
         character_ids: characters.map((c) => c.id),
         frontman_character_id: null,
-        mode: 'auto',
+        mode: props.auth?.user?.default_battle_mode ?? 'auto',
     });
 
     function submit(e) {

@@ -24,6 +24,7 @@ class HandleInertiaRequests extends Middleware
                     'id' => $request->user()->id,
                     'username' => $request->user()->username,
                     'is_admin' => $request->user()->is_admin,
+                    'default_battle_mode' => $request->user()->default_battle_mode,
                 ] : null,
             ],
             'flash' => [

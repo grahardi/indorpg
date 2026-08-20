@@ -1376,3 +1376,22 @@ Sebelumnya semua party (player+NPC) baris sejajar di bawah. Sekarang:
 ### Penyesuaian HUD Manual
 - Ikon skill diperkecil (56px → 42px)
 - Spacing panel "Status Kamu" dirapatkan (HP/SP/MP bar lebih deket ke skill bar di bawahnya, gak ada gap besar lagi)
+
+---
+
+## 55. Fix Bug Tombol Skill Ilang + Menu Pengaturan + Mini-Log + Ikon 48px (v7.8)
+
+### Fix bug: tombol skill manual ilang di awal battle
+**Root cause**: `BattleController::act()` eager-load-nya cuma `'participants.character.subclass'` (tanpa `.skills`). Response ini nimpa state frontend setelah AKSI PERTAMA (termasuk auto-poll otomatis yang jalan beberapa detik setelah battle mulai, bukan cuma dari klik player) — begitu `subclass.skills` ilang dari data, `ManualSkillBar` gak nemu skill loadout-nya, tombol jadi kosong/ilang. Fix: tambah `.skills` ke eager load.
+
+### Menu Pengaturan (player, bukan admin)
+- Kolom baru `users.default_battle_mode` ('auto'/'manual', default 'auto')
+- Nama user di nav (yang tadinya cuma teks statis) sekarang jadi **dropdown**, isinya link "⚙ Pengaturan"
+- Halaman `/settings` — toggle Auto/Manual (styling sama kayak toggle di halaman Frontman), disimpan ke akun
+- Preferensi ini otomatis jadi **default terpilih** di halaman Frontman (masih bisa diganti manual per-battle, gak dikunci)
+
+### Mini-log floating di bawah monster
+Ruang kosong di bawah efek+nama serangan monster sekarang diisi **1 baris teks terakhir** (`current.text`, font kecil, background semi-transparan tanpa border box) — mirip battle log tapi ringkas & "ngambang" di area yang emang masih kosong, bukan box scroll besar kayak sebelumnya.
+
+### Ikon skill 48px
+Ukuran ikon skill manual disesuaikan dari 42px → 48px sesuai permintaan.

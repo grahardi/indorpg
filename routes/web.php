@@ -48,6 +48,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 // Butuh login - bikin karakter, adventure/battle (party wajib punya
 // minimal 1 karakter milik sendiri, divalidasi di controller).
 Route::middleware('auth')->group(function () {
+    Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
+    Route::post('/settings', [\App\Http\Controllers\SettingsController::class, 'update'])->name('settings.update');
     Route::get('/characters', [CharacterController::class, 'index'])->name('characters.index');
     Route::post('/characters', [CharacterController::class, 'store'])->name('characters.store');
     Route::delete('/characters/{character}', [CharacterController::class, 'destroy'])->name('characters.destroy');

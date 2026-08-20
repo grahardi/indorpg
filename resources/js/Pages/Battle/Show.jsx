@@ -45,7 +45,7 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
                         disabled={!usable}
                         title={`${skill.name} (${skill.mana_cost} MP / ${skill.stamina_cost} SP)`}
                         style={{
-                            position: 'relative', width: 42, height: 42, borderRadius: 8,
+                            position: 'relative', width: 48, height: 48, borderRadius: 9,
                             background: !usable ? '#3a3d4a' : skill.tier === 3 ? 'rgba(201,162,75,0.15)' : 'var(--bg-panel-hover)',
                             border: `2px solid ${!usable ? '#5b6178' : skill.tier === 3 ? '#c9a24b' : 'var(--border-subtle)'}`,
                             opacity: usable ? 1 : 0.55, cursor: usable ? 'pointer' : 'not-allowed',
@@ -610,6 +610,20 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                                 </div>
                             )}
                         </div>
+                        {/* Mini-log - mirip battle log tapi cuma 1 baris terakhir, "ngambang"
+                            di sisa ruang kosong (bukan box gede kayak sebelumnya). */}
+                        {current.text && (
+                            <div
+                                key={`log-${step}`}
+                                style={{
+                                    fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
+                                    marginTop: 4, padding: '2px 8px', background: 'rgba(11,12,18,0.55)', borderRadius: 6,
+                                    textShadow: '0 1px 2px rgba(0,0,0,0.9)', lineHeight: 1.3,
+                                }}
+                            >
+                                {current.text}
+                            </div>
+                        )}
                     </div>
 
                     {/* Player - kiri, sendiri, agak besar. Efek muncul di sisi KANAN

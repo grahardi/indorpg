@@ -105,7 +105,13 @@ class BattleController extends Controller
         }
 
         $log = $this->battleService->processManualTurn($battle, $actingCharacter, $data['skill_id'] ?? null);
-        $battle->refresh()->load(['participants.character.subclass', 'monster']);
+        // BUG FIX: sebelumnya cuma load 'subclass' (bukan 'subclass.skills') -
+        // begitu response ini ke-apply ke state frontend, ManualSkillBar gak
+        // nemu skill loadout-nya (undefined), tombol skill ilang total. Ke-trigger
+        // pertama kali oleh AUTO-POLL (bukan aksi manual player), makanya
+        // kejadiannya "di awal battle" - poll pertama nembak beberapa detik
+        // setelah battle mulai, nimpa data yang tadinya lengkap dari show().
+        $battle->refresh()->load(['participants.character.subclass.skills', 'monster']);
 
         return response()->json([
             'battle' => $battle,
