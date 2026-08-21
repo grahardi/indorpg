@@ -4,6 +4,13 @@ import { battleAudio } from '../../battleAudio';
 
 const MONSTER_COLOR = '#b8433a';
 const PARTICIPANT_COLORS = ['#3f8c94', '#c9a24b', '#7269d1'];
+// Interval polling internal mode Manual (cek/proses giliran NPC & monster
+// otomatis) - angka TETAP (bukan setting admin lagi), SAMA SEKALI gak ada
+// hubungannya sama cooldown skill (itu murni cooldown_seconds masing-masing
+// skill, dihitung dari waktu asli - lihat ManualSkillBar). Dipakai juga buat
+// estimasi rate regen HP/SP/MP per detik (regen server jalan tiap kali
+// giliran diproses, kira-kira serapat interval ini).
+const POLL_INTERVAL_MS = 2500;
 
 function Bar({ current, max, color }) {
     const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
@@ -147,7 +154,7 @@ function FloatingNumber({ effect, animKey, side = 'center' }) {
 // server baru) berdasarkan rate regen karakter (misal +10/detik), tapi tetap
 // di-sinkronin ulang ke nilai AUTORITATIF dari server tiap kali battle state
 // berubah (gak numpuk drift).
-function PlayerStatusPanel({ participant, live, skillActionDelay }) {
+function PlayerStatusPanel({ participant, live }) {
     const [, forceTick] = useState(0);
     const syncRef = useRef({ time: Date.now(), hp: live.hp, sp: live.stamina, mp: live.mana });
 
@@ -168,11 +175,11 @@ function PlayerStatusPanel({ participant, live, skillActionDelay }) {
     const maxSp = character.effective_base_sp;
     const maxMp = character.effective_base_mp;
 
-    // Rate regen per DETIK (bukan per tick/ronde) - regen server jalan sekali
-    // tiap skillActionDelay detik, jadi rate/detik = jumlah regen / delay.
-    const hpPerSec = (character.effective_hp_regen ?? 0) / skillActionDelay;
-    const spPerSec = (character.effective_stamina_regen ?? 0) / skillActionDelay;
-    const mpPerSec = (character.effective_mana_regen ?? 0) / skillActionDelay;
+    // Rate regen per DETIK - estimasi dari jumlah regen per giliran dibagi
+    // POLL_INTERVAL_MS (konstanta tetap, BUKAN setting admin lagi).
+    const hpPerSec = (character.effective_hp_regen ?? 0) / (POLL_INTERVAL_MS / 1000);
+    const spPerSec = (character.effective_stamina_regen ?? 0) / (POLL_INTERVAL_MS / 1000);
+    const mpPerSec = (character.effective_mana_regen ?? 0) / (POLL_INTERVAL_MS / 1000);
 
     const elapsed = (Date.now() - syncRef.current.time) / 1000;
     const displayHp = Math.min(maxHp, syncRef.current.hp + hpPerSec * elapsed);
@@ -180,19 +187,19 @@ function PlayerStatusPanel({ participant, live, skillActionDelay }) {
     const displayMp = Math.min(maxMp, syncRef.current.mp + mpPerSec * elapsed);
 
     const rows = [
-        ['HP', Math.round(displayHp), maxHp, '#b8433a', hpPerSec],
-        ['SP', Math.round(displaySp), maxSp, '#c98a3a', spPerSec],
-        ['MP', Math.round(displayMp), maxMp, '#7269d1', mpPerSec],
+        ['HP', Math.round(displayHp), maxHp, '#b8433a'],
+        ['SP', Math.round(displaySp), maxSp, '#c98a3a'],
+        ['MP', Math.round(displayMp), maxMp, '#7269d1'],
     ];
 
     return (
         <div className="d-flex flex-column gap-1">
-            {rows.map(([label, cur, max, color, perSec]) => (
+            {rows.map(([label, cur, max, color]) => (
                 <div className="d-flex align-items-center gap-2" key={label}>
                     <span style={{ width: 26, fontSize: '0.65rem', color, fontFamily: 'var(--font-mono)' }}>{label}</span>
                     <div className="flex-grow-1"><Bar current={cur} max={max} color={color} /></div>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', width: 84, textAlign: 'right' }}>
-                        {cur}/{max} <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>(+{perSec.toFixed(1)}/s)</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', width: 64, textAlign: 'right' }}>
+                        {cur}/{max}
                     </span>
                 </div>
             ))}
@@ -200,7 +207,7 @@ function PlayerStatusPanel({ participant, live, skillActionDelay }) {
     );
 }
 
-export default function Show({ battle: initialBattle, battleBackground, keyBindings = {}, skillActionDelay = 2, audioSettings = {} }) {
+export default function Show({ battle: initialBattle, battleBackground, keyBindings = {}, audioSettings = {} }) {
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
     const isManual = initialBattle.mode === 'manual';
@@ -398,17 +405,17 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     // BUG FIX PENTING: sebelumnya NPC & monster CUMA gerak sebagai efek samping
     // player ngirim aksi (klik/keyboard) - kalau player diem aja mikir, battle
     // ikut freeze total (NPC gak nyerang, monster gak nyerang). Fix: polling
-    // otomatis tiap skillActionDelay detik, kirim "aksi kosong" (skillId=null,
+    // otomatis tiap POLL_INTERVAL_MS, kirim "aksi kosong" (skillId=null,
     // artinya "player skip giliran ini") - server tetap proses NPC & monster
     // meski player belum milih apa-apa, battle jalan terus.
     useEffect(() => {
         if (!isManual || battle.status !== 'ongoing') return;
         const interval = setInterval(() => {
             if (!actingRef.current) sendManualAction(null);
-        }, skillActionDelay * 1000);
+        }, POLL_INTERVAL_MS);
         return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isManual, battle.status, skillActionDelay]);
+    }, [isManual, battle.status]);
 
     const current = log[step] || { monster_hp: battle.monster_current_hp, participants: {} };
 
@@ -782,7 +789,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                     return (
                         <div className="rpg-card mb-3" style={{ '--accent': '#3f8c94', padding: '1rem' }}>
                             <div className="rpg-skill-group-title mb-1" style={{ fontSize: '0.75rem' }}>Status Kamu</div>
-                            <PlayerStatusPanel participant={myParticipant} live={live} skillActionDelay={skillActionDelay} />
+                            <PlayerStatusPanel participant={myParticipant} live={live} />
                             <ManualSkillBar
                                 participant={myParticipant}
                                 battle={battle}

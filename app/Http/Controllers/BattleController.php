@@ -150,7 +150,12 @@ class BattleController extends Controller
                 'skill4' => \App\Models\GameSetting::get('skill_key_4', 'S'),
                 'ulti' => \App\Models\GameSetting::get('skill_key_ulti', 'R'),
             ],
-            'skillActionDelay' => \App\Models\GameSetting::getFloat('skill_action_delay', 2),
+            // skill_action_delay setting cuma dipakai internal AUTO mode (server-
+            // side, gak pernah kekirim ke frontend lagi) - mode Manual sekarang
+            // pakai POLL_INTERVAL_MS tetap di frontend, sama sekali gak
+            // nyambung ke cooldown skill (murni cooldown_seconds masing-masing
+            // skill vs waktu asli).
+
             // Path audio custom (null kalau belum di-upload admin = fallback ke
             // suara sintesis default di battleAudio.js).
             'audioSettings' => collect(\App\Http\Controllers\Admin\AudioController::SLOTS)

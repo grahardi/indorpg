@@ -1494,3 +1494,16 @@ Guard "jangan kirim request baru kalau masih ada yang diproses" sebelumnya pakai
 
 ### Ultimate skill: cooldown 15 detik seragam
 Semua skill tier-3 (ultimate, di semua 14 subclass) sekarang punya `cooldown_seconds = 15` — konsisten dan gampang diprediksi, gak variatif per skill lagi kayak sebelumnya.
+
+---
+
+## 63. Copot Total Ketergantungan "Delay" dari Cooldown & Regen Display (v8.6)
+
+Sesuai permintaan — dicurigai `skill_action_delay` (setting admin) jadi sumber masalah di tampilan cooldown mode Manual. Diputus total:
+
+- **Polling interval** mode Manual sekarang **konstanta tetap** di frontend (`POLL_INTERVAL_MS = 2500`), bukan lagi baca dari setting admin `skill_action_delay`. Tetap dipakai internal buat ngecek/proses giliran NPC & monster otomatis, tapi gak lagi "kekirim" sebagai konsep yang mempengaruhi persepsi cooldown skill.
+- **`BattleController::show()`** gak ngirim `skillActionDelay` ke frontend lagi sama sekali.
+- **Cooldown skill** (`ManualSkillBar`) tetap murni `skill.cooldown_seconds` vs waktu asli sejak battle mulai (gak pernah kesentuh delay dari awal, tapi sekarang dipastikan bener-bener terisolasi, gak ada prop nyambung ke sana).
+- **Regen HP/SP/MP real-time** (`PlayerStatusPanel`) tetap jalan, rate-nya sekarang dihitung dari `POLL_INTERVAL_MS` (konstanta tetap), bukan setting admin.
+
+Setting `skill_action_delay` di `/admin/settings` MASIH ADA dan masih dipakai (cuma buat mode Auto, server-side, gak pernah nyampe ke tampilan) — kalau mau dihapus total juga, bisa diberitahu lagi.
