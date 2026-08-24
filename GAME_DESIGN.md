@@ -1523,3 +1523,17 @@ Sebelumnya cooldown dihitung di JS pakai `new Date(battle.created_at).getTime()`
 - Buat "waktu sekarang", client CUMA nambahin delta `Date.now() - waktu_sinkron` (SAMA-SAMA clock client sendiri, gak ada parsing tanggal/timezone yang bisa salah sama sekali)
 
 Cooldown gating SERVER-SIDE (`processManualTurn()`) udah aman dari awal (`now()->diffInSeconds()` PHP-native, konsisten karena `app.timezone=UTC` dipakai konsisten pas nulis MAUPUN baca) — masalahnya emang cuma di sisi tampilan/client.
+
+---
+
+## 65. Fix Waktu Cooldown Nambah Sendiri (Race Out-of-Order) + Mini-Log Jadi Baris Sendiri (v8.8)
+
+### Fix: waktu cooldown "nambah sendiri" pas ada skill dari siapapun
+**Laporan**: "waktu tiba-tiba bertambah trus dengan sendirinya, apalagi ketika ada skill siapapun yang masuk."
+
+**Root cause**: auto-poll (jalan otomatis tiap beberapa detik) dan aksi manual player bisa nembak request ke server nyaris bersamaan. Kalau response yang LEBIH LAMBAT (dikirim duluan, tapi baru kelar belakangan karena network jitter) ke-apply SETELAH response yang lebih baru, angka "waktu berjalan" (`serverElapsedSeconds`) jadi **mundur** — dan karena sisa cooldown dihitung `cooldown_seconds - (now - lastUsed)`, kalau `now` mundur, sisa cooldown malah keliatan NAIK lagi (persis gejala "waktu nambah sendiri").
+
+**Fix**: `elapsedSync` (gabungan serverSeconds+clientTime jadi 1 object, dulu 2 state terpisah) sekarang di-update lewat fungsi `updateElapsedSync()` yang **nolak update kalau angka barunya lebih kecil** dari yang lagi ditampilin sekarang — response basi/out-of-order otomatis diabaikan, waktu dijamin monotonic (cuma bisa maju, gak pernah mundur).
+
+### Mini-log dipindah jadi baris sendiri (full-width)
+Sebelumnya mini-log nyempil di kolom monster (sempit, dibatasi ellipsis). Sekarang jadi **baris terpisah full-width** di bawah arena (sebelum panel Status Kamu) — gak perlu dipotong lagi, teksnya bisa panjang. Karena ruang di kolom monster jadi lega lagi, **gambar monster dibalikin ke ukuran besar** (`maxHeight` 145→185, posisi geser balik ke `top: 3%`).

@@ -228,8 +228,29 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     // "gak jalan sama sekali". Sekarang server ngirim angka detik MENTAH,
     // client cuma nambahin delta Date.now() (SAMA-SAMA clock client, gak ada
     // celah parsing/timezone).
-    const [serverElapsedSeconds, setServerElapsedSeconds] = useState(initialServerElapsedSeconds);
-    const [serverElapsedSyncedAt, setServerElapsedSyncedAt] = useState(Date.now());
+    //
+    // Disatuin jadi 1 object (bukan 2 state terpisah) - dan update-nya di-
+    // GUARD biar MONOTONIC (gak pernah mundur). BUG FIX PENTING: auto-poll
+    // (jalan tiap beberapa detik OTOMATIS) dan klik player bisa nembak
+    // request nyaris bersamaan - kalau response yang LEBIH LAMBAT (misal
+    // auto-poll yang keburu dikirim duluan tapi baru nyampe belakangan)
+    // ke-apply SETELAH response yang lebih baru, angka waktunya jadi
+    // MUNDUR - keliatan kayak "waktu nambah sendiri" (soalnya sisa cooldown
+    // = cooldown_seconds - (now - lastUsed), kalau `now` mundur, sisa
+    // cooldown malah NAIK). Fix: tolak update kalau angka barunya lebih
+    // KECIL dari yang lagi ditampilin sekarang (data basi, diabaikan).
+    const [elapsedSync, setElapsedSyncRaw] = useState({ serverSeconds: initialServerElapsedSeconds, clientTime: Date.now() });
+    const elapsedSyncRef = useRef(elapsedSync);
+    function updateElapsedSync(newServerSeconds) {
+        const prev = elapsedSyncRef.current;
+        const currentDisplayed = prev.serverSeconds + (Date.now() - prev.clientTime) / 1000;
+        if (newServerSeconds < currentDisplayed) {
+            return; // data basi (response out-of-order) - diabaikan, jangan mundur
+        }
+        const next = { serverSeconds: newServerSeconds, clientTime: Date.now() };
+        elapsedSyncRef.current = next;
+        setElapsedSyncRaw(next);
+    }
     const [liveLog, setLiveLog] = useState(initialBattle.battle_log || []);
     const [acting, setActing] = useState(false);
     // BUG FIX PENTING: state React (`acting`) BISA lag 1 render di belakang
@@ -387,8 +408,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                 setLiveBattle(json.battle);
                 setLiveLog((prev) => [...prev, ...(json.log || [])]);
                 if (typeof json.serverElapsedSeconds === 'number') {
-                    setServerElapsedSeconds(json.serverElapsedSeconds);
-                    setServerElapsedSyncedAt(Date.now());
+                    updateElapsedSync(json.serverElapsedSeconds);
                 }
             }
         } catch (err) {
@@ -698,10 +718,10 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-subtle)', marginBottom: '1rem',
                     }}
                 >
-                    {/* Monster - besar, tengah/atas. Digeser lebih ke atas & dikecilin
-                        dikit (dari sebelumnya) - biar ada ruang cukup di bawah buat
-                        mini-log gak ke-potong sama overflow:hidden arena. */}
-                    <div style={{ position: 'absolute', top: '1%', left: '50%', transform: 'translateX(-50%)', width: '38%', textAlign: 'center' }}>
+                    {/* Monster - besar, tengah/atas. Balik ke ukuran besar (mini-log
+                        udah dipindah jadi baris sendiri di bawah, gak perlu berbagi
+                        ruang vertikal lagi di kolom ini). */}
+                    <div style={{ position: 'absolute', top: '3%', left: '50%', transform: 'translateX(-50%)', width: '42%', textAlign: 'center' }}>
                         {current.monster_hp > 0 && current.text?.includes(monster.name) && current.text?.includes('kena stun') && (
                             <div
                                 style={{
@@ -724,7 +744,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                             <img
                                 src={monster.full_body_path}
                                 alt={monster.name}
-                                style={{ width: '100%', maxHeight: 145, objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }}
+                                style={{ width: '100%', maxHeight: 185, objectFit: 'contain', filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.7))' }}
                             />
                         ) : (
                             <div className="rpg-badge-hex mx-auto" style={{ '--accent': MONSTER_COLOR, width: 84, height: 84, fontSize: '1.8rem' }}>
@@ -736,7 +756,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         </div>
                         {/* Efek (damage/heal/miss) + nama serangan monster - DI BAWAH,
                             bukan nempel di sprite (biar gak nutupin monsternya). */}
-                        <div style={{ minHeight: 24, marginTop: 2 }}>
+                        <div style={{ minHeight: 32, marginTop: 4 }}>
                             {current.effect?.target === 'monster' && (
                                 <div
                                     key={step}
@@ -757,23 +777,6 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                                 </div>
                             )}
                         </div>
-                        {/* Mini-log - mirip battle log tapi cuma 1 baris terakhir, "ngambang"
-                            di sisa ruang kosong (bukan box gede kayak sebelumnya). Dibatasi
-                            1 baris (whiteSpace nowrap + ellipsis) biar gak dorong konten
-                            di bawahnya keluar batas arena (overflow:hidden). */}
-                        {current.text && (
-                            <div
-                                key={`log-${step}`}
-                                style={{
-                                    fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
-                                    marginTop: 3, padding: '2px 8px', background: 'rgba(11,12,18,0.55)', borderRadius: 6,
-                                    textShadow: '0 1px 2px rgba(0,0,0,0.9)', lineHeight: 1.3,
-                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                }}
-                            >
-                                {current.text}
-                            </div>
-                        )}
                     </div>
 
                     {/* Player - kiri, sendiri, agak besar. Efek muncul di sisi KANAN
@@ -796,6 +799,23 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                     })}
                 </div>
 
+                {/* Mini-log - 1 baris terakhir, sekarang BARIS SENDIRI full-width di
+                    bawah arena (dulu nyempil di kolom monster, sekarang lega - gak
+                    perlu dipotong ellipsis lagi karena ruangnya udah lebar). */}
+                {current.text && (
+                    <div
+                        key={`log-${step}`}
+                        className="text-center mb-3"
+                        style={{
+                            fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)',
+                            padding: '0.5rem 1rem', background: 'var(--bg-panel)', borderRadius: 8,
+                            border: '1px solid var(--border-subtle)', lineHeight: 1.4,
+                        }}
+                    >
+                        {current.text}
+                    </div>
+                )}
+
                 {/* Mode Manual: panel HP/MP/SP + tombol skill (bukan log teks lagi -
                     semua feedback lewat animasi damage number floating di atas). */}
                 {isManual && (() => {
@@ -812,8 +832,8 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                             <ManualSkillBar
                                 participant={myParticipant}
                                 battle={battle}
-                                serverElapsedSeconds={serverElapsedSeconds}
-                                serverElapsedSyncedAt={serverElapsedSyncedAt}
+                                serverElapsedSeconds={elapsedSync.serverSeconds}
+                                serverElapsedSyncedAt={elapsedSync.clientTime}
                                 onUseSkill={sendManualAction}
                                 disabled={acting || battle.status !== 'ongoing'}
                                 keyBindings={keyBindings}
