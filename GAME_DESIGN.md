@@ -1638,3 +1638,16 @@ Ini BELUM tentu fix akar masalahnya (kalau ada beneran error di server), tapi se
 Auto-poll (bagian 63, jalan sendiri tiap `POLL_INTERVAL_MS`=2.5 detik biar NPC/monster tetap gerak walau player diem) sebelumnya jalan di **jadwal tetap**, sama sekali gak peduli player baru aja klik atau lagi mikir. Kalau player butuh waktu sedikit lebih lama dari 2.5 detik buat mutusin skill apa yang mau dipake, jadwal auto-poll ini **keburu nembak duluan** (`skillId=null`, artinya "skip giliran") — makan jatah giliran player SEBELUM sempat klik. Efeknya persis kayak dilaporkan: skill pertama jalan (keburu klik cepet abis battle mulai), abis itu klik-klik berikutnya sering "kalah cepet" sama auto-poll yang jalan sendiri, kelihatan cuma NPC/monster yang gerak terus-terusan.
 
 **Fix**: auto-poll sekarang **gak jadwal tetap** lagi — dicek tiap 0.5 detik, tapi CUMA beneran ngirim kalau udah **beneran lewat penuh `POLL_INTERVAL_MS` dari aksi terakhir** (baik itu klik manual player MAUPUN auto-poll sebelumnya). Setiap kali player klik (atau tekan keyboard), jam "napas" 2.5 detiknya **RESET** — jadi player SELALU dapet jatah penuh 2.5 detik buat mikir/klik tanpa disela auto-poll, gak peduli seberapa lama jarak antar klik mereka.
+
+---
+
+## 73. Diagnostik Lanjutan: Log "[DEBUG]" di Setiap Titik Skill Player Ditolak (v9.6)
+
+**Laporan berulang**: "setelah skill pertama, berikutnya cooldown + skill gk jalan, meleset terus."
+
+Karena bug ini terus berulang walau udah beberapa kali di-fix dari sisi berbeda (tabel cooldown dedicated, race auto-poll), sekarang ditambahin **log diagnostik eksplisit** di SETIAP titik dimana request skill player bisa "diem-diem ditolak" (sebelumnya `continue` doang, gak ada jejak sama sekali):
+
+1. **Skill ID gak valid/gak ada di loadout** → log `[DEBUG] Skill ID {id} ditolak: gak ketemu di subclass atau gak ada di loadout.`
+2. **Masih cooldown / MP-SP gak cukup** → log `[DEBUG] {nama} coba pakai {skill} TAPI DITOLAK: masih cooldown {sisa}s lagi (lastUsed=..., now=..., butuh ...s)` atau `MP/SP gak cukup (butuh XMP/YSP, punya AMP/BSP)`
+
+Ini akan **langsung kelihatan di mini-log** (bagian bawah arena) kalau muncul — kalau request KAMU beneran nyampe ke server tapi ditolak, sekarang PASTI ada jejaknya, dan alasannya jelas. Kalau mini-log SAMA SEKALI gak nunjukkin entry `[DEBUG]` apapun padahal kamu ngerasa klik gak ngefek, berarti masalahnya di FRONTEND (request gak nyampe sama sekali) - beda diagnosis dan penanganannya.

@@ -839,12 +839,18 @@ class BattleService
             // (bukan AI). NPC teman & karakter lain: tetap AI (autoPickSkillRealtime).
             if ($playerParticipant && $participant->id === $playerParticipant->id) {
                 if (! $skillId) {
-                    continue; // player pilih "nunggu" / belum kirim aksi
+                    continue; // player pilih "nunggu" / belum kirim aksi - ini normal (auto-poll)
                 }
 
                 $skill = $participant->character->subclass->skills->firstWhere('id', $skillId);
                 if (! $skill || ! in_array($skillId, $participant->loadout_skill_ids ?? [])) {
-                    continue; // skill invalid/gak ada di loadout, diemin
+                    // DIAGNOSTIK: sebelumnya diem-diem total (continue doang) - kalau
+                    // frontend ngirim skillId yang gak valid/gak match loadout, player
+                    // gak pernah tau kenapa klik-nya "gak ngefek". Sekarang kelihatan
+                    // di log persis skillId berapa yang ditolak.
+                    $log[] = $this->snapshot($battle, "[DEBUG] Skill ID {$skillId} ditolak: gak ketemu di subclass atau gak ada di loadout.", $participant->character_id);
+
+                    continue;
                 }
 
                 $scaled = $this->skillCombatStats($participant->character, $skill);
@@ -861,7 +867,17 @@ class BattleService
                 $affordable = $scaled['stamina_cost'] <= $participant->current_stamina && $scaled['mana_cost'] <= $participant->current_mana;
 
                 if ($onCooldown || ! $affordable) {
-                    continue; // request invalid (harusnya udah dicegah di frontend), diemin aja
+                    // DIAGNOSTIK: ini titik yang PALING DICURIGAI nyebabin "skill gak
+                    // jalan diem-diem" - sebelumnya continue doang, gak ada jejak sama
+                    // sekali. Sekarang kelihatan JELAS di log: masih cooldown berapa
+                    // detik, atau MP/SP-nya kurang berapa.
+                    $sisaCooldown = $onCooldown ? round($scaled['cooldown_seconds'] - ($nowSeconds - $lastUsed), 1) : 0;
+                    $reason = $onCooldown
+                        ? "masih cooldown {$sisaCooldown}s lagi (lastUsed={$lastUsed}, now=".round($nowSeconds, 1).", butuh {$scaled['cooldown_seconds']}s)"
+                        : "MP/SP gak cukup (butuh {$scaled['mana_cost']}MP/{$scaled['stamina_cost']}SP, punya {$participant->current_mana}MP/{$participant->current_stamina}SP)";
+                    $log[] = $this->snapshot($battle, "[DEBUG] {$participant->character->name} coba pakai {$skill->name} TAPI DITOLAK: {$reason}", $participant->character_id);
+
+                    continue;
                 }
 
                 $this->recordCooldownUsed($participant, $skill->id, $nowSeconds);
