@@ -279,6 +279,16 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     // render) buat guard-nya, state `acting` tetap ada cuma buat keperluan UI
     // (disable tombol pas lagi proses).
     const actingRef = useRef(false);
+    // BUG FIX PENTING: auto-poll (jadwal TETAP tiap POLL_INTERVAL_MS, gak peduli
+    // player lagi ngapain) bisa "balapan" sama klik manual player - kalau player
+    // butuh mikir agak lama (lebih dari POLL_INTERVAL_MS), auto-poll keburu
+    // nembak duluan (skillId=null, cuma NPC/monster yang gerak), "makan" giliran
+    // player. Efeknya: skill pertama jalan (klik cepat abis battle mulai), tapi
+    // abis itu klik-klik berikutnya sering "kalah cepat" sama auto-poll, kelihatan
+    // kayak "skill gak jalan, cuma NPC/monster yang jalan terus". Fix: track kapan
+    // AKSI TERAKHIR (manual ATAU auto) selesai - auto-poll cuma nembak kalau udah
+    // BENERAN lewat POLL_INTERVAL_MS dari aksi terakhir, bukan jadwal independen.
+    const lastActionTimeRef = useRef(Date.now());
     const battle = isManual ? liveBattle : initialBattle;
     const monster = battle.monster;
     const log = isManual ? liveLog : (battle.battle_log || []);
@@ -411,6 +421,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
         if (actingRef.current || battle.status !== 'ongoing') return;
         actingRef.current = true;
         setActing(true);
+        lastActionTimeRef.current = Date.now();
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             const res = await fetch(route('battles.act', battle.token), {
@@ -473,15 +484,26 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     // BUG FIX PENTING: sebelumnya NPC & monster CUMA gerak sebagai efek samping
     // player ngirim aksi (klik/keyboard) - kalau player diem aja mikir, battle
     // ikut freeze total (NPC gak nyerang, monster gak nyerang). Fix: polling
-    // otomatis tiap POLL_INTERVAL_MS, kirim "aksi kosong" (skillId=null,
-    // artinya "player skip giliran ini") - server tetap proses NPC & monster
-    // meski player belum milih apa-apa, battle jalan terus.
+    // otomatis, kirim "aksi kosong" (skillId=null, artinya "player skip giliran
+    // ini") - server tetap proses NPC & monster meski player belum milih apa-apa.
+    //
+    // BUG FIX PENTING: sebelumnya `setInterval` nembak di JADWAL TETAP (tiap
+    // POLL_INTERVAL_MS) - gak peduli player BARU AJA klik atau belum. Kalau
+    // player mikir agak lama, jadwal ini "balapan" sama niat klik player, keburu
+    // makan giliran (skill=null) sebelum player sempet klik - kelihatan kayak
+    // "klik gak jalan, cuma NPC/monster yang gerak". Fix: cek TIAP 0.5 detik,
+    // tapi CUMA kirim kalau BENERAN udah lewat POLL_INTERVAL_MS dari aksi
+    // terakhir (manual ATAU auto) - klik player SELALU dapet jatah penuh
+    // POLL_INTERVAL_MS buat "napas" tanpa disela auto-poll.
     useEffect(() => {
         if (!isManual || battle.status !== 'ongoing') return;
-        const interval = setInterval(() => {
-            if (!actingRef.current) sendManualAction(null);
-        }, POLL_INTERVAL_MS);
-        return () => clearInterval(interval);
+        const checkInterval = setInterval(() => {
+            const elapsedSinceLastAction = Date.now() - lastActionTimeRef.current;
+            if (!actingRef.current && elapsedSinceLastAction >= POLL_INTERVAL_MS) {
+                sendManualAction(null);
+            }
+        }, 500);
+        return () => clearInterval(checkInterval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isManual, battle.status]);
 

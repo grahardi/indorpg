@@ -1627,3 +1627,14 @@ Ini BELUM tentu fix akar masalahnya (kalau ada beneran error di server), tapi se
 **Analisis matematis**: formula hit chance (`max(50, min(99, 100 + accuracy - 90 - monster.agility))`) punya **batas minimum 50%** — secara matematis GAK MUNGKIN "pasti meleset" terus-terusan kalau logic-nya jalan normal (paling parah pun harusnya rata-rata kena separuh kali).
 
 **Diagnostik ditambahin**: pesan "MELESET" di log sekarang nampilin **angka mentahnya**: `roll {angka} vs {hitChance}% | ACC {accuracy} vs AGI monster {agility}`. Ini bakal langsung ketauan dari 1 kali coba lagi: kalau `hitChance`-nya wajar (misal 70-90%) tapi kebetulan roll-nya di atas itu beberapa kali beruntun → itu emang sial normal (variance), BUKAN bug. Kalau `hitChance`-nya keitung absurd rendah (misal di bawah 50% padahal ada floor 50%, atau 0%) → baru itu bug kalkulasi beneran, dan sekarang ketauan persis di angka mana yang salah.
+
+---
+
+## 72. Fix Bug: Auto-Poll "Balapan" Sama Klik Manual, Makan Giliran Player (v9.5)
+
+**Laporan**: "klik skill pertama aman, berikutnya skill tidak jalan cuma jadi refresh round, jadi klik skill langsung skill npc/monster berurutan lebih cepat."
+
+### Root cause ketemu — race antara auto-poll dan niat klik player
+Auto-poll (bagian 63, jalan sendiri tiap `POLL_INTERVAL_MS`=2.5 detik biar NPC/monster tetap gerak walau player diem) sebelumnya jalan di **jadwal tetap**, sama sekali gak peduli player baru aja klik atau lagi mikir. Kalau player butuh waktu sedikit lebih lama dari 2.5 detik buat mutusin skill apa yang mau dipake, jadwal auto-poll ini **keburu nembak duluan** (`skillId=null`, artinya "skip giliran") — makan jatah giliran player SEBELUM sempat klik. Efeknya persis kayak dilaporkan: skill pertama jalan (keburu klik cepet abis battle mulai), abis itu klik-klik berikutnya sering "kalah cepet" sama auto-poll yang jalan sendiri, kelihatan cuma NPC/monster yang gerak terus-terusan.
+
+**Fix**: auto-poll sekarang **gak jadwal tetap** lagi — dicek tiap 0.5 detik, tapi CUMA beneran ngirim kalau udah **beneran lewat penuh `POLL_INTERVAL_MS` dari aksi terakhir** (baik itu klik manual player MAUPUN auto-poll sebelumnya). Setiap kali player klik (atau tekan keyboard), jam "napas" 2.5 detiknya **RESET** — jadi player SELALU dapet jatah penuh 2.5 detik buat mikir/klik tanpa disela auto-poll, gak peduli seberapa lama jarak antar klik mereka.
