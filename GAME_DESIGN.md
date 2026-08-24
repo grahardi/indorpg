@@ -1537,3 +1537,17 @@ Cooldown gating SERVER-SIDE (`processManualTurn()`) udah aman dari awal (`now()-
 
 ### Mini-log dipindah jadi baris sendiri (full-width)
 Sebelumnya mini-log nyempil di kolom monster (sempit, dibatasi ellipsis). Sekarang jadi **baris terpisah full-width** di bawah arena (sebelum panel Status Kamu) — gak perlu dipotong lagi, teksnya bisa panjang. Karena ruang di kolom monster jadi lega lagi, **gambar monster dibalikin ke ukuran besar** (`maxHeight` 145→185, posisi geser balik ke `top: 3%`).
+
+---
+
+## 66. Fix Bug Fatal di Guard Waktu (Bikin Cooldown Ngaco Lagi) + Tombol Grey Kalau Mati (v8.9)
+
+### Fix bug fatal: guard monotonic (bagian 65) SALAH bandingin
+**Laporan**: "cooldown malah kembali error, kadang gk ada cooldown sama sekali tapi waktu battle jadi lebih singkat."
+
+**Root cause**: fix di bagian 65 (`updateElapsedSync`) niatnya bagus (nolak update yang "mundur"), tapi **cara bandinginnya salah** — dibandingin ke `currentDisplayed` (hasil EKSTRAPOLASI, yang otomatis lebih besar karena udah nambahin estimasi delay jaringan), bukan ke nilai server SEBELUMNYA. Efeknya: update yang VALID pun sering ke-tolak (dikira "mundur" padahal enggak), bikin `elapsedSync` **beku di sync pertama** dan abis itu CUMA ekstrapolasi murni dari client (gak pernah dikoreksi ulang ke kenyataan server) — makin lama makin ngaco jauh dari waktu asli, kadang bikin cooldown keitung udah abis padahal belum (spam skill tanpa cooldown beneran → battle kelar lebih cepat dari harusnya).
+
+**Fix**: bandingin ke nilai RAW server SEBELUMNYA (`prev.serverSeconds`), bukan hasil ekstrapolasi — apple-to-apple, sama-sama snapshot mentah dari server. Update valid HAMPIR SELALU lebih besar dari nilai sebelumnya (waktu server cuma maju), cuma nolak yang BENERAN basi/out-of-order.
+
+### Tombol skill grey total kalau karakter mati
+`ManualSkillBar` sekarang nerima status `is_alive` karakter yang dikontrol — kalau `false` (tumbang), SEMUA tombol otomatis grey + gak bisa ditekan (nge-override kondisi cooldown/afford individual), sama kayak kondisi `battle.status !== 'ongoing'`.

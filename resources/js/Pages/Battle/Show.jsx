@@ -243,8 +243,16 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     const elapsedSyncRef = useRef(elapsedSync);
     function updateElapsedSync(newServerSeconds) {
         const prev = elapsedSyncRef.current;
-        const currentDisplayed = prev.serverSeconds + (Date.now() - prev.clientTime) / 1000;
-        if (newServerSeconds < currentDisplayed) {
+        // BUG FIX: sebelumnya dibandingin ke `currentDisplayed` (hasil
+        // EKSTRAPOLASI, yang otomatis lebih besar karena udah nambahin delay
+        // jaringan) - efeknya update yang VALID pun sering ke-tolak (dianggap
+        // "mundur" padahal enggak), bikin elapsedSync "beku" di sync pertama
+        // dan makin lama makin ngaco (ekstrapolasi doang, gak pernah dikoreksi
+        // ulang ke kenyataan server). Fix: bandingin ke nilai RAW server
+        // SEBELUMNYA (apple-to-apple, sama-sama snapshot server) - update
+        // valid HAMPIR SELALU >= nilai server sebelumnya (server time cuma
+        // maju), cuma nolak yang BENERAN out-of-order/basi.
+        if (newServerSeconds < prev.serverSeconds) {
             return; // data basi (response out-of-order) - diabaikan, jangan mundur
         }
         const next = { serverSeconds: newServerSeconds, clientTime: Date.now() };
@@ -835,7 +843,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                                 serverElapsedSeconds={elapsedSync.serverSeconds}
                                 serverElapsedSyncedAt={elapsedSync.clientTime}
                                 onUseSkill={sendManualAction}
-                                disabled={acting || battle.status !== 'ongoing'}
+                                disabled={acting || battle.status !== 'ongoing' || live.is_alive === false}
                                 keyBindings={keyBindings}
                             />
                         </div>
