@@ -187,9 +187,16 @@ function PlayerStatusPanel({ participant, live }) {
     const mpPerSec = (character.effective_mana_regen ?? 0) / (POLL_INTERVAL_MS / 1000);
 
     const elapsed = (Date.now() - syncRef.current.time) / 1000;
-    const displayHp = Math.min(maxHp, syncRef.current.hp + hpPerSec * elapsed);
-    const displaySp = Math.min(maxSp, syncRef.current.sp + spPerSec * elapsed);
-    const displayMp = Math.min(maxMp, syncRef.current.mp + mpPerSec * elapsed);
+    // BUG FIX: interpolasi regen sebelumnya JALAN TERUS gak peduli status
+    // hidup/mati - begitu karakter tumbang (HP 0, is_alive false), tampilan
+    // client tetap "nambahin" HP pakai hpPerSec kayak biasa (padahal server
+    // gak regen karakter yang udah tumbang sama sekali) - keliatan kayak HP
+    // "generate" lagi walau mati. Fix: kalau is_alive === false, JANGAN
+    // interpolasi, tampilin apa adanya (harusnya 0).
+    const isAlive = live.is_alive !== false;
+    const displayHp = isAlive ? Math.min(maxHp, syncRef.current.hp + hpPerSec * elapsed) : live.hp;
+    const displaySp = isAlive ? Math.min(maxSp, syncRef.current.sp + spPerSec * elapsed) : live.stamina;
+    const displayMp = isAlive ? Math.min(maxMp, syncRef.current.mp + mpPerSec * elapsed) : live.mana;
 
     const rows = [
         ['HP', Math.round(displayHp), maxHp, '#b8433a'],

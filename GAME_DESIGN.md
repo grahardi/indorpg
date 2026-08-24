@@ -1551,3 +1551,18 @@ Sebelumnya mini-log nyempil di kolom monster (sempit, dibatasi ellipsis). Sekara
 
 ### Tombol skill grey total kalau karakter mati
 `ManualSkillBar` sekarang nerima status `is_alive` karakter yang dikontrol — kalau `false` (tumbang), SEMUA tombol otomatis grey + gak bisa ditekan (nge-override kondisi cooldown/afford individual), sama kayak kondisi `battle.status !== 'ongoing'`.
+
+---
+
+## 67. Fix HP Regen Tetap Jalan Pas Karakter Mati (v9.0)
+
+**Laporan**: "ketika mati HP jadikan grey ini masih generate juga."
+
+**Root cause**: `PlayerStatusPanel` interpolasi HP/SP/MP real-time (bagian 61) JALAN TERUS gak peduli status hidup/mati — begitu karakter tumbang (HP 0, `is_alive=false`), tampilan client tetap "nambahin" HP pakai rate regen kayak biasa (padahal server SAMA SEKALI gak nge-regen karakter yang udah tumbang), bikin HP keliatan naik lagi walau mati.
+
+**Fix**: kalau `is_alive === false`, interpolasi DIMATIKAN — tampilin nilai HP/SP/MP apa adanya dari server (harusnya 0), gak diekstrapolasi naik lagi.
+
+## Catatan soal laporan cooldown lainnya
+Laporan "cooldown cuma jalan di awal", "6s jadi 3s", "ulti pasti meleset" kemungkinan besar adalah **efek langsung dari bug di bagian 66** (guard waktu yang salah bandingin, bikin jam client ngaco/drift) — yang udah diperbaiki di commit sebelumnya. Kalau laporan ini dites SEBELUM pull commit itu, gejalanya bakal persis kayak yang dijelasin (waktu ngaco bisa bikin cooldown keitung lebih cepat/lambat dari seharusnya, termasuk kemungkinan pola "6 detik keitung cuma 3 detik" kalau jam client-nya "lari" lebih cepat dari jam server).
+
+Kalau setelah pull versi TERBARU (commit fix bagian 66 ke atas) + hard-refresh browser masalahnya masih persis sama, perlu diinfoin detail reproduksinya lagi (skill spesifik yang dipakai, urutan klik) buat investigasi lebih lanjut.
