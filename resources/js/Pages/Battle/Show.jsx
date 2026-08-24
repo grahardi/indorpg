@@ -23,7 +23,7 @@ function Bar({ current, max, color }) {
 
 // Bar skill icon buat mode Manual - 5 tombol (4 skill biasa + 1 ulti), overlay
 // cooldown (angka detik/tick sisa), abu-abu kalau gak affordable/lagi cooldown.
-function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings }) {
+function ManualSkillBar({ participant, battle, serverElapsedSeconds, serverElapsedSyncedAt, onUseSkill, disabled, keyBindings }) {
     // BUG FIX: sebelumnya nowSeconds cuma ke-hitung SEKALI tiap kali parent
     // re-render (yaitu abis ada respons server baru - klik skill atau
     // auto-poll). Di antara itu, angka cooldown-nya BEKU, gak keliatan
@@ -46,10 +46,15 @@ function ManualSkillBar({ participant, battle, onUseSkill, disabled, keyBindings
     const slots = [...tier1, ...ulti];
     const keyLabels = [keyBindings.skill1, keyBindings.skill2, keyBindings.skill3, keyBindings.skill4, keyBindings.ulti];
     const cooldowns = participant.skill_cooldowns ?? {};
-    // Waktu asli (detik) sejak battle mulai - dipakai buat cooldown, BUKAN
-    // "tick" bersama - independen per karakter, dibandingin langsung ke
-    // skill.cooldown_seconds (presisi, gak dibulatin ke satuan tick lagi).
-    const nowSeconds = (Date.now() - new Date(battle.created_at).getTime()) / 1000;
+    // BUG FIX PENTING: sebelumnya `new Date(battle.created_at).getTime()` -
+    // parsing tanggal ISO string di client RAWAN salah kalau ada ambiguitas
+    // timezone (server vs koneksi database vs browser), bisa bikin selisih
+    // waktu meleset JAM (bukan detik) - persis gejala "cooldown abis instan
+    // padahal belum 30 detik". Fix total: server ngirim angka detik MENTAH
+    // (serverElapsedSeconds, dihitung server pakai now()->diffInSeconds()),
+    // client CUMA nambahin delta Date.now() - SAMA-SAMA clock client sendiri,
+    // gak ada parsing tanggal/timezone yang bisa salah sama sekali.
+    const nowSeconds = serverElapsedSeconds + (Date.now() - serverElapsedSyncedAt) / 1000;
 
     return (
         <div className="d-flex justify-content-center gap-2 mt-3 flex-wrap">
@@ -207,7 +212,7 @@ function PlayerStatusPanel({ participant, live }) {
     );
 }
 
-export default function Show({ battle: initialBattle, battleBackground, keyBindings = {}, audioSettings = {} }) {
+export default function Show({ battle: initialBattle, battleBackground, keyBindings = {}, audioSettings = {}, serverElapsedSeconds: initialServerElapsedSeconds = 0 }) {
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
     const isManual = initialBattle.mode === 'manual';
@@ -215,6 +220,16 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     // Mode manual: battle state di-mutate LOKAL (bukan di-replay dari log
     // pre-resolved kayak auto) - tiap aksi manual update state ini via fetch().
     const [liveBattle, setLiveBattle] = useState(initialBattle);
+    // Angka detik LANGSUNG dari server (bukan tanggal buat di-parse ulang) -
+    // BUG FIX PENTING: sebelumnya cooldown dihitung dari
+    // `new Date(battle.created_at)` di client, yang RAWAN salah kalau format
+    // tanggal dari server ambigu soal timezone - bisa bikin selisih waktu
+    // meleset JAM (bukan detik), keliatan kayak "cooldown abis instan" atau
+    // "gak jalan sama sekali". Sekarang server ngirim angka detik MENTAH,
+    // client cuma nambahin delta Date.now() (SAMA-SAMA clock client, gak ada
+    // celah parsing/timezone).
+    const [serverElapsedSeconds, setServerElapsedSeconds] = useState(initialServerElapsedSeconds);
+    const [serverElapsedSyncedAt, setServerElapsedSyncedAt] = useState(Date.now());
     const [liveLog, setLiveLog] = useState(initialBattle.battle_log || []);
     const [acting, setActing] = useState(false);
     // BUG FIX PENTING: state React (`acting`) BISA lag 1 render di belakang
@@ -371,6 +386,10 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
             if (json.battle) {
                 setLiveBattle(json.battle);
                 setLiveLog((prev) => [...prev, ...(json.log || [])]);
+                if (typeof json.serverElapsedSeconds === 'number') {
+                    setServerElapsedSeconds(json.serverElapsedSeconds);
+                    setServerElapsedSyncedAt(Date.now());
+                }
             }
         } catch (err) {
             // Diemin - biar player bisa coba lagi, gak perlu alert intrusif tiap gagal request.
@@ -793,6 +812,8 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                             <ManualSkillBar
                                 participant={myParticipant}
                                 battle={battle}
+                                serverElapsedSeconds={serverElapsedSeconds}
+                                serverElapsedSyncedAt={serverElapsedSyncedAt}
                                 onUseSkill={sendManualAction}
                                 disabled={acting || battle.status !== 'ongoing'}
                                 keyBindings={keyBindings}

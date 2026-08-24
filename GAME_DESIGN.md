@@ -1507,3 +1507,19 @@ Sesuai permintaan — dicurigai `skill_action_delay` (setting admin) jadi sumber
 - **Regen HP/SP/MP real-time** (`PlayerStatusPanel`) tetap jalan, rate-nya sekarang dihitung dari `POLL_INTERVAL_MS` (konstanta tetap), bukan setting admin.
 
 Setting `skill_action_delay` di `/admin/settings` MASIH ADA dan masih dipakai (cuma buat mode Auto, server-side, gak pernah nyampe ke tampilan) — kalau mau dihapus total juga, bisa diberitahu lagi.
+
+---
+
+## 64. Fix Bug Timezone Parsing - Akar Masalah Cooldown "Ngaco" (v8.7)
+
+**Laporan**: "cooldown tidak jalan, ulti pasti meleset, tiba-tiba belum 30 detik waktu udah habis, kayak ada waktu tersendiri."
+
+### Root cause: parsing tanggal di client rawan salah timezone
+Sebelumnya cooldown dihitung di JS pakai `new Date(battle.created_at).getTime()` — MEM-PARSE ULANG string tanggal ISO dari server. Ini **rawan meleset JAM** (bukan cuma detik) kalau ada AMBIGUITAS format timezone antara server (PHP/Laravel, `app.timezone=UTC`), koneksi database (Postgres session), dan cara JS nge-parse string tanggal itu. Kalau selisihnya sampai berjam-jam, SEMUA skill keliatan "langsung siap pakai lagi" instan — persis gejala "waktu tiba-tiba udah habis padahal belum 30 detik".
+
+**Fix total**: hilangkan SAMA SEKALI parsing tanggal di client. Sekarang:
+- Server ngirim **angka detik mentah** (`serverElapsedSeconds`, dihitung `now()->diffInSeconds($battle->created_at)` - PURELY server-side, gak ada celah parsing) di tiap response (`show()` awal DAN tiap `act()`)
+- Client nyimpen angka ini + `Date.now()` client pas nerima ("titik sinkron")
+- Buat "waktu sekarang", client CUMA nambahin delta `Date.now() - waktu_sinkron` (SAMA-SAMA clock client sendiri, gak ada parsing tanggal/timezone yang bisa salah sama sekali)
+
+Cooldown gating SERVER-SIDE (`processManualTurn()`) udah aman dari awal (`now()->diffInSeconds()` PHP-native, konsisten karena `app.timezone=UTC` dipakai konsisten pas nulis MAUPUN baca) — masalahnya emang cuma di sisi tampilan/client.
