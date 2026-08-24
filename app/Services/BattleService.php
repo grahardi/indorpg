@@ -447,9 +447,14 @@ class BattleService
         // Accuracy/critical GAK di-scale NPC (sama kayak monster: cuma power
         // stat yang naik, bukan akurasi/crit).
         $hitChance = max(50, min(99, 100 + $character->effective_accuracy - 90 - $monster->agility));
-        if (random_int(1, 100) > $hitChance) {
+        $roll = random_int(1, 100);
+        if ($roll > $hitChance) {
             $participant->save();
-            $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET!", $character->id, $skill->id, false, ['type' => 'miss', 'target' => 'monster']);
+            // DIAGNOSTIK SEMENTARA: tampilin angka mentahnya di log (roll, hit
+            // chance, accuracy, agility monster) - biar kelihatan JELAS ini
+            // emang sial normal (roll dikit di atas hitChance yang wajar) atau
+            // beneran bug kalkulasi (misal hitChance ke-itung absurd rendah).
+            $log[] = $this->snapshot($battle, "{$participant->character->name} pakai {$skill->name}: MELESET! (roll {$roll} vs {$hitChance}% | ACC {$character->effective_accuracy} vs AGI monster {$monster->agility})", $character->id, $skill->id, false, ['type' => 'miss', 'target' => 'monster']);
 
             return;
         }

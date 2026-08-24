@@ -1617,3 +1617,13 @@ Mode Auto (`MAX_ROUNDS=20`, berbasis jumlah ronde simulasi) **gak disentuh**, te
 - Ada exception pas fetch/parsing
 
 Ini BELUM tentu fix akar masalahnya (kalau ada beneran error di server), tapi sekarang errornya **kelihatan** — buka Console pas battle jalan, coba klik skill, screenshot/salin pesan error yang muncul (kalau ada) biar bisa dilacak lebih pasti apa yang sebenernya gagal.
+
+---
+
+## 71. Diagnostik "1 Skill Run Berikutnya Pasti Meleset" (v9.4)
+
+**Laporan**: "kalau sudah run 1 skill, berikutnya pasti meleset." Screenshot Console browser dicek — **gak ada error** di request (`/act` sukses normal), jadi ini BUKAN soal request gagal (beda dari laporan sebelumnya).
+
+**Analisis matematis**: formula hit chance (`max(50, min(99, 100 + accuracy - 90 - monster.agility))`) punya **batas minimum 50%** — secara matematis GAK MUNGKIN "pasti meleset" terus-terusan kalau logic-nya jalan normal (paling parah pun harusnya rata-rata kena separuh kali).
+
+**Diagnostik ditambahin**: pesan "MELESET" di log sekarang nampilin **angka mentahnya**: `roll {angka} vs {hitChance}% | ACC {accuracy} vs AGI monster {agility}`. Ini bakal langsung ketauan dari 1 kali coba lagi: kalau `hitChance`-nya wajar (misal 70-90%) tapi kebetulan roll-nya di atas itu beberapa kali beruntun → itu emang sial normal (variance), BUKAN bug. Kalau `hitChance`-nya keitung absurd rendah (misal di bawah 50% padahal ada floor 50%, atau 0%) → baru itu bug kalkulasi beneran, dan sekarang ketauan persis di angka mana yang salah.
