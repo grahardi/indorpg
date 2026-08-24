@@ -14,7 +14,11 @@ use Illuminate\Support\Collection;
 
 class BattleService
 {
-    private const MAX_ROUNDS = 20; // safety cap biar gak infinite loop
+    private const MAX_ROUNDS = 20; // safety cap biar gak infinite loop (dipakai mode Auto doang)
+
+    // Cap WAKTU ASLI (detik) buat mode Manual - bukan jumlah aksi (lihat bug fix
+    // di processManualTurn). 300 detik = 5 menit, cukup panjang buat battle wajar.
+    private const MAX_MANUAL_BATTLE_SECONDS = 300;
 
     /**
      * Mulai battle baru dari sebuah Encounter + karakter yang dipilih (2-3 orang),
@@ -878,7 +882,17 @@ class BattleService
 
         $battle->round_number += 1;
 
-        if ($battle->monster_current_hp <= 0 || ! $this->anyAlive($battle) || $battle->round_number > self::MAX_ROUNDS) {
+        // BUG FIX PENTING: sebelumnya cap "battle kelamaan" pakai round_number
+        // (naik 1 SETIAP KALI /act dipanggil - termasuk dari klik cepat!). Kalau
+        // player spam klik skill, round_number bisa ngelewatin MAX_ROUNDS (20)
+        // cuma dalam hitungan DETIK (bukan karena battle beneran lama), bikin
+        // battle di-force-end premature ("Pertarungan terlalu lama") padahal
+        // baru jalan sebentar. Fix: mode Manual pakai cap WAKTU ASLI (5 menit),
+        // bukan jumlah aksi - konsisten sama konsep mode ini yang emang
+        // berbasis waktu, bukan giliran/ronde.
+        $tooLong = $nowSeconds > self::MAX_MANUAL_BATTLE_SECONDS;
+
+        if ($battle->monster_current_hp <= 0 || ! $this->anyAlive($battle) || $tooLong) {
             $this->finalizeBattle($battle, $log);
         } else {
             $battle->battle_log = array_merge($battle->battle_log ?? [], $log);

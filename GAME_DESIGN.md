@@ -1587,3 +1587,18 @@ Mode **Auto** (`autoPickSkill()`, tick-based) **SENGAJA GAK DISENTUH SAMA SEKALI
 
 ### Ultimate seeding
 Sama kayak sebelumnya (ulti mulai battle udah "dipakai di detik 0", langsung cooldown) — sekarang di-seed ke DUA tempat: kolom lama (buat auto) DAN tabel baru (buat manual), via `recordCooldownUsed($participant, $skillId, 0.0)` abis `BattleParticipant::create()`.
+
+---
+
+## 69. Fix Bug Fatal: Battle End Prematur Pas Skill Ditekan Cepat (v9.2)
+
+**Laporan**: "jika skill ditekan cepat-cepat langsung end prematur."
+
+### Root cause ketemu — ini kemungkinan besar PENYEBAB UTAMA semua laporan cooldown sebelumnya
+`MAX_ROUNDS = 20` (cap "biar gak infinite loop") tadinya didesain buat mode Auto, dimana 1 "ronde" = 1 putaran SIMULASI (wajar dibatasi 20). Tapi di mode Manual, `$battle->round_number` naik 1 **SETIAP KALI** endpoint `/act` dipanggil — termasuk dari **klik cepat berturut-turut**! Kalau player spam klik skill (~20 kali dalam beberapa detik), `round_number` ngelewatin cap itu **cuma dalam hitungan detik** (bukan karena battle beneran udah lama), bikin battle **dipaksa berakhir premature** ("Pertarungan terlalu lama, party mundur") padahal baru jalan bentar.
+
+Begitu battle berakhir premature, endpoint `/act` nolak semua request berikutnya (battle udah gak `ongoing`) — klik lanjutan gak ngapa-ngapain (kesannya "skill gak jalan"), dan karena battle terus-terusan restart dari awal, cooldown emang gak pernah kelihatan jalan normal dalam durasi yang cukup (kesannya "cooldown gk ada").
+
+**Fix**: mode Manual sekarang pakai cap **waktu ASLI** (`MAX_MANUAL_BATTLE_SECONDS = 300` detik / 5 menit), bukan jumlah aksi — konsisten sama konsep mode ini yang emang berbasis waktu, bukan giliran/ronde. Klik secepat apapun, gak akan lagi ngaruh ke kapan battle "dianggap kelamaan" — itu sekarang murni soal berapa lama battle beneran udah berjalan.
+
+Mode Auto (`MAX_ROUNDS=20`, berbasis jumlah ronde simulasi) **gak disentuh**, tetap seperti sebelumnya.
