@@ -418,7 +418,21 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
                 body: JSON.stringify({ skill_id: skillId }),
             });
+            // BUG FIX PENTING: sebelumnya error dari server (500, 422, dll) DIEMIN
+            // TOTAL - gak ada tanda apapun ke user/developer, keliatan kayak
+            // "klik gak ada reaksi" padahal aslinya request GAGAL di server.
+            // Sekarang di-log ke console (gampang diliat lewat DevTools) biar
+            // ketauan kalau ada masalah beneran, bukan cuma diem-dieman.
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '(gagal baca response)');
+                console.error('[Battle] /act gagal:', res.status, errText);
+                return;
+            }
             const json = await res.json();
+            if (json.error) {
+                console.error('[Battle] /act error:', json.error);
+                return;
+            }
             if (json.battle) {
                 setLiveBattle(json.battle);
                 setLiveLog((prev) => [...prev, ...(json.log || [])]);
@@ -427,7 +441,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                 }
             }
         } catch (err) {
-            // Diemin - biar player bisa coba lagi, gak perlu alert intrusif tiap gagal request.
+            console.error('[Battle] /act exception:', err);
         } finally {
             actingRef.current = false;
             setActing(false);

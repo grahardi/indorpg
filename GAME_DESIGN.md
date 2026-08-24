@@ -1602,3 +1602,18 @@ Begitu battle berakhir premature, endpoint `/act` nolak semua request berikutnya
 **Fix**: mode Manual sekarang pakai cap **waktu ASLI** (`MAX_MANUAL_BATTLE_SECONDS = 300` detik / 5 menit), bukan jumlah aksi — konsisten sama konsep mode ini yang emang berbasis waktu, bukan giliran/ronde. Klik secepat apapun, gak akan lagi ngaruh ke kapan battle "dianggap kelamaan" — itu sekarang murni soal berapa lama battle beneran udah berjalan.
 
 Mode Auto (`MAX_ROUNDS=20`, berbasis jumlah ronde simulasi) **gak disentuh**, tetap seperti sebelumnya.
+
+---
+
+## 70. Tambah Error Logging - "Gk Ada Reaksi" Kemungkinan Request Gagal Diam-Diam (v9.3)
+
+**Laporan**: "klik skill gk ada reaksi, cuma icon berkedip. animasi Blade Knight gak jalan, battle log juga gk ada."
+
+**Analisis**: semua gejala ini (gak ada reaksi, animasi gak jalan, log gak update) konsisten sama SATU kemungkinan: request `/act` GAGAL di server, tapi sebelumnya di-`catch` dan **didiemin total** — gak ada tanda apapun ke user maupun developer. Kalau request gagal, `liveLog`/`liveBattle` gak pernah ke-update, jadi `step` gak maju, `current` gak berubah — semua yang bergantung ke situ (animasi, angka damage, mini-log) ikut "beku" karena emang gak ada data baru yang masuk.
+
+**Fix diagnostik**: `sendManualAction()` sekarang **log ke console** (buka DevTools → Console) kalau:
+- Response HTTP-nya gak `ok` (401/403/422/500 dll) - tampilin status code + isi errornya
+- Response JSON punya field `error`
+- Ada exception pas fetch/parsing
+
+Ini BELUM tentu fix akar masalahnya (kalau ada beneran error di server), tapi sekarang errornya **kelihatan** — buka Console pas battle jalan, coba klik skill, screenshot/salin pesan error yang muncul (kalau ada) biar bisa dilacak lebih pasti apa yang sebenernya gagal.
