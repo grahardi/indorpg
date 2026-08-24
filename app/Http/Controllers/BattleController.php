@@ -112,6 +112,9 @@ class BattleController extends Controller
         // kejadiannya "di awal battle" - poll pertama nembak beberapa detik
         // setelah battle mulai, nimpa data yang tadinya lengkap dari show().
         $battle->refresh()->load(['participants.character.subclass.skills', 'monster']);
+        // Timpa skill_cooldowns tiap participant pakai data SEGAR dari tabel
+        // dedicated (bagian 68 - rework total sistem cooldown).
+        $this->battleService->attachCooldownsToParticipants($battle);
 
         return response()->json([
             'battle' => $battle,
@@ -143,6 +146,10 @@ class BattleController extends Controller
             'monster.element',
             'monster.spawnPoints.map',
         ]);
+        // Timpa skill_cooldowns tiap participant pakai data SEGAR dari tabel
+        // dedicated (bagian 68 - rework total sistem cooldown) - biar halaman
+        // awal juga konsisten sama data yang dipakai selama battle jalan.
+        $this->battleService->attachCooldownsToParticipants($battle);
 
         return Inertia::render('Battle/Show', [
             'battle' => $battle,

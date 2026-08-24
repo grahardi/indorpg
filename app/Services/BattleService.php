@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Battle;
 use App\Models\BattleParticipant;
+use App\Models\BattleSkillCooldown;
 use App\Models\Character;
 use App\Models\Encounter;
 use App\Models\GameSetting;
@@ -71,7 +72,7 @@ class BattleService
                 $npcSnapshot = $this->npcScaledStats($character, $npcLevel);
             }
 
-            BattleParticipant::create([
+            $newParticipant = BattleParticipant::create([
                 'battle_id' => $battle->id,
                 'character_id' => $character->id,
                 'current_hp' => $character->is_npc ? $npcSnapshot['base_hp'] : $character->current_hp,
@@ -87,6 +88,14 @@ class BattleService
                 // NPC selalu mulai fresh (full HP), jadi selalu true.
                 'is_alive' => $character->is_npc ? true : $character->current_hp > 0,
             ]);
+
+            // Seed juga ke tabel cooldown DEDICATED (mode Manual baca dari sini,
+            // bukan kolom skill_cooldowns lama lagi - itu cuma dipakai mode Auto).
+            // used_at_seconds=0 = "dipakai detik ke-0", jadi dari awal battle
+            // ultimate langsung kekunci selama cooldown_seconds penuh.
+            foreach (array_keys($initialCooldowns) as $ultiSkillId) {
+                $this->recordCooldownUsed($newParticipant, (int) $ultiSkillId, 0.0);
+            }
         }
 
         // Mode auto: sepenuhnya di-resolve server sekarang juga (kayak sebelumnya).
@@ -765,6 +774,20 @@ class BattleService
      * Return log DELTA aja (bukan seluruh log dari awal) biar frontend bisa
      * nge-append tanpa render ulang semuanya.
      */
+    /**
+     * Timpa kolom skill_cooldowns tiap participant (yang lama, kolom JSON,
+     * gak dipakai buat logic mode Manual lagi) dengan data SEGAR dari tabel
+     * dedicated - biar response JSON ke frontend tetap punya bentuk yang
+     * sama (`participant.skill_cooldowns`), ManualSkillBar gak perlu diubah
+     * sama sekali. Dipanggil controller sebelum render/response.
+     */
+    public function attachCooldownsToParticipants(Battle $battle): void
+    {
+        foreach ($battle->participants as $participant) {
+            $participant->skill_cooldowns = $this->cooldownsMapFor($participant);
+        }
+    }
+
     public function processManualTurn(Battle $battle, Character $actingCharacter, ?int $skillId): array
     {
         $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'participants.character.skills', 'participants.character.items', 'monster']);
@@ -816,15 +839,15 @@ class BattleService
                 }
 
                 $scaled = $this->skillCombatStats($participant->character, $skill);
-                $cooldowns = $participant->skill_cooldowns ?? [];
-                $lastUsed = $cooldowns[$skill->id] ?? null;
+                // REWORK TOTAL: baca dari tabel dedicated (battle_skill_cooldowns),
+                // BUKAN kolom JSON gabungan lagi. User laporan "cuma skill pertama
+                // yang cooldown-nya jalan" - dicoba dicari bug spesifiknya di logic
+                // array JSON berkali-kali gak ketemu, jadi diganti total ke
+                // pendekatan yang lebih auditable: 1 baris tabel = 1 skill = 1
+                // participant, upsert independen, gak ada lagi mekanisme "baca-
+                // ubah-simpan 1 kolom gabungan" yang bisa numpuk masalah.
+                $lastUsed = $this->cooldownUsedAt($participant, $skill->id);
 
-                // BUG FIX: sebelumnya pakai battle.round_number (counter GLOBAL
-                // sama-sama dipakai semua actor) buat ngukur cooldown - kesannya
-                // "kena delay dari aksi siapa aja". Sekarang pakai $nowSeconds
-                // (waktu asli), dibandingin LANGSUNG ke skill->cooldown_seconds -
-                // independen per karakter, presisinya juga lebih akurat (gak ada
-                // pembulatan ke satuan tick lagi).
                 $onCooldown = $lastUsed !== null && ($nowSeconds - $lastUsed) < $scaled['cooldown_seconds'];
                 $affordable = $scaled['stamina_cost'] <= $participant->current_stamina && $scaled['mana_cost'] <= $participant->current_mana;
 
@@ -832,8 +855,7 @@ class BattleService
                     continue; // request invalid (harusnya udah dicegah di frontend), diemin aja
                 }
 
-                $cooldowns[$skill->id] = $nowSeconds;
-                $participant->skill_cooldowns = $cooldowns;
+                $this->recordCooldownUsed($participant, $skill->id, $nowSeconds);
             } else {
                 $skill = $this->autoPickSkillRealtime($battle, $participant, $nowSeconds);
                 if (! $skill) {
@@ -886,14 +908,54 @@ class BattleService
      * skill->cooldown_seconds (gak perlu bulat-bulatin ke satuan tick lagi,
      * jadi presisinya juga lebih akurat).
      */
+    /**
+     * Kapan skill ini TERAKHIR dipakai participant ini (detik elapsed sejak
+     * battle dibuat) - null kalau belum pernah dipakai sama sekali. Baca dari
+     * tabel dedicated (battle_skill_cooldowns), BUKAN kolom JSON gabungan
+     * lagi - 1 query per skill, independen total dari skill lain.
+     */
+    private function cooldownUsedAt(BattleParticipant $participant, int $skillId): ?float
+    {
+        $value = BattleSkillCooldown::where('battle_participant_id', $participant->id)
+            ->where('skill_id', $skillId)
+            ->value('used_at_seconds');
+
+        return $value !== null ? (float) $value : null;
+    }
+
+    /**
+     * Catat skill ini baru aja dipakai - upsert (updateOrInsert) di tabel
+     * dedicated, gak numpuk sama cooldown skill LAIN sama sekali (beda baris
+     * tabel), gak ada risiko race/kesalahan mutasi array gabungan.
+     */
+    private function recordCooldownUsed(BattleParticipant $participant, int $skillId, float $nowSeconds): void
+    {
+        BattleSkillCooldown::updateOrCreate(
+            ['battle_participant_id' => $participant->id, 'skill_id' => $skillId],
+            ['used_at_seconds' => $nowSeconds]
+        );
+    }
+
+    /**
+     * Semua cooldown skill participant ini, format [skill_id => used_at_seconds]
+     * - dipakai buat nge-attach balik ke response JSON (frontend butuh bentuk
+     * ini biar kompatibel sama ManualSkillBar yang udah ada).
+     */
+    private function cooldownsMapFor(BattleParticipant $participant): array
+    {
+        return BattleSkillCooldown::where('battle_participant_id', $participant->id)
+            ->pluck('used_at_seconds', 'skill_id')
+            ->map(fn ($v) => (float) $v)
+            ->toArray();
+    }
+
     private function autoPickSkillRealtime(Battle $battle, BattleParticipant $participant, float $nowSeconds): ?Skill
     {
         $loadoutIds = $participant->loadout_skill_ids ?? [];
         $skills = $participant->character->subclass->skills->whereIn('id', $loadoutIds);
-        $cooldowns = $participant->skill_cooldowns ?? [];
         $character = $participant->character;
 
-        $usable = $skills->filter(function (Skill $skill) use ($battle, $participant, $cooldowns, $nowSeconds, $character) {
+        $usable = $skills->filter(function (Skill $skill) use ($battle, $participant, $nowSeconds, $character) {
             $scaled = $this->skillCombatStats($character, $skill);
 
             $affordable = $scaled['stamina_cost'] <= $participant->current_stamina
@@ -907,7 +969,10 @@ class BattleService
                 return false;
             }
 
-            $lastUsedSeconds = $cooldowns[$skill->id] ?? null;
+            // REWORK: cooldown dibaca dari tabel dedicated (battle_skill_cooldowns),
+            // BUKAN kolom JSON gabungan lagi - independen per skill, gak ada
+            // lagi risiko 1 skill "numpuk"/ketimpa skill lain.
+            $lastUsedSeconds = $this->cooldownUsedAt($participant, $skill->id);
             if ($lastUsedSeconds === null) {
                 return true;
             }
@@ -921,8 +986,7 @@ class BattleService
 
         $chosen = $usable->sortByDesc(fn (Skill $s) => $this->skillCombatStats($character, $s)['multiplier'])->first();
 
-        $cooldowns[$chosen->id] = $nowSeconds;
-        $participant->skill_cooldowns = $cooldowns;
+        $this->recordCooldownUsed($participant, $chosen->id, $nowSeconds);
 
         return $chosen;
     }

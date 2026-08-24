@@ -1566,3 +1566,24 @@ Sebelumnya mini-log nyempil di kolom monster (sempit, dibatasi ellipsis). Sekara
 Laporan "cooldown cuma jalan di awal", "6s jadi 3s", "ulti pasti meleset" kemungkinan besar adalah **efek langsung dari bug di bagian 66** (guard waktu yang salah bandingin, bikin jam client ngaco/drift) — yang udah diperbaiki di commit sebelumnya. Kalau laporan ini dites SEBELUM pull commit itu, gejalanya bakal persis kayak yang dijelasin (waktu ngaco bisa bikin cooldown keitung lebih cepat/lambat dari seharusnya, termasuk kemungkinan pola "6 detik keitung cuma 3 detik" kalau jam client-nya "lari" lebih cepat dari jam server).
 
 Kalau setelah pull versi TERBARU (commit fix bagian 66 ke atas) + hard-refresh browser masalahnya masih persis sama, perlu diinfoin detail reproduksinya lagi (skill spesifik yang dipakai, urutan klik) buat investigasi lebih lanjut.
+
+---
+
+## 68. REWORK TOTAL Sistem Cooldown Skill — Tabel Dedicated (v9.1)
+
+**Laporan berulang**: "cuma cooldown pertama yang jalan, habis itu gk jalan lagi. rework total aja algoritmanya."
+
+Setelah beberapa kali coba dicari bug spesifiknya di sistem lama (kolom JSON `skill_cooldowns` gabungan, di-baca-ubah-simpan tiap kali skill dipakai) tanpa ketemu akar masalahnya secara pasti, diputuskan **rework total** ke pendekatan yang jauh lebih robust dan auditable.
+
+### Arsitektur baru: 1 baris tabel = 1 cooldown skill
+Tabel baru `battle_skill_cooldowns` (`battle_participant_id`, `skill_id`, `used_at_seconds`, unique constraint di kombinasi keduanya). **Setiap skill punya baris sendiri**, di-upsert (`updateOrCreate`) independen total dari skill lain — gak ada lagi 1 kolom JSON gabungan yang bisa numpuk masalah antar-skill.
+
+- `BattleService::cooldownUsedAt()` — baca kapan 1 skill tertentu terakhir dipakai (1 query spesifik, per skill)
+- `BattleService::recordCooldownUsed()` — catat pemakaian (upsert, gak nyentuh skill lain sama sekali)
+- `BattleService::cooldownsMapFor()` + `attachCooldownsToParticipants()` — buat kompatibilitas response JSON ke frontend (`participant.skill_cooldowns` tetap bentuknya sama kayak sebelumnya, `ManualSkillBar` gak perlu diubah sama sekali)
+
+### Scope rework: CUMA mode Manual
+Mode **Auto** (`autoPickSkill()`, tick-based) **SENGAJA GAK DISENTUH SAMA SEKALI** — tetap pakai kolom JSON lama, biar gak ada risiko regresi di mekanisme yang udah kebukti jalan baik. Kolom `battle_participants.skill_cooldowns` (lama) masih ada di database, masih di-seed di awal battle (buat auto mode), tapi buat mode Manual sekarang CUMA dipakai sebagai "tampilan" (di-override pakai data segar dari tabel baru sebelum dikirim ke frontend) — sumber kebenaran (source of truth) yang beneran dipakai buat GATING/logic mode Manual sekarang 100% dari tabel dedicated.
+
+### Ultimate seeding
+Sama kayak sebelumnya (ulti mulai battle udah "dipakai di detik 0", langsung cooldown) — sekarang di-seed ke DUA tempat: kolom lama (buat auto) DAN tabel baru (buat manual), via `recordCooldownUsed($participant, $skillId, 0.0)` abis `BattleParticipant::create()`.
