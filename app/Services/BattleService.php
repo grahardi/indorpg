@@ -797,6 +797,18 @@ class BattleService
         }
     }
 
+    /**
+     * Tulis 1 baris diagnostik ke file terpisah (storage/logs/skill-debug.log),
+     * BUKAN ke battle log yang keliatan player - biar gak ganggu pengalaman
+     * main tapi tetap ada jejak lengkap. Diakses lewat /admin/skill-debug-log
+     * (lihat AdminDebugLogController) atau langsung via SSH/file manager.
+     */
+    private function debugLog(string $message): void
+    {
+        $line = '['.now()->format('Y-m-d H:i:s').'] '.$message.PHP_EOL;
+        @file_put_contents(storage_path('logs/skill-debug.log'), $line, FILE_APPEND | LOCK_EX);
+    }
+
     public function processManualTurn(Battle $battle, Character $actingCharacter, ?int $skillId): array
     {
         $battle->load(['participants.character.subclass.gameClass', 'participants.character.subclass.skills', 'participants.character.skills', 'participants.character.items', 'monster']);
@@ -844,11 +856,7 @@ class BattleService
 
                 $skill = $participant->character->subclass->skills->firstWhere('id', $skillId);
                 if (! $skill || ! in_array($skillId, $participant->loadout_skill_ids ?? [])) {
-                    // DIAGNOSTIK: sebelumnya diem-diem total (continue doang) - kalau
-                    // frontend ngirim skillId yang gak valid/gak match loadout, player
-                    // gak pernah tau kenapa klik-nya "gak ngefek". Sekarang kelihatan
-                    // di log persis skillId berapa yang ditolak.
-                    $log[] = $this->snapshot($battle, "[DEBUG] Skill ID {$skillId} ditolak: gak ketemu di subclass atau gak ada di loadout.", $participant->character_id);
+                    $this->debugLog("Skill ID {$skillId} ditolak: gak ketemu di subclass atau gak ada di loadout. participant_id={$participant->id}, loadout=".json_encode($participant->loadout_skill_ids ?? []));
 
                     continue;
                 }
@@ -866,17 +874,27 @@ class BattleService
                 $onCooldown = $lastUsed !== null && ($nowSeconds - $lastUsed) < $scaled['cooldown_seconds'];
                 $affordable = $scaled['stamina_cost'] <= $participant->current_stamina && $scaled['mana_cost'] <= $participant->current_mana;
 
-                if ($onCooldown || ! $affordable) {
-                    // DIAGNOSTIK: ini titik yang PALING DICURIGAI nyebabin "skill gak
-                    // jalan diem-diem" - sebelumnya continue doang, gak ada jejak sama
-                    // sekali. Sekarang kelihatan JELAS di log: masih cooldown berapa
-                    // detik, atau MP/SP-nya kurang berapa.
-                    $sisaCooldown = $onCooldown ? round($scaled['cooldown_seconds'] - ($nowSeconds - $lastUsed), 1) : 0;
-                    $reason = $onCooldown
-                        ? "masih cooldown {$sisaCooldown}s lagi (lastUsed={$lastUsed}, now=".round($nowSeconds, 1).", butuh {$scaled['cooldown_seconds']}s)"
-                        : "MP/SP gak cukup (butuh {$scaled['mana_cost']}MP/{$scaled['stamina_cost']}SP, punya {$participant->current_mana}MP/{$participant->current_stamina}SP)";
-                    $log[] = $this->snapshot($battle, "[DEBUG] {$participant->character->name} coba pakai {$skill->name} TAPI DITOLAK: {$reason}", $participant->character_id);
+                // DIAGNOSTIK: dicatat ke file (storage/logs/skill-debug.log), BUKAN
+                // ke battle log yang keliatan player - biar gak ganggu pengalaman
+                // main, tapi tetap ada jejak lengkap buat dianalisis. Dicatat SETIAP
+                // kali (bukan cuma pas ditolak) biar kelihatan histori penuhnya.
+                $this->debugLog(sprintf(
+                    'participant_id=%d skill_id=%d(%s) lastUsed=%s nowSeconds=%s cooldownNeeded=%s onCooldown=%s affordable=%s manaCost=%s/mana=%s staminaCost=%s/stamina=%s',
+                    $participant->id,
+                    $skill->id,
+                    $skill->name,
+                    $lastUsed === null ? 'null' : round($lastUsed, 2),
+                    round($nowSeconds, 2),
+                    $scaled['cooldown_seconds'],
+                    $onCooldown ? 'YES' : 'no',
+                    $affordable ? 'yes' : 'NO',
+                    $scaled['mana_cost'],
+                    $participant->current_mana,
+                    $scaled['stamina_cost'],
+                    $participant->current_stamina,
+                ));
 
+                if ($onCooldown || ! $affordable) {
                     continue;
                 }
 

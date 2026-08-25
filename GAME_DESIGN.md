@@ -1651,3 +1651,15 @@ Karena bug ini terus berulang walau udah beberapa kali di-fix dari sisi berbeda 
 2. **Masih cooldown / MP-SP gak cukup** → log `[DEBUG] {nama} coba pakai {skill} TAPI DITOLAK: masih cooldown {sisa}s lagi (lastUsed=..., now=..., butuh ...s)` atau `MP/SP gak cukup (butuh XMP/YSP, punya AMP/BSP)`
 
 Ini akan **langsung kelihatan di mini-log** (bagian bawah arena) kalau muncul — kalau request KAMU beneran nyampe ke server tapi ditolak, sekarang PASTI ada jejaknya, dan alasannya jelas. Kalau mini-log SAMA SEKALI gak nunjukkin entry `[DEBUG]` apapun padahal kamu ngerasa klik gak ngefek, berarti masalahnya di FRONTEND (request gak nyampe sama sekali) - beda diagnosis dan penanganannya.
+
+---
+
+## 74. Debug Log Dipindah ke File + Halaman Viewer (v9.7)
+
+Debug diagnostik (bagian 73) yang tadinya nongol di battle log UI sekarang ditulis ke **file terpisah** (`storage/logs/skill-debug.log`), gak ganggu tampilan main. Dicatat SETIAP kali skill dicek (bukan cuma pas ditolak) - lengkap: `participant_id`, `skill_id`, `lastUsed`, `nowSeconds`, cooldown yang dibutuhin, status affordable, mana/stamina.
+
+Ditambah juga logging di titik masuk request (`BattleController::act()`) — nyatet SETIAP request yang masuk (`battle_id`, `acting_character_id`, `skill_id` yang dikirim) dan alasan penolakan kalau ada (mode salah/battle udah selesai/karakter gak ketemu).
+
+**Cara akses (gak perlu SSH)**: buka `/admin/skill-debug-log` di browser (admin-only) — nampilin 300 baris terakhir sebagai teks polos, gampang di-copy/screenshot. Tombol clear via `DELETE /admin/skill-debug-log` (atau langsung hapus filenya manual) buat mulai bersih sebelum tes baru.
+
+**Ini fitur sementara** buat lacak bug cooldown yang berulang — bakal dihapus (route+controller) begitu masalahnya udah kelar.

@@ -87,6 +87,8 @@ class BattleController extends Controller
     public function act(Request $request, Battle $battle)
     {
         if ($battle->mode !== 'manual' || $battle->status !== 'ongoing') {
+            @file_put_contents(storage_path('logs/skill-debug.log'), '['.now()->format('Y-m-d H:i:s')."] REJECTED di controller: mode={$battle->mode} status={$battle->status} battle_id={$battle->id}".PHP_EOL, FILE_APPEND | LOCK_EX);
+
             return response()->json(['error' => 'Battle ini bukan mode manual atau udah selesai.'], 422);
         }
 
@@ -101,8 +103,12 @@ class BattleController extends Controller
             ->first();
 
         if (! $actingCharacter) {
+            @file_put_contents(storage_path('logs/skill-debug.log'), '['.now()->format('Y-m-d H:i:s')."] REJECTED: user_id={$request->user()->id} gak punya karakter di battle_id={$battle->id}".PHP_EOL, FILE_APPEND | LOCK_EX);
+
             return response()->json(['error' => 'Kamu gak punya karakter di battle ini.'], 403);
         }
+
+        @file_put_contents(storage_path('logs/skill-debug.log'), '['.now()->format('Y-m-d H:i:s')."] --- REQUEST MASUK: battle_id={$battle->id} acting_character_id={$actingCharacter->id} skill_id=".($data['skill_id'] ?? 'null').' ---'.PHP_EOL, FILE_APPEND | LOCK_EX);
 
         $log = $this->battleService->processManualTurn($battle, $actingCharacter, $data['skill_id'] ?? null);
         // BUG FIX: sebelumnya cuma load 'subclass' (bukan 'subclass.skills') -

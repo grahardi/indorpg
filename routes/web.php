@@ -84,6 +84,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/audio/{key}/upload', [\App\Http\Controllers\Admin\AudioController::class, 'upload'])->name('audio.upload');
     Route::delete('/audio/{key}', [\App\Http\Controllers\Admin\AudioController::class, 'reset'])->name('audio.reset');
 
+    // SEMENTARA - buat lacak bug cooldown skill yang berulang. Hapus lagi
+    // (route + controller) kalau masalahnya udah kelar.
+    Route::get('/skill-debug-log', [\App\Http\Controllers\Admin\DebugLogController::class, 'show'])->name('debug-log.show');
+    Route::delete('/skill-debug-log', [\App\Http\Controllers\Admin\DebugLogController::class, 'clear'])->name('debug-log.clear');
+
     Route::get('/monsters', [AdminMonsterController::class, 'index'])->name('monsters.index');
     Route::get('/monsters/create', [AdminMonsterController::class, 'create'])->name('monsters.create');
     Route::post('/monsters', [AdminMonsterController::class, 'store'])->name('monsters.store');
