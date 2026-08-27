@@ -1736,3 +1736,13 @@ Kolom `characters.mithril` — didapat dari **drop battle** (15% chance menang, 
 3. **💠 Beli Accession Item** (`/shop/accession`) — toko baru, sama tampilannya, badge "Lv.1-100" di tiap card
 
 `Shop/Index.jsx` lama dihapus, digantikan `Shop/Menu.jsx` (menu 3 pilihan) + `Shop/Category.jsx` (grid item, dipakai buat kedua kategori via parameter).
+
+---
+
+## 78. Shop Menu Pakai Gambar "Hujan's Trading Post" sebagai Background Interaktif (v10.1)
+
+Gambar referensi (desa pedagang tropis, 3 papan kayu udah digambar: Item Saya/Beli Artifak Item/Beli Accession Item) dipakai LANGSUNG jadi background halaman menu Shop (`Shop/Menu.jsx`) — sama polanya kayak Town Hub (bagian 43): gambar full-bleed + hotspot klik transparan diposisikan PERSIS di atas tiap papan kayu (posisi dalam persen, divalidasi visual pakai overlay kotak warna sebelum di-finalize).
+
+Hover di salah satu papan kasih border putih tipis + highlight redup, biar jelas area yang bisa diklik. Daftar link teks kecil di bawah gambar tetap ada buat aksesibilitas/fallback di layar kecil.
+
+Gambar dikompres dari PNG 2.4MB jadi JPEG ~270KB (`public/images/ui/shop-menu-bg.jpg`).

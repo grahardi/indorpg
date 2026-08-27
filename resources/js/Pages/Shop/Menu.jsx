@@ -1,59 +1,58 @@
 import { Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import Layout from '../../Layout';
 
 export default function Menu() {
-    const menuItems = [
-        {
-            href: route('accession.index'),
-            icon: '🎒',
-            label: 'Item Saya',
-            desc: 'Lihat semua item kamu, kelola equip, dan level-up Accession Item.',
-            accent: '#4a90e2',
-        },
-        {
-            href: route('shop.category', 'artifact'),
-            icon: '🗿',
-            label: 'Beli Artifact Item',
-            desc: 'Item standar - bonus stat langsung, gak bisa di-level.',
-            accent: '#e8c547',
-        },
-        {
-            href: route('shop.category', 'accession'),
-            icon: '💠',
-            label: 'Beli Accession Item',
-            desc: 'Item spesial - bisa di-level sampai 100, makin kuat makin lama dipakai.',
-            accent: '#8b5cf6',
-        },
+    const [hovered, setHovered] = useState(null);
+
+    // Posisi hotspot dalam PERSEN (relatif ke gambar 1376x768) - divalidasi
+    // visual (generate overlay kotak warna di atas gambar asli, dicek match
+    // sama tombol kayunya) sebelum di-finalize, sama polanya kayak Town Hub.
+    const hotspots = [
+        { id: 'item-saya', label: 'Item Saya', href: route('accession.index'), style: { left: '57%', top: '15%', width: '38%', height: '20%' } },
+        { id: 'artifak', label: 'Beli Artifak Item', href: route('shop.category', 'artifact'), style: { left: '57%', top: '40%', width: '38%', height: '20%' } },
+        { id: 'accession', label: 'Beli Accession Item', href: route('shop.category', 'accession'), style: { left: '57%', top: '65%', width: '38%', height: '20%' } },
     ];
 
     return (
         <Layout>
             <Head title="Shop" />
-            <div className="container py-5" style={{ maxWidth: 640 }}>
-                <h1 className="rpg-hero-title display-5 mb-2">Shop</h1>
-                <p className="rpg-tagline mb-5">Belanja perlengkapan, atau kelola & level-up item yang udah kamu punya.</p>
+            <div className="container py-4">
+                <div className="text-center mb-3">
+                    <h1 className="rpg-hero-title display-6 mb-1">Hujan's Trading Post</h1>
+                    <p className="text-secondary" style={{ fontSize: '0.9rem' }}>Klik salah satu papan buat mulai.</p>
+                </div>
 
-                <div className="d-flex flex-column gap-3">
-                    {menuItems.map((m) => (
+                <div
+                    className="mx-auto position-relative"
+                    style={{ maxWidth: 1000, borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border-subtle)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
+                >
+                    <img src="/images/ui/shop-menu-bg.jpg" alt="Hujan's Trading Post" style={{ width: '100%', display: 'block' }} />
+
+                    {hotspots.map((h) => (
                         <Link
-                            key={m.label}
-                            href={m.href}
-                            className="rpg-card text-decoration-none d-flex align-items-center gap-3"
-                            style={{ '--accent': m.accent, padding: '1.25rem' }}
-                        >
-                            <div
-                                style={{
-                                    width: 56, height: 56, borderRadius: 12, background: 'var(--bg-panel-hover)',
-                                    border: `2px solid ${m.accent}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '1.6rem', flexShrink: 0,
-                                }}
-                            >
-                                {m.icon}
-                            </div>
-                            <div>
-                                <div className="rpg-subclass-name" style={{ fontSize: '1.1rem', color: m.accent }}>{m.label}</div>
-                                <p className="text-secondary small mb-0">{m.desc}</p>
-                            </div>
+                            key={h.id}
+                            href={h.href}
+                            onMouseEnter={() => setHovered(h.id)}
+                            onMouseLeave={() => setHovered((cur) => (cur === h.id ? null : cur))}
+                            style={{
+                                position: 'absolute',
+                                ...h.style,
+                                border: hovered === h.id ? '2px solid #fff' : '2px solid transparent',
+                                background: hovered === h.id ? 'rgba(255,255,255,0.1)' : 'transparent',
+                                borderRadius: 10,
+                                transition: 'all 0.15s ease',
+                                cursor: 'pointer',
+                            }}
+                            aria-label={h.label}
+                        />
+                    ))}
+                </div>
+
+                <div className="d-flex justify-content-center gap-4 mt-3 flex-wrap" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    {hotspots.map((h) => (
+                        <Link key={h.id} href={h.href} className="text-decoration-none" style={{ color: hovered === h.id ? '#c9a24b' : 'var(--text-muted)' }}>
+                            {h.label}
                         </Link>
                     ))}
                 </div>
