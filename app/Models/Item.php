@@ -23,21 +23,27 @@ class Item extends Model
     ];
 
     // 'artifact' = item biasa (equip buat bonus stat, gak bisa di-level).
-    // 'accession' = item baru, bisa di-level 1-100 lewat sacrifice (lihat
-    // AccessionController) - power-nya (effect_value efektif) NAIK sesuai
-    // level, plus power spike ekstra tiap kelipatan 20 level.
-    public const CATEGORIES = ['artifact', 'accession'];
+    // 'accession' = item baru, bisa di-level lewat resep (lihat AccessionRecipe)
+    // - power-nya (effect_value efektif) NAIK sesuai level.
+    // 'material' = bahan crafting (Mithril, Ore, Orb dll) - GAK BISA di-equip,
+    // stackable (numpuk quantity di 1 baris character_items), cuma dipakai
+    // buat naik level accession item lewat resep.
+    public const CATEGORIES = ['artifact', 'accession', 'material'];
 
     public const CATEGORY_LABELS = [
         'artifact' => 'Artifact Item',
         'accession' => 'Accession Item',
+        'material' => 'Material (Crafting)',
     ];
 
     public const MAX_ACCESSION_LEVEL = 100;
 
-    // Kelipatan level yang dapet power spike ekstra ("hidden skill" - buat
-    // sekarang berupa bonus power melonjak, bukan skill terpisah).
+    // Level accession SEKARANG diskrit (bukan granular 1-100 lagi) - naik per
+    // TIER lewat resep crafting (lihat AccessionRecipe): 0 (belum di-level) ->
+    // 20 (Part 1) -> 40 (Part 2) -> 60 (Part 3) -> 80 (Part 4) -> 100 (Part 5).
     public const ACCESSION_MILESTONE_STEP = 20;
+
+    public const ACCESSION_TIERS = [0, 20, 40, 60, 80, 100];
 
     public const EFFECT_STATS = [
         'physical_damage', 'physical_defense', 'magic_damage', 'magic_defense',
@@ -54,27 +60,29 @@ class Item extends Model
     public function characters(): BelongsToMany
     {
         return $this->belongsToMany(Character::class, 'character_items')
-            ->withPivot('is_equipped', 'obtained_at', 'accession_level')
+            ->withPivot('is_equipped', 'obtained_at', 'accession_level', 'quantity')
             ->withTimestamps();
     }
 
+    public function recipes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccessionRecipe::class);
+    }
+
     /**
-     * effect_value EFEKTIF item accession di level tertentu - naik linear
-     * per level (2% per level dari base), PLUS lompatan +15% ekstra tiap
-     * kelipatan ACCESSION_MILESTONE_STEP (20/40/60/80/100) yang udah
-     * kelewatin ("hidden skill" power spike). Level 0/1 (belum di-level
-     * sama sekali) = base effect_value apa adanya.
+     * effect_value EFEKTIF item accession di tier tertentu - tiap tier yang
+     * kelewatin (0/20/40/60/80/100 = 5 tier maks) nambah +25% power dari base.
+     * Tier 0 (belum di-craft sama sekali) = base effect_value apa adanya.
      */
     public function accessionEffectiveValue(int $level): int
     {
-        if ($this->category !== 'accession' || $level <= 1) {
+        if ($this->category !== 'accession' || $level <= 0) {
             return $this->effect_value;
         }
 
-        $milestonesPassed = intdiv($level, self::ACCESSION_MILESTONE_STEP);
-        $linearBonus = 1 + (($level - 1) * 0.02);
-        $milestoneBonus = 1 + ($milestonesPassed * 0.15);
+        $tierIndex = intdiv($level, self::ACCESSION_MILESTONE_STEP); // 1-5
+        $multiplier = 1 + ($tierIndex * 0.25);
 
-        return (int) round($this->effect_value * $linearBonus * $milestoneBonus);
+        return (int) round($this->effect_value * $multiplier);
     }
 }

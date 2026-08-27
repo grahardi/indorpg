@@ -38,6 +38,12 @@ class ShopController extends Controller
         $items = Item::with('element')->where('category', $category)
             ->orderByRaw($rarityOrder)->orderBy('price')->get();
 
+        // Material ditampilin bareng di halaman Accession Item (biar gampang
+        // beli bahan crafting-nya di tempat yang sama) - urutan rarity juga.
+        $materials = $category === 'accession'
+            ? Item::where('category', 'material')->orderByRaw($rarityOrder)->orderBy('price')->get()
+            : collect();
+
         $characters = Character::with('subclass')
             ->where('user_id', $request->user()->id)
             ->where('is_npc', false)
@@ -46,6 +52,7 @@ class ShopController extends Controller
 
         return Inertia::render('Shop/Category', [
             'items' => $items,
+            'materials' => $materials,
             'characters' => $characters,
             'category' => $category,
         ]);
@@ -61,6 +68,7 @@ class ShopController extends Controller
         $data = $request->validate([
             'item_id' => ['required', 'exists:items,id'],
             'character_id' => ['required', 'exists:characters,id'],
+            'quantity' => ['nullable', 'integer', 'min:1', 'max:99'],
         ]);
 
         $character = Character::findOrFail($data['character_id']);
@@ -69,18 +77,39 @@ class ShopController extends Controller
         }
 
         $item = Item::findOrFail($data['item_id']);
+        $qty = $data['quantity'] ?? 1;
+        // Material bisa beli banyak sekaligus (numpuk 1 baris), equipment
+        // (artifact/accession) cuma bisa 1 per transaksi (unik per unit).
+        if ($item->category !== 'material') {
+            $qty = 1;
+        }
 
-        if ($character->items()->count() >= 50) {
+        $totalPrice = $item->price * $qty;
+
+        if ($item->category !== 'material' && $character->items()->count() >= 50) {
             return back()->withErrors(['gold' => 'Bag udah penuh (maksimal 50 item). Jual/buang item dulu.']);
         }
 
-        if ($character->gold < $item->price) {
+        if ($character->gold < $totalPrice) {
             return back()->withErrors(['gold' => 'Gold gak cukup buat beli item ini.']);
         }
 
-        $character->decrement('gold', $item->price);
-        $character->items()->attach($item->id, ['obtained_at' => now()]);
+        $character->decrement('gold', $totalPrice);
 
-        return back()->with('success', "{$item->name} dibeli buat {$character->name}.");
+        if ($item->category === 'material') {
+            // Material numpuk - cari baris existing item ini, nambahin quantity;
+            // kalau belum punya, baru bikin baris baru.
+            $existing = \Illuminate\Support\Facades\DB::table('character_items')
+                ->where('character_id', $character->id)->where('item_id', $item->id)->first();
+            if ($existing) {
+                \Illuminate\Support\Facades\DB::table('character_items')->where('id', $existing->id)->increment('quantity', $qty);
+            } else {
+                $character->items()->attach($item->id, ['obtained_at' => now(), 'quantity' => $qty]);
+            }
+        } else {
+            $character->items()->attach($item->id, ['obtained_at' => now()]);
+        }
+
+        return back()->with('success', "{$item->name}".($qty > 1 ? " x{$qty}" : '')." dibeli buat {$character->name}.");
     }
 }

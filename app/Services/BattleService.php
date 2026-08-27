@@ -1246,19 +1246,29 @@ class BattleService
                 $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}! (+{$points} stat point)");
             }
 
-            $droppedItem = $this->rollItemDrop();
-            if ($droppedItem && $character->items()->count() < 50) {
-                $character->items()->attach($droppedItem->id, ['obtained_at' => now()]);
-                $rarityLabel = \App\Models\Item::RARITY_LABELS[$droppedItem->rarity] ?? $droppedItem->rarity;
-                $log[] = $this->snapshot($battle, "{$character->name} dapat item [{$rarityLabel}] {$droppedItem->name}!");
-            }
+            // Drop di-roll TERPISAH per kategori (artifact/accession/material) -
+            // bisa dapet salah satu, beberapa, atau gak dapet apa-apa sekaligus
+            // (bukan cuma 1 drop total kayak sebelumnya).
+            foreach (['artifact', 'accession', 'material'] as $dropCategory) {
+                $droppedItem = $this->rollItemDrop($dropCategory);
+                if (! $droppedItem) {
+                    continue;
+                }
 
-            // Mithril drop - currency buat level-up Accession Item (bagian 76).
-            // 15% chance, 1-5 Mithril per battle menang per karakter.
-            if (random_int(1, 100) <= 15) {
-                $mithrilAmount = random_int(1, 5);
-                $character->increment('mithril', $mithrilAmount);
-                $log[] = $this->snapshot($battle, "{$character->name} dapat {$mithrilAmount} Mithril!");
+                if ($dropCategory === 'material') {
+                    $existing = \Illuminate\Support\Facades\DB::table('character_items')
+                        ->where('character_id', $character->id)->where('item_id', $droppedItem->id)->first();
+                    if ($existing) {
+                        \Illuminate\Support\Facades\DB::table('character_items')->where('id', $existing->id)->increment('quantity');
+                    } else {
+                        $character->items()->attach($droppedItem->id, ['obtained_at' => now(), 'quantity' => 1]);
+                    }
+                    $log[] = $this->snapshot($battle, "{$character->name} dapat material [{$droppedItem->name}]!");
+                } elseif ($character->items()->count() < 50) {
+                    $character->items()->attach($droppedItem->id, ['obtained_at' => now()]);
+                    $rarityLabel = \App\Models\Item::RARITY_LABELS[$droppedItem->rarity] ?? $droppedItem->rarity;
+                    $log[] = $this->snapshot($battle, "{$character->name} dapat item [{$rarityLabel}] {$droppedItem->name}!");
+                }
             }
         }
 
@@ -1270,9 +1280,9 @@ class BattleService
      * dicek satu-satu (urutan acak) sampai ada yang kena. Null kalau gak ada
      * yang ke-roll (kemungkinan besar, biar item tetap berharga).
      */
-    private function rollItemDrop(): ?\App\Models\Item
+    private function rollItemDrop(string $category = 'artifact'): ?\App\Models\Item
     {
-        $items = \App\Models\Item::inRandomOrder()->get();
+        $items = \App\Models\Item::where('category', $category)->inRandomOrder()->get();
         foreach ($items as $item) {
             if ($item->drop_rate > 0 && random_int(1, 10000) <= $item->drop_rate * 100) {
                 return $item;

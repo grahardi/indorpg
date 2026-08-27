@@ -1746,3 +1746,36 @@ Gambar referensi (desa pedagang tropis, 3 papan kayu udah digambar: Item Saya/Be
 Hover di salah satu papan kasih border putih tipis + highlight redup, biar jelas area yang bisa diklik. Daftar link teks kecil di bawah gambar tetap ada buat aksesibilitas/fallback di layar kecil.
 
 Gambar dikompres dari PNG 2.4MB jadi JPEG ~270KB (`public/images/ui/shop-menu-bg.jpg`).
+
+---
+
+## 79. REWORK Sistem Accession — Resep Crafting ala DotA (v10.2)
+
+**Feedback**: Accession Item kemarin (bagian 77) masih kerasa mirip Artifact biasa (sacrifice bebas + poin). Dirework total jadi sistem RESEP ala DotA — butuh material SPESIFIK per tier, beda-beda tingkat kesulitan sesuai rarity item.
+
+### Material baru (6 jenis, ikon beda gaya dari equipment)
+Diambil dari game-icons.net (GitHub, sumber sama), tapi kali ini icon SHAPE-nya dikasih **warna khas per material** (bukan putih polos + background rarity kayak equipment) — biar sekilas keliatan beda kategori:
+| Material | Rarity | Warna ikon |
+|---|---|---|
+| Mithril | Legendary | Biru terang mistis |
+| Mystical Orb | UR | Ungu magic |
+| Dragon Scale | SR | Merah bata |
+| Ancient Rune | Rare | Hijau lumut |
+| Gold Ore | Common | Emas |
+| Silver Ore | Common | Abu-abu kristal |
+
+Material **stackable** (`character_items.quantity`, numpuk di 1 baris — beda dari equipment yang 1 baris = 1 unit). Bisa dibeli di halaman Shop Accession (x1 atau x10 sekaligus) atau drop dari battle.
+
+### Level accession jadi TIER DISKRIT (bukan granular 1-100 lagi)
+0 → 20 (Part 1) → 40 (Part 2) → 60 (Part 3) → 80 (Part 4) → 100 (Part 5). Tiap tier naik power **+25%** dari base `effect_value`.
+
+### Resep per item per tier (`AccessionRecipe`, admin-configurable via seeder/nanti admin UI)
+Beda-beda per RARITY item — makin tinggi rarity, makin butuh material langka dari tier awal:
+- **Rare**: tier 20 cuma butuh Gold Ore + Silver Ore (gampang), baru butuh Dragon Scale di tier 100
+- **Legendary**: tier 20 udah butuh **1 Mithril** + 10 Mystical Orb + 3 Silver Ore, makin banyak Mithril tiap tier naik (sesuai contoh yang dikasih)
+
+### Craft (bukan "sacrifice" lagi) — `AccessionController::levelUp()`
+Rombak total: gak ada lagi pilih item buat dikorbanin bebas. Sekarang cuma pilih accession item target → sistem otomatis cek resep tier berikutnya → kalau material cukup, langsung konsumsi & naik tier. UI (`Shop/MyItems.jsx`) nunjukkin checklist material yang dibutuhin vs yang dipunya (hijau=cukup, merah=kurang) real-time.
+
+### Drop battle: bisa dapat lebih dari 1 sekaligus
+Sebelumnya 1 battle menang = maksimal 1 drop total. Sekarang di-roll **terpisah per kategori** (artifact/accession/material) — bisa dapat artifact DAN accession DAN material sekaligus dalam 1 battle (atau gak dapat apa-apa, tergantung roll masing-masing kategori).

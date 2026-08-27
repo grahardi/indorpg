@@ -26,6 +26,8 @@ class DatabaseSeeder extends Seeder
             ItemSeeder::class,
             BulkItemSeeder::class,
             AccessionItemSeeder::class,
+            MaterialItemSeeder::class,
+            AccessionRecipeSeeder::class,
             NpcSeeder::class,
         ]);
     }

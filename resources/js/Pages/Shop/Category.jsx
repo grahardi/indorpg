@@ -30,7 +30,7 @@ function itemStatLabel(item) {
 const ITEMS_PER_PAGE = 10;
 const RARITY_FILTERS = ['all', 'common', 'rare', 'sr', 'ur', 'legendary'];
 
-export default function Category({ items, characters, category }) {
+export default function Category({ items, materials = [], characters, category }) {
     const { props } = usePage();
     const [selectedCharacterId, setSelectedCharacterId] = useState(characters[0]?.id ?? null);
     const [rarityFilter, setRarityFilter] = useState('all');
@@ -49,11 +49,12 @@ export default function Category({ items, characters, category }) {
         setPage(0);
     }
 
-    function buy(item) {
+    function buy(item, quantity = 1) {
         if (!selectedCharacterId) return;
-        if (!confirm(`Beli "${item.name}" seharga ${item.price} Gold buat ${selectedCharacter?.name}?`)) return;
+        const totalPrice = item.price * quantity;
+        if (!confirm(`Beli "${item.name}"${quantity > 1 ? ` x${quantity}` : ''} seharga ${totalPrice} Gold buat ${selectedCharacter?.name}?`)) return;
         post(route('shop.buy'), {
-            data: { item_id: item.id, character_id: selectedCharacterId },
+            data: { item_id: item.id, character_id: selectedCharacterId, quantity },
             preserveScroll: true,
         });
     }
@@ -204,6 +205,60 @@ export default function Category({ items, characters, category }) {
                             &rarr;
                         </button>
                     </div>
+                )}
+
+                {isAccession && materials.length > 0 && (
+                    <>
+                        <h4 className="rpg-skill-group-title mt-5 mb-3">🧪 Bahan Crafting (buat naik tier Accession Item)</h4>
+                        <div className="row g-3">
+                            {materials.map((mat) => {
+                                const accent = RARITY_ACCENT[mat.rarity] ?? '#8890a4';
+                                const canAfford = selectedCharacter && selectedCharacter.gold >= mat.price;
+                                return (
+                                    <div className="col-md-6 col-lg-4" key={mat.id}>
+                                        <div className="rpg-card h-100" style={{ '--accent': accent }}>
+                                            <div className="d-flex align-items-center gap-3 mb-2">
+                                                <img
+                                                    src={mat.icon_path ?? '/images/items/placeholder.png'}
+                                                    alt={mat.name}
+                                                    style={{ width: 48, height: 48, objectFit: 'contain', flexShrink: 0 }}
+                                                />
+                                                <div className="flex-grow-1">
+                                                    <div className="rpg-subclass-name" style={{ fontSize: '0.95rem' }}>{mat.name}</div>
+                                                    <span className="rpg-element-badge" style={{ '--accent': accent, color: accent, fontSize: '0.58rem' }}>
+                                                        {RARITY_LABEL[mat.rarity]}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="d-flex justify-content-between align-items-center">
+                                                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#c9a24b' }}>
+                                                    {mat.price} Gold/pcs
+                                                </span>
+                                                <div className="d-flex gap-1">
+                                                    <button
+                                                        onClick={() => buy(mat, 1)}
+                                                        className="btn btn-sm"
+                                                        disabled={!canAfford || processing}
+                                                        style={{ background: canAfford ? 'var(--bg-panel-hover)' : 'transparent', border: `1px solid ${canAfford ? accent : 'var(--border-subtle)'}`, color: canAfford ? accent : 'var(--text-muted)' }}
+                                                    >
+                                                        x1
+                                                    </button>
+                                                    <button
+                                                        onClick={() => buy(mat, 10)}
+                                                        className="btn btn-sm"
+                                                        disabled={!selectedCharacter || selectedCharacter.gold < mat.price * 10 || processing}
+                                                        style={{ background: 'var(--bg-panel-hover)', border: `1px solid ${accent}`, color: accent }}
+                                                    >
+                                                        x10
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
                 )}
             </div>
         </Layout>
