@@ -1779,3 +1779,10 @@ Rombak total: gak ada lagi pilih item buat dikorbanin bebas. Sekarang cuma pilih
 
 ### Drop battle: bisa dapat lebih dari 1 sekaligus
 Sebelumnya 1 battle menang = maksimal 1 drop total. Sekarang di-roll **terpisah per kategori** (artifact/accession/material) — bisa dapat artifact DAN accession DAN material sekaligus dalam 1 battle (atau gak dapat apa-apa, tergantung roll masing-masing kategori).
+
+---
+
+## 80. Hapus "Pedang Accession Purba" + Urutkan Item Ter-equip di Atas (v10.3)
+
+- **"Pedang Accession Purba"** (salah satu dari 8 contoh awal Accession Item) dihapus — udah gak sesuai sama arah desain sistem crafting yang baru (bagian 79). Dihapus dari seeder + migration cleanup buat database yang udah kadung ke-seed (FK cascade otomatis beresin copy yang udah dipunya player + resepnya).
+- **"Item Saya"**: item yang lagi **di-equip** sekarang tampil **duluan** (di atas) baik di list Accession maupun Artifact — biar langsung keliatan apa yang lagi kepake tanpa perlu nyari-nyari scroll.

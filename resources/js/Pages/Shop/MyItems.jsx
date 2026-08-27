@@ -145,8 +145,11 @@ export default function MyItems({ characters, recipes, allMaterials = [] }) {
     const [craftingItemId, setCraftingItemId] = useState(null);
 
     const character = characters.find((c) => c.id === selectedCharacterId);
-    const rawAccessionItems = character?.items.filter((i) => i.category === 'accession') ?? [];
-    const artifactItems = character?.items.filter((i) => i.category === 'artifact') ?? [];
+    // Item yang lagi di-equip ditampilin DULUAN (di atas) - defaultnya biar
+    // langsung keliatan apa yang lagi kepake tanpa perlu scroll.
+    const byEquippedFirst = (a, b) => (b.pivot.is_equipped ? 1 : 0) - (a.pivot.is_equipped ? 1 : 0);
+    const rawAccessionItems = (character?.items.filter((i) => i.category === 'accession') ?? []).sort(byEquippedFirst);
+    const artifactItems = (character?.items.filter((i) => i.category === 'artifact') ?? []).sort(byEquippedFirst);
     const materialItems = character?.items.filter((i) => i.category === 'material') ?? [];
 
     // Kuantitas material milik karakter ini, dikelompokkin per item_id (bisa

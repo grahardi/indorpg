@@ -20,7 +20,6 @@ class AccessionItemSeeder extends Seeder
         $elementIds = Element::pluck('id', 'name');
 
         $items = [
-            ['Pedang Accession Purba', 'physical_damage', null, 'rare', 500, 15, 3, 'cat-physical-damage'],
             ['Tongkat Accession Arcane', 'magic_damage', null, 'rare', 500, 15, 3, 'cat-magic-damage'],
             ['Zirah Accession Abadi', 'physical_defense', null, 'rare', 500, 15, 3, 'cat-physical-defense'],
             ['Amulet Accession Vitalitas', 'hp', null, 'sr', 1200, 40, 1.5, 'cat-hp'],
