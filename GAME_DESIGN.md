@@ -1817,3 +1817,11 @@ Ikon: transparan, gradasi visual dari sederhana (Stone, abu-abu) ke megah (Relic
 - 7 item equipment "Accession" lama (Tongkat Accession Arcane, dkk) balik jadi kategori `artifact` biasa
 - `AccessionRecipe` model + seeder resep lama (berbasis konsep salah) dihapus total
 - Material (Mithril, Ore, dll dari bagian 79) tetap ada di game sebagai item drop/beli, buat sekarang murni flavor/future use (gak ada resep aktif yang makenya lagi)
+
+---
+
+## 82. Bersih-bersih UI Admin - Deskripsi Kategori & Kolom Kategori di List (v10.5)
+
+Sisa-sisa dari koreksi konsep (bagian 81) yang kelewat di admin:
+- **Form tambah/edit item** (`Admin/Items/Form.jsx`): deskripsi dropdown kategori diperbaiki ("Accession Item (bisa di-level 1-100)" yang udah gak sesuai → "Accession Item (catalyst sekali pakai - buka batas level)"), tambah opsi "Material" yang sebelumnya gak ada di dropdown-nya, plus catatan bahwa Accession/Material gak punya efek stat yang relevan.
+- **List item** (`Admin/Items/Index.jsx`): tambah kolom "Kategori" (warna beda per kategori: Artifact netral, Accession ungu, Material hijau) - biar admin gampang bedain 3 jenis item ini sekilas tanpa buka edit satu-satu. Kolom "Efek" juga disesuaikan (item non-artifact ditampilin "—" karena effect_stat/value emang gak relevan buat mereka).

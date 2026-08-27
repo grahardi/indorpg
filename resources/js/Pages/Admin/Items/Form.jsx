@@ -118,9 +118,13 @@ export default function Form({ item, elements = [], availableIcons = [] }) {
                         <div className="col-md-6">
                             <Field label="Kategori">
                                 <select className={inputClass} value={data.category} onChange={(e) => setData('category', e.target.value)}>
-                                    <option value="artifact">Artifact Item</option>
-                                    <option value="accession">Accession Item (bisa di-level 1-100)</option>
+                                    <option value="artifact">Artifact Item (equipment, bisa di-level lewat sacrifice)</option>
+                                    <option value="accession">Accession Item (catalyst sekali pakai - buka batas level)</option>
+                                    <option value="material">Material (bahan crafting, stackable)</option>
                                 </select>
+                                <p className="text-secondary small mt-1 mb-0">
+                                    Accession/Material gak punya efek stat yang relevan (effect_stat/value diabaikan pas dipakai) - isi apa aja, gak berpengaruh ke gameplay.
+                                </p>
                             </Field>
                         </div>
                         <div className="col-md-6">

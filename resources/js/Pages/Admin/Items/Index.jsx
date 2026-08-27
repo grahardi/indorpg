@@ -2,6 +2,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import Layout from '../../../Layout';
 
 const RARITY_LABEL = { common: 'Common', rare: 'Rare', sr: 'SR', ur: 'UR', legendary: 'Legendary' };
+const CATEGORY_LABEL = { artifact: 'Artifact', accession: 'Accession (Catalyst)', material: 'Material' };
+const CATEGORY_COLOR = { artifact: 'var(--text-secondary)', accession: '#8b5cf6', material: '#4a9960' };
 
 export default function Index({ items }) {
     const { props } = usePage();
@@ -37,6 +39,7 @@ export default function Index({ items }) {
                         <thead>
                             <tr>
                                 <th>Nama</th>
+                                <th>Kategori</th>
                                 <th>Rarity</th>
                                 <th>Harga</th>
                                 <th>Efek</th>
@@ -48,9 +51,12 @@ export default function Index({ items }) {
                             {items.map((i) => (
                                 <tr key={i.id}>
                                     <td className="rpg-subclass-name" style={{ fontSize: '0.9rem' }}>{i.name}</td>
+                                    <td style={{ color: CATEGORY_COLOR[i.category] ?? 'inherit', fontSize: '0.82rem' }}>
+                                        {CATEGORY_LABEL[i.category] ?? i.category}
+                                    </td>
                                     <td>{RARITY_LABEL[i.rarity]}</td>
                                     <td>{i.price} Gold</td>
-                                    <td>+{i.effect_value} {i.effect_stat}</td>
+                                    <td>{i.category === 'artifact' ? `+${i.effect_value} ${i.effect_stat}` : <span className="text-secondary">—</span>}</td>
                                     <td>{i.drop_rate}%</td>
                                     <td className="text-end">
                                         <Link href={route('admin.items.edit', i.id)} className="rpg-back-link me-2" style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}>
