@@ -1703,3 +1703,36 @@ Dari 1.1 detik → **1.8 detik** — lebih kebaca, gak buru-buru ilang.
 Sebelumnya kalau ada 2 hit beruntun cepat (misal player + NPC nyerang monster yang sama nyaris bersamaan, atau efek dari skill combo), angka yang baru langsung GANTI yang lama (nempatin posisi yang sama, kesannya cuma 1 angka). Sekarang `FloatingNumberStack` (komponen baru, gantiin `FloatingNumber` lama) nyimpen SEMUA damage number yang lagi "aktif" (belum selesai fade-out-nya) dalam 1 array — tiap hit baru DITAMBAHIN ke stack (bukan ganti), digeser dikit ke atas (`stackIndex * 26px`) biar keliatan jelas sebagai angka-angka terpisah, masing-masing otomatis ilang sendiri-sendiri setelah durasi animasinya abis (independen, gak nunggu yang lain).
 
 Berlaku di party member (kiri/kanan sisi karakter) — untuk panel monster (efek ditampilin di bawah HP bar, bukan floating di atas sprite) tetap 1 tampilan aja per momen (gak di-stack), tapi udah dapet ikon skill + critical yang sama.
+
+---
+
+## 77. Sistem Accession Item — Level 1-100, Sacrifice, Mithril, Shop Baru (v10.0)
+
+Fitur besar baru terinspirasi dari referensi UI "Hujan's Trading Post" — Shop sekarang punya 3 menu terpisah, plus item baru yang bisa naik level.
+
+### Kategori item: Artifact vs Accession
+- **Artifact Item** — item biasa yang udah ada (70 item lama), bonus stat langsung, gak bisa di-level
+- **Accession Item** (baru) — item spesial, bisa di-level **1-100**, power-nya naik seiring level. 8 contoh accession item di-seed (`AccessionItemSeeder`), rentang rarity Rare-Legendary, harga & drop rate disesuaikan lebih eksklusif dari Artifact setara
+
+### Rumus power accession (`Item::accessionEffectiveValue()`)
+```
+effectiveValue = effect_value × (1 + (level-1) × 2%) × (1 + milestonesPassed × 15%)
+```
+Naik linear 2% tiap level, PLUS lompatan **+15% ekstra tiap kelipatan 20 level** (20/40/60/80/100) — ini implementasi "hidden skill" sebagai power spike (bukan skill terpisah dengan efek unik — itu pengembangan lebih lanjut kalau dibutuhin, infrastruktur kategori & level udah siap buat itu nanti).
+
+### Currency baru: Mithril
+Kolom `characters.mithril` — didapat dari **drop battle** (15% chance menang, 1-5/battle) atau (nanti) beli di shop. Dipakai bareng sacrifice item buat naik level accession.
+
+### Level-up via Sacrifice (`AccessionController::levelUp()`)
+- Pilih 1 accession item target + beberapa item Artifact buat "dikorbankan" (dihapus permanen) + isi Mithril
+- **Gak bisa dikorbankan**: item **SR/Legendary** (sesuai permintaan), item Accession lain, item yang lagi **di-equip**, item target itu sendiri
+- Poin sacrifice per rarity: Common=1, Rare=3, UR=8 (SR/Legendary gak masuk hitungan karena emang gak bisa dikorbankan) + Mithril nambah poin 1:1
+- Butuh poin sejumlah `(level_tujuan)` buat naik 1 level — makin tinggi level, makin mahal naik lagi (natural progression curve)
+- Preview level hasil real-time di frontend (rumus disamain persis kayak backend) SEBELUM submit
+
+### Shop dirombak jadi 3 menu (`Shop/Menu.jsx`)
+1. **🎒 Item Saya** (`/my-items`, `AccessionController::index()`) — lihat semua item (Accession + Artifact), UI level-up
+2. **🗿 Beli Artifact Item** (`/shop/artifact`) — toko lama, sekarang di-filter kategori
+3. **💠 Beli Accession Item** (`/shop/accession`) — toko baru, sama tampilannya, badge "Lv.1-100" di tiap card
+
+`Shop/Index.jsx` lama dihapus, digantikan `Shop/Menu.jsx` (menu 3 pilihan) + `Shop/Category.jsx` (grid item, dipakai buat kedua kategori via parameter).

@@ -73,7 +73,7 @@ class Character extends Model
     public function items(): BelongsToMany
     {
         return $this->belongsToMany(Item::class, 'character_items')
-            ->withPivot('is_equipped', 'obtained_at')
+            ->withPivot('id', 'is_equipped', 'obtained_at', 'accession_level')
             ->withTimestamps();
     }
 
@@ -85,7 +85,7 @@ class Character extends Model
     {
         return $this->items
             ->filter(fn (Item $item) => $item->pivot->is_equipped && $item->effect_stat === $stat)
-            ->sum('effect_value');
+            ->sum(fn (Item $item) => $item->accessionEffectiveValue((int) $item->pivot->accession_level));
     }
 
     /**
@@ -103,7 +103,7 @@ class Character extends Model
             ->filter(fn (Item $item) => $item->pivot->is_equipped
                 && $item->effect_stat === 'elemental_damage'
                 && $item->effect_element_id === $skillElementId)
-            ->sum('effect_value');
+            ->sum(fn (Item $item) => $item->accessionEffectiveValue((int) $item->pivot->accession_level));
     }
 
     public function getAvatarUrlAttribute(): ?string

@@ -122,6 +122,7 @@ class ItemController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
             'rarity' => ['required', 'string', 'in:'.implode(',', Item::RARITIES)],
+            'category' => ['required', 'string', 'in:'.implode(',', Item::CATEGORIES)],
             'price' => ['required', 'integer', 'min:1'],
             'effect_stat' => ['required', 'string', 'in:'.implode(',', Item::EFFECT_STATS)],
             'effect_element_id' => ['nullable', 'exists:elements,id'],

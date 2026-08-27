@@ -35,6 +35,7 @@ export default function Form({ item, elements = [], availableIcons = [] }) {
         name: item?.name ?? '',
         description: item?.description ?? '',
         rarity: item?.rarity ?? 'common',
+        category: item?.category ?? 'artifact',
         price: item?.price ?? 50,
         effect_stat: item?.effect_stat ?? 'physical_damage',
         effect_element_id: item?.effect_element_id ?? '',
@@ -111,6 +112,14 @@ export default function Form({ item, elements = [], availableIcons = [] }) {
                             <Field label="Rarity">
                                 <select className={inputClass} value={data.rarity} onChange={(e) => setData('rarity', e.target.value)}>
                                     {RARITIES.map((r) => <option key={r} value={r}>{RARITY_LABEL[r]}</option>)}
+                                </select>
+                            </Field>
+                        </div>
+                        <div className="col-md-6">
+                            <Field label="Kategori">
+                                <select className={inputClass} value={data.category} onChange={(e) => setData('category', e.target.value)}>
+                                    <option value="artifact">Artifact Item</option>
+                                    <option value="accession">Accession Item (bisa di-level 1-100)</option>
                                 </select>
                             </Field>
                         </div>

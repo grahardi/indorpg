@@ -1,10 +1,7 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../Layout';
 
-// Warna latar ikon item sesuai rarity - ikon PNG-nya transparan (icon shape
-// putih polos), warna dipasang di sini lewat CSS (background), bukan dibakar
-// ke gambar. Biar gampang dibedain sekilas: grey/purple/blue/yellow/light-red.
 const RARITY_ACCENT = {
     common: '#8f96a3',
     rare: '#8b5cf6',
@@ -13,27 +10,13 @@ const RARITY_ACCENT = {
     legendary: '#ef7d6f',
 };
 
-const RARITY_LABEL = {
-    common: 'Common',
-    rare: 'Rare',
-    sr: 'SR',
-    ur: 'UR',
-    legendary: 'Legendary',
-};
+const RARITY_LABEL = { common: 'Common', rare: 'Rare', sr: 'SR', ur: 'UR', legendary: 'Legendary' };
 
 const STAT_LABEL = {
-    physical_damage: 'Physical Attack',
-    physical_defense: 'Physical Defense',
-    magic_damage: 'Magic Attack',
-    magic_defense: 'Magic Defense',
-    accuracy: 'Accuracy',
-    evasion: 'Evasion',
-    critical_hit: 'Critical Hit',
-    critical_luck: 'Critical Luck',
-    hp: 'HP',
-    hp_regen: 'HP Regen',
-    mp_regen: 'MP Regen',
-    sp_regen: 'SP Regen',
+    physical_damage: 'Physical Attack', physical_defense: 'Physical Defense',
+    magic_damage: 'Magic Attack', magic_defense: 'Magic Defense',
+    accuracy: 'Accuracy', evasion: 'Evasion', critical_hit: 'Critical Hit', critical_luck: 'Critical Luck',
+    hp: 'HP', hp_regen: 'HP Regen', mp_regen: 'MP Regen', sp_regen: 'SP Regen',
     elemental_damage: 'Elemental Damage',
 };
 
@@ -47,7 +30,7 @@ function itemStatLabel(item) {
 const ITEMS_PER_PAGE = 10;
 const RARITY_FILTERS = ['all', 'common', 'rare', 'sr', 'ur', 'legendary'];
 
-export default function Index({ items, characters }) {
+export default function Category({ items, characters, category }) {
     const { props } = usePage();
     const [selectedCharacterId, setSelectedCharacterId] = useState(characters[0]?.id ?? null);
     const [rarityFilter, setRarityFilter] = useState('all');
@@ -55,6 +38,7 @@ export default function Index({ items, characters }) {
     const { post, processing } = useForm({});
 
     const selectedCharacter = characters.find((c) => c.id === selectedCharacterId);
+    const isAccession = category === 'accession';
 
     const filteredItems = rarityFilter === 'all' ? items : items.filter((i) => i.rarity === rarityFilter);
     const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
@@ -76,10 +60,15 @@ export default function Index({ items, characters }) {
 
     return (
         <Layout>
-            <Head title="Shop" />
+            <Head title={isAccession ? 'Accession Item' : 'Artifact Item'} />
             <div className="container py-5">
-                <h1 className="rpg-hero-title display-5 mb-2">Shop</h1>
-                <p className="rpg-tagline mb-4">Beli item pakai Gold hasil menang battle. Harga & kelangkaan naik seiring rarity.</p>
+                <Link href={route('shop.index')} className="rpg-back-link mb-3">&larr; Shop</Link>
+                <h1 className="rpg-hero-title display-5 mb-2 mt-3">{isAccession ? '💠 Accession Item' : '🗿 Artifact Item'}</h1>
+                <p className="rpg-tagline mb-4">
+                    {isAccession
+                        ? 'Item spesial - bisa di-level sampai 100 lewat "Item Saya" (korbanin item lain + Mithril).'
+                        : 'Item standar - bonus stat langsung, beli pakai Gold hasil menang battle.'}
+                </p>
 
                 {props.flash?.success && (
                     <div className="rpg-card mb-4" style={{ '--accent': '#3f8c94', color: '#3f8c94' }}>
@@ -99,12 +88,12 @@ export default function Index({ items, characters }) {
                         <label className="rpg-stat-label mb-0">Belanja buat:</label>
                         <select
                             className="form-select form-select-sm bg-dark text-light border-secondary"
-                            style={{ maxWidth: 220 }}
+                            style={{ maxWidth: 260 }}
                             value={selectedCharacterId ?? ''}
                             onChange={(e) => setSelectedCharacterId(Number(e.target.value))}
                         >
                             {characters.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name} — {c.gold} Gold</option>
+                                <option key={c.id} value={c.id}>{c.name} — {c.gold} Gold{isAccession ? ` / ${c.mithril} Mithril` : ''}</option>
                             ))}
                         </select>
                     </div>
@@ -132,7 +121,9 @@ export default function Index({ items, characters }) {
                 </div>
 
                 {filteredItems.length === 0 ? (
-                    <p className="text-secondary">Gak ada item di rarity ini.</p>
+                    <p className="text-secondary">
+                        {isAccession ? 'Belum ada Accession Item tersedia - cek lagi nanti.' : 'Gak ada item di rarity ini.'}
+                    </p>
                 ) : (
                     <div className="row g-3">
                         {pageItems.map((item) => {
@@ -156,11 +147,16 @@ export default function Index({ items, characters }) {
                                                 <span className="rpg-element-badge" style={{ '--accent': accent, color: accent, fontSize: '0.6rem' }}>
                                                     {RARITY_LABEL[item.rarity]}
                                                 </span>
+                                                {isAccession && (
+                                                    <span className="rpg-element-badge ms-1" style={{ '--accent': '#8b5cf6', color: '#8b5cf6', fontSize: '0.6rem' }}>
+                                                        Lv.1-100
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                         <p className="text-secondary small mb-2">{item.description}</p>
                                         <div className="rpg-power-type mb-2">
-                                            +{item.effect_value} {itemStatLabel(item)}
+                                            +{item.effect_value} {itemStatLabel(item)}{isAccession && ' (naik seiring level)'}
                                         </div>
                                         <div className="d-flex justify-content-between align-items-center">
                                             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#c9a24b' }}>

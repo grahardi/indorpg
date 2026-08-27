@@ -1252,6 +1252,14 @@ class BattleService
                 $rarityLabel = \App\Models\Item::RARITY_LABELS[$droppedItem->rarity] ?? $droppedItem->rarity;
                 $log[] = $this->snapshot($battle, "{$character->name} dapat item [{$rarityLabel}] {$droppedItem->name}!");
             }
+
+            // Mithril drop - currency buat level-up Accession Item (bagian 76).
+            // 15% chance, 1-5 Mithril per battle menang per karakter.
+            if (random_int(1, 100) <= 15) {
+                $mithrilAmount = random_int(1, 5);
+                $character->increment('mithril', $mithrilAmount);
+                $log[] = $this->snapshot($battle, "{$character->name} dapat {$mithrilAmount} Mithril!");
+            }
         }
 
         $log[] = $this->snapshot($battle, "Party dapat {$expReward} EXP + {$goldReward} Gold masing-masing karakter!");

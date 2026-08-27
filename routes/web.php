@@ -59,7 +59,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/characters/{character}/items/{item}/toggle-equip', [CharacterController::class, 'toggleEquipItem'])->name('characters.items.toggle-equip');
 
     Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
+    Route::get('/shop/{category}', [ShopController::class, 'category'])->name('shop.category')->where('category', 'artifact|accession');
     Route::post('/shop/buy', [ShopController::class, 'buy'])->name('shop.buy');
+    Route::get('/my-items', [\App\Http\Controllers\AccessionController::class, 'index'])->name('accession.index');
+    Route::post('/my-items/level-up', [\App\Http\Controllers\AccessionController::class, 'levelUp'])->name('accession.level-up');
 
     Route::get('/guild', [GuildController::class, 'index'])->name('guild.index');
     Route::post('/guild/quick-mission', [GuildController::class, 'quickMission'])->name('guild.quick-mission');
