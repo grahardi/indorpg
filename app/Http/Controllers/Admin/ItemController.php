@@ -129,10 +129,33 @@ class ItemController extends Controller
             'effect_value' => ['required', 'integer', 'min:1'],
             'drop_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'icon_path' => ['nullable', 'string', 'max:255'],
+            'accession_bonuses' => ['nullable', 'array'],
+            'accession_bonuses.*.tier' => ['required', 'integer', 'in:'.implode(',', Item::ACCESSION_TIERS)],
+            'accession_bonuses.*.stat' => ['required', 'string', 'in:'.implode(',', Item::EFFECT_STATS)],
+            'accession_bonuses.*.value' => ['required', 'integer'],
+            'accession_bonuses.*.element_id' => ['nullable', 'exists:elements,id'],
         ]);
 
         if ($data['effect_stat'] !== 'elemental_damage') {
             $data['effect_element_id'] = null;
+        }
+
+        // Bonus Part cuma relevan buat item 'artifact' (equipment) - kategori
+        // lain (accession/material) gak ada mekanisme level, jadi dikosongin.
+        if ($data['category'] !== 'artifact') {
+            $data['accession_bonuses'] = null;
+        } else {
+            // Per-part: kalau statnya bukan elemental_damage, element_id-nya
+            // dikosongin (biar gak nyisa data gak relevan).
+            $data['accession_bonuses'] = collect($data['accession_bonuses'] ?? [])
+                ->map(fn ($b) => [
+                    'tier' => (int) $b['tier'],
+                    'stat' => $b['stat'],
+                    'value' => (int) $b['value'],
+                    'element_id' => $b['stat'] === 'elemental_damage' ? ($b['element_id'] ?? null) : null,
+                ])
+                ->values()
+                ->all();
         }
 
         return $data;

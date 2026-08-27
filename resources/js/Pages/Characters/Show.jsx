@@ -35,10 +35,25 @@ function ResourceRow({ label, current, max, color }) {
     );
 }
 
+// Sama persis kayak Item::allBonusesAtLevel() + Character::itemBonus() di
+// backend - base + tiap Part accession yang tercapai (ADITIF, stat sama
+// dijumlah). Sebelumnya cuma baca effect_value mentah, gak ngitung bonus
+// Part sama sekali - salah begitu ada item accession yang udah di-level.
 function itemBonusFor(character, statKey) {
     return (character.items ?? [])
-        .filter((i) => i.pivot?.is_equipped && i.effect_stat === statKey)
-        .reduce((sum, i) => sum + i.effect_value, 0);
+        .filter((i) => i.pivot?.is_equipped)
+        .reduce((sum, i) => {
+            let itemTotal = i.effect_stat === statKey ? i.effect_value : 0;
+            const level = i.pivot?.accession_level ?? 0;
+            if (i.category === 'artifact' && level > 0) {
+                for (const b of i.accession_bonuses ?? []) {
+                    if (b.tier <= level && b.stat === statKey) {
+                        itemTotal += b.value;
+                    }
+                }
+            }
+            return sum + itemTotal;
+        }, 0);
 }
 
 // Bar gabungan: segmen "base" (warna utama) + segmen "bonus stat point/EXP"

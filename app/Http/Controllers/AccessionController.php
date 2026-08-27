@@ -38,6 +38,7 @@ class AccessionController extends Controller
 
         return Inertia::render('Shop/MyItems', [
             'characters' => $characters,
+            'elements' => \App\Models\Element::orderBy('name')->get(),
         ]);
     }
 

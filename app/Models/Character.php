@@ -84,8 +84,8 @@ class Character extends Model
     public function itemBonus(string $stat): int
     {
         return $this->items
-            ->filter(fn (Item $item) => $item->pivot->is_equipped && $item->effect_stat === $stat)
-            ->sum(fn (Item $item) => $item->accessionEffectiveValue((int) $item->pivot->accession_level));
+            ->filter(fn (Item $item) => $item->pivot->is_equipped)
+            ->sum(fn (Item $item) => $item->bonusForStat($stat, (int) $item->pivot->accession_level));
     }
 
     /**
@@ -100,10 +100,8 @@ class Character extends Model
         }
 
         return $this->items
-            ->filter(fn (Item $item) => $item->pivot->is_equipped
-                && $item->effect_stat === 'elemental_damage'
-                && $item->effect_element_id === $skillElementId)
-            ->sum(fn (Item $item) => $item->accessionEffectiveValue((int) $item->pivot->accession_level));
+            ->filter(fn (Item $item) => $item->pivot->is_equipped)
+            ->sum(fn (Item $item) => $item->elementalBonusForElement($skillElementId, (int) $item->pivot->accession_level));
     }
 
     public function getAvatarUrlAttribute(): ?string

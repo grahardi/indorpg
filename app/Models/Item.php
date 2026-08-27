@@ -9,7 +9,11 @@ class Item extends Model
 {
     protected $fillable = [
         'name', 'slug', 'description', 'rarity', 'category', 'price',
-        'effect_stat', 'effect_element_id', 'effect_value', 'drop_rate', 'icon_path',
+        'effect_stat', 'effect_element_id', 'effect_value', 'accession_bonuses', 'drop_rate', 'icon_path',
+    ];
+
+    protected $casts = [
+        'accession_bonuses' => 'array',
     ];
 
     public const RARITIES = ['common', 'rare', 'sr', 'ur', 'legendary'];
@@ -68,20 +72,55 @@ class Item extends Model
     }
 
     /**
-     * effect_value EFEKTIF item ARTIFACT di level tertentu - tiap 20 level
-     * (1 "blok") nambah +25% power dari base. Level 0 (belum pernah di-level
-     * sama sekali) = base effect_value apa adanya. Berlaku SEMUA artifact
-     * (equipment), bukan cuma kategori khusus lagi.
+     * Semua bonus stat item ini di level tertentu - base (effect_stat/value)
+     * DIGABUNG (aditif, bukan nimpa) sama tiap bonus Part yang udah
+     * tercapai (accession_bonuses, admin-defined per item). Stat yang SAMA
+     * dijumlahin; stat yang BEDA jadi entri terpisah. Return: array
+     * [['stat' => ..., 'value' => ..., 'element_id' => ...|null], ...]
+     * (list, bukan map, biar bisa nampung 2 bonus elemental beda elemen).
      */
-    public function accessionEffectiveValue(int $level): int
+    public function allBonusesAtLevel(int $level): array
     {
-        if ($this->category !== 'artifact' || $level <= 0) {
-            return $this->effect_value;
+        $bonuses = collect([
+            ['stat' => $this->effect_stat, 'value' => $this->effect_value, 'element_id' => $this->effect_element_id],
+        ]);
+
+        if ($this->category === 'artifact' && $level > 0) {
+            foreach ($this->accession_bonuses ?? [] as $b) {
+                if (($b['tier'] ?? 0) <= $level && ! empty($b['stat']) && ($b['value'] ?? 0) != 0) {
+                    $bonuses->push(['stat' => $b['stat'], 'value' => (int) $b['value'], 'element_id' => $b['element_id'] ?? null]);
+                }
+            }
         }
 
-        $tierIndex = intdiv($level, self::ACCESSION_MILESTONE_STEP);
-        $multiplier = 1 + ($tierIndex * 0.25);
+        // Gabungin (sum) entri yang stat+element_id-nya SAMA, biarin yang beda tetep terpisah.
+        return $bonuses
+            ->groupBy(fn ($b) => $b['stat'].'-'.($b['element_id'] ?? 'x'))
+            ->map(fn ($group) => ['stat' => $group->first()['stat'], 'value' => $group->sum('value'), 'element_id' => $group->first()['element_id']])
+            ->values()
+            ->all();
+    }
 
-        return (int) round($this->effect_value * $multiplier);
+    /**
+     * Total bonus utk 1 stat spesifik (non-elemental) di level tertentu -
+     * dipakai Character::itemBonus().
+     */
+    public function bonusForStat(string $stat, int $level): int
+    {
+        return collect($this->allBonusesAtLevel($level))
+            ->where('stat', $stat)
+            ->sum('value');
+    }
+
+    /**
+     * Total bonus elemental_damage utk elemen tertentu di level tertentu -
+     * dipakai Character::elementalDamageBonus().
+     */
+    public function elementalBonusForElement(int $elementId, int $level): int
+    {
+        return collect($this->allBonusesAtLevel($level))
+            ->where('stat', 'elemental_damage')
+            ->where('element_id', $elementId)
+            ->sum('value');
     }
 }

@@ -1841,3 +1841,24 @@ Sisa-sisa dari koreksi konsep (bagian 81) yang kelewat di admin:
 - Backend nambah **log diagnostik** (`storage/logs/laravel.log`) - nyatet data mentah yang diterima DAN nilai sebelum/sesudah disimpan, biar kalau masih gagal, ketauan persis di titik mana
 
 Kalau setelah update ini masih gagal, sekarang bakal ada PESAN ERROR yang muncul di layar (bukan diem-diem lagi) - itu petunjuk penting buat investigasi lanjut.
+
+---
+
+## 84. Bonus Accession Aditif per-Part (Admin-Defined) + Fix Tampilan "Item Saya" (v10.7)
+
+### Fix bug: "Item Saya" berantakan (overlay antar card)
+**Laporan**: tampilan "Item Saya" hancur, overlay masing-masing gara-gara panel Level Up. Root cause: panel Level Up expand INLINE di dalam grid card - kalau buka lebih dari 1 (atau grid re-flow), panel-panelnya numpuk/nutupin satu sama lain.
+
+**Fix**: rombak total ke **single-view** — grid item sekarang cuma nampilin card kecil (klik buat pilih), dan **1 panel detail tunggal** muncul di ATAS grid (bukan inline per-card) buat item yang lagi dipilih. Cuma ada 1 detail view aktif kapan pun, gak ada lagi kemungkinan overlay. Detail view ini juga yang nampilin menu **Level Up** (dan info catalyst kalau lagi di batas kelipatan 20) - untuk equipment yang lagi di-equip pun bisa dibuka detailnya (cuma gak bisa di-sacrifice selama masih equipped).
+
+### Bonus Accession sekarang ADITIF & admin-defined per Part
+Sebelumnya rumus flat "+25% per tier" (bagian 81). Sekarang di **Item Editor** admin bisa nentuin PERSIS apa bonus tiap Part (1-5, sesuai tier 20/40/60/80/100):
+- Tiap Part bisa kasih stat **BEDA** dari base item atau dari Part lain (misal: base item Physical Attack +10, Part 1 nambah Physical Attack +5 lagi, Part 2 malah nambah HP +5 - bukan physical attack sama sekali)
+- Bonusnya **ADITIF** (nambah, bukan nimpa) - base +10 & Part 1 +5 = total +15 begitu Part 1 tercapai
+- Part yang gak diisi (kosong) = gak ada bonus tambahan di tier itu (item bisa aja "kepotong" di Part 3 doang, gak wajib isi semua 5)
+
+### Implementasi teknis
+- Migration baru: `items.accession_bonuses` (JSON array of `{tier, stat, value, element_id}`)
+- `Item::allBonusesAtLevel()`, `bonusForStat()`, `elementalBonusForElement()` — hitung total bonus (base+Part tercapai) per stat, gantiin `accessionEffectiveValue()` lama yang dihapus
+- `Character::itemBonus()` & `elementalDamageBonus()` diupdate pakai method baru ini
+- Frontend `itemBonusFor()` (halaman karakter) & `MyItems.jsx` (detail view + rincian per-Part) disamain persis sama logic backend
