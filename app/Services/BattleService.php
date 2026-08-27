@@ -830,7 +830,14 @@ class BattleService
         // Waktu ASLI (detik) sejak battle dibuat - dipakai buat cooldown SEMUA
         // actor (player+NPC), tapi masing-masing tetap independen (storage-nya
         // per-participant, cuma REFERENSI jamnya yang sama-sama "jam dinding").
-        $nowSeconds = (float) now()->diffInSeconds($battle->created_at);
+        // BUG FIX FATAL: sebelumnya now()->diffInSeconds($battle->created_at) TANPA
+        // parameter $absolute eksplisit - ternyata di versi Carbon ini defaultnya
+        // ngasih hasil NEGATIF (keitung created_at - now, bukan now - created_at)!
+        // Ketauan dari debug log: nowSeconds=-45.7 (negatif). Ini akar masalah SEMUA
+        // laporan cooldown yang berulang - basis waktunya sendiri salah tanda dari
+        // awal, jadi semua perbandingan cooldown (nowSeconds - lastUsed) jadi kacau
+        // total. Fix: paksa $absolute=true eksplisit, dijamin selalu positif.
+        $nowSeconds = (float) now()->diffInSeconds($battle->created_at, true);
 
         // Urutan giliran diacak juga (sama alasannya kayak mode Auto) - biar NPC
         // gak selalu kebagian giliran belakangan.

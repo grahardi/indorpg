@@ -128,7 +128,7 @@ class BattleController extends Controller
             // Angka detik LANGSUNG dari server (bukan tanggal buat di-parse ulang
             // di client) - hindari celah timezone parsing yang bisa bikin selisih
             // waktu meleset jauh (jam, bukan detik) kalau format tanggal ambigu.
-            'serverElapsedSeconds' => (float) now()->diffInSeconds($battle->created_at),
+            'serverElapsedSeconds' => (float) now()->diffInSeconds($battle->created_at, true), // BUG FIX FATAL: absolute=true eksplisit, lihat BattleService
         ]);
     }
 
@@ -178,7 +178,7 @@ class BattleController extends Controller
             'audioSettings' => collect(\App\Http\Controllers\Admin\AudioController::SLOTS)
                 ->mapWithKeys(fn ($label, $key) => [$key => \App\Models\GameSetting::get($key, '') ?: null])
                 ->toArray(),
-            'serverElapsedSeconds' => (float) now()->diffInSeconds($battle->created_at),
+            'serverElapsedSeconds' => (float) now()->diffInSeconds($battle->created_at, true), // BUG FIX FATAL: absolute=true eksplisit, lihat BattleService
         ]);
     }
 

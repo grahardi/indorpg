@@ -1663,3 +1663,26 @@ Ditambah juga logging di titik masuk request (`BattleController::act()`) — nya
 **Cara akses (gak perlu SSH)**: buka `/admin/skill-debug-log` di browser (admin-only) — nampilin 300 baris terakhir sebagai teks polos, gampang di-copy/screenshot. Tombol clear via `DELETE /admin/skill-debug-log` (atau langsung hapus filenya manual) buat mulai bersih sebelum tes baru.
 
 **Ini fitur sementara** buat lacak bug cooldown yang berulang — bakal dihapus (route+controller) begitu masalahnya udah kelar.
+
+---
+
+## 75. KETEMU AKAR MASALAH SEBENARNYA: `diffInSeconds()` Ngasih Angka NEGATIF (v9.8)
+
+**Dari debug log yang dikirim user**, ketemu baris kunci:
+```
+nowSeconds=-45.7
+```
+**NEGATIF.** Ini akar masalah SEMUA laporan cooldown yang berulang berkali-kali sejak bagian 64.
+
+### Root cause
+`now()->diffInSeconds($battle->created_at)` **tanpa parameter `$absolute` eksplisit** ternyata di versi Carbon yang dipakai project ini **defaultnya `false`**, dan hasilnya `created_at - now()` (bukan `now() - created_at` yang diharapkan) — karena `created_at` SELALU di masa lalu (lebih kecil dari `now()`), hasilnya SELALU **negatif**.
+
+Basis waktu "elapsed seconds sejak battle mulai" yang jadi FONDASI seluruh sistem cooldown mode Manual (bagian 68) ternyata **salah tanda dari awal**. Efeknya kacau total dan gak konsisten — kadang kelihatan "cooldown gak ada" (karena perhitungan `nowSeconds - lastUsed` jadi angka aneh yang gak masuk akal), kadang "meleset terus" (efek ikutan dari logic yang kebingungan), dan lain-lain — semua gejala yang dilaporkan berkali-kali itu **satu akar masalah yang sama**, cuma manifestasinya keliatan beda-beda tergantung timing.
+
+### Fix
+3 titik yang kena, semua di-fix pakai parameter `$absolute=true` eksplisit (dijamin hasil selalu positif, gak peduli konvensi tanda Carbon versi berapa pun):
+- `BattleService::processManualTurn()` — `$nowSeconds`
+- `BattleController::show()` — `serverElapsedSeconds`
+- `BattleController::act()` — `serverElapsedSeconds`
+
+**Pelajaran**: `Carbon::diffInSeconds()` (dan method `diffInX` sejenis) **WAJIB selalu eksplisit kasih parameter `$absolute`** kalau butuh hasil yang predictable, jangan andalkan default (defaultnya bisa beda-beda tergantung versi Carbon/Laravel yang dipakai).
