@@ -1,11 +1,21 @@
-import { Head, useForm, Link, usePage } from '@inertiajs/react';
+import { Head, useForm, Link, usePage, router } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 import Layout from '../../Layout';
 
 export default function Settings({ settings }) {
     const { props } = usePage();
-    const { data, setData, post, processing } = useForm({
+    const { data, setData, post, processing, errors } = useForm({
         settings: settings.map((s) => ({ key: s.key, value: s.value })),
     });
+    const [saveError, setSaveError] = useState(null);
+
+    // BUG FIX: form sebelumnya gak sync ulang ke data SEGAR dari server abis
+    // save - kalau props `settings` berubah (misal abis save sukses & reload),
+    // form perlu ngikutin, bukan tetep pegang state lokal yang lama.
+    useEffect(() => {
+        setData('settings', settings.map((s) => ({ key: s.key, value: s.value })));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [settings]);
 
     function updateValue(key, value) {
         setData('settings', data.settings.map((s) => (s.key === key ? { ...s, value } : s)));
@@ -13,7 +23,23 @@ export default function Settings({ settings }) {
 
     function submit(e) {
         e.preventDefault();
-        post(route('admin.settings.update'));
+        setSaveError(null);
+        post(route('admin.settings.update'), {
+            // Paksa reload PENUH data settings dari server abis save (bukan
+            // cuma percaya state lokal) - biar KETAUAN jelas kalau save-nya
+            // beneran gagal (bakal balik ke nilai lama) vs beneran berhasil.
+            onSuccess: () => {
+                router.reload({ only: ['settings'] });
+            },
+            onError: (formErrors) => {
+                // BUG FIX PENTING: sebelumnya error (422 validasi, dll) DIEMIN
+                // TOTAL - gak ada tanda apapun ke user, keliatan kayak "gak
+                // berubah" padahal aslinya request DITOLAK server. Sekarang
+                // ditampilin + di-log ke console biar ketauan alasannya.
+                console.error('[Settings] Gagal simpan:', formErrors);
+                setSaveError(Object.values(formErrors).flat().join(', ') || 'Gagal menyimpan - cek console browser buat detail.');
+            },
+        });
     }
 
     return (
@@ -34,6 +60,11 @@ export default function Settings({ settings }) {
                 {props.flash?.success && (
                     <div className="rpg-card mb-4" style={{ '--accent': '#3f8c94', color: '#3f8c94' }}>
                         {props.flash.success}
+                    </div>
+                )}
+                {saveError && (
+                    <div className="rpg-card mb-4" style={{ '--accent': '#b8433a', color: '#b8433a' }}>
+                        ❌ {saveError}
                     </div>
                 )}
 

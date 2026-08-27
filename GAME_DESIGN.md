@@ -1825,3 +1825,19 @@ Ikon: transparan, gradasi visual dari sederhana (Stone, abu-abu) ke megah (Relic
 Sisa-sisa dari koreksi konsep (bagian 81) yang kelewat di admin:
 - **Form tambah/edit item** (`Admin/Items/Form.jsx`): deskripsi dropdown kategori diperbaiki ("Accession Item (bisa di-level 1-100)" yang udah gak sesuai → "Accession Item (catalyst sekali pakai - buka batas level)"), tambah opsi "Material" yang sebelumnya gak ada di dropdown-nya, plus catatan bahwa Accession/Material gak punya efek stat yang relevan.
 - **List item** (`Admin/Items/Index.jsx`): tambah kolom "Kategori" (warna beda per kategori: Artifact netral, Accession ungu, Material hijau) - biar admin gampang bedain 3 jenis item ini sekilas tanpa buka edit satu-satu. Kolom "Efek" juga disesuaikan (item non-artifact ditampilin "—" karena effect_stat/value emang gak relevan buat mereka).
+
+---
+
+## 83. Fix Diagnostik: Setting Admin "Gak Kesimpen" (v10.6)
+
+**Laporan**: ubah rasio di `/admin/settings` dari 1.5 ke 2, disimpan, tapi balik lagi ke 1.5.
+
+**Analisis**: kode backend (`GameSetting::set()`, `SettingController::update()`) secara logika udah benar - cache di-invalidasi, `updateOrCreate()` seharusnya jalan normal. TAPI form-nya (`Admin/Settings.jsx`) **sama sekali gak ada penanganan error** - kalau request ditolak server (validasi gagal, session expired, dll), user gak akan lihat pesan apapun, kelihatan kayak "gak berubah" padahal sebenernya request DITOLAK diam-diam.
+
+**Fix diagnostik + defensif**:
+- Form sekarang nampilin pesan error kalau save gagal (`onError` handler + `console.error`)
+- Abis save sukses, paksa **reload data settings segar** dari server (`router.reload`) - biar KETAUAN jelas apa beneran tersimpan atau enggak, gak cuma percaya state lokal form
+- Form juga di-sync ulang (`useEffect`) kalau props `settings` berubah dari luar
+- Backend nambah **log diagnostik** (`storage/logs/laravel.log`) - nyatet data mentah yang diterima DAN nilai sebelum/sesudah disimpan, biar kalau masih gagal, ketauan persis di titik mana
+
+Kalau setelah update ini masih gagal, sekarang bakal ada PESAN ERROR yang muncul di layar (bukan diem-diem lagi) - itu petunjuk penting buat investigasi lanjut.
