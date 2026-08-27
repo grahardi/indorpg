@@ -1786,3 +1786,34 @@ Sebelumnya 1 battle menang = maksimal 1 drop total. Sekarang di-roll **terpisah 
 
 - **"Pedang Accession Purba"** (salah satu dari 8 contoh awal Accession Item) dihapus — udah gak sesuai sama arah desain sistem crafting yang baru (bagian 79). Dihapus dari seeder + migration cleanup buat database yang udah kadung ke-seed (FK cascade otomatis beresin copy yang udah dipunya player + resepnya).
 - **"Item Saya"**: item yang lagi **di-equip** sekarang tampil **duluan** (di atas) baik di list Accession maupun Artifact — biar langsung keliatan apa yang lagi kepake tanpa perlu nyari-nyari scroll.
+
+---
+
+## 81. KOREKSI KONSEP: Accession Item = Catalyst Sekali Pakai, Bukan Equipment (v10.4)
+
+**Feedback**: pemahaman sebelumnya (bagian 77 & 79) keliru — Accession Item BUKAN kategori equipment terpisah yang punya level sendiri. Konsep yang benar:
+
+- **Artifact Item** = SEMUA equipment (gabung yang dulu dipisah 'artifact' vs 'accession' equipment). Bisa di-level lewat **sacrifice** item Artifact lain (konsep asli bagian 77: SR/Legendary gak bisa dikorbanin, item equipped gak bisa) — tapi **mentok di tiap kelipatan 20** (20/40/60/80).
+- **Accession Item** = **catalyst sekali pakai** (consumable, BUKAN equipment) — wajib dikonsumsi 1 biji buat nembus dari kelipatan 20 ke blok berikutnya (21+, 41+, dst).
+
+### 5 Catalyst baru, makin tinggi rarity target makin langka catalyst-nya
+| Catalyst | Rarity | Dipakai buat naikin Artifact rarity |
+|---|---|---|
+| Accession Stone | Common | Common |
+| Accession Crystal | Rare | Rare |
+| Accession Orb | SR | SR |
+| Accession Core | UR | UR |
+| Accession Relic | Legendary | Legendary |
+
+Ikon: transparan, gradasi visual dari sederhana (Stone, abu-abu) ke megah (Relic, emas berpendar) — beda gaya dari Material (bagian 79, warna flat per jenis) dan equipment (putih polos+bg rarity).
+
+### Mekanisme level-up (`AccessionController::levelUp()`, rombak total)
+1. Pilih target Artifact + sacrifice item Artifact lain (dapet poin sesuai rarity: Common=1/Rare=3/UR=8)
+2. Naik level BEBAS pakai poin sampai `unlocked_tier` (default 20, per-item-instance, kolom baru `character_items.unlocked_tier`)
+3. Kalau poin masih sisa TAPI udah mentok `unlocked_tier`, sistem otomatis cek: punya catalyst yang cocok rarity targetnya? Kalau ya, **konsumsi 1 catalyst**, `unlocked_tier` naik +20, lanjut proses sisa poin ke blok baru
+4. Kalau gak punya catalyst yang cocok, mentok di situ (gak error, cuma gak bisa nembus sampai beli/dapet catalyst-nya)
+
+### Bersih-bersih
+- 7 item equipment "Accession" lama (Tongkat Accession Arcane, dkk) balik jadi kategori `artifact` biasa
+- `AccessionRecipe` model + seeder resep lama (berbasis konsep salah) dihapus total
+- Material (Mithril, Ore, dll dari bagian 79) tetap ada di game sebagai item drop/beli, buat sekarang murni flavor/future use (gak ada resep aktif yang makenya lagi)

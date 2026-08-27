@@ -73,7 +73,7 @@ class Character extends Model
     public function items(): BelongsToMany
     {
         return $this->belongsToMany(Item::class, 'character_items')
-            ->withPivot('id', 'is_equipped', 'obtained_at', 'accession_level')
+            ->withPivot('id', 'is_equipped', 'obtained_at', 'accession_level', 'unlocked_tier', 'quantity')
             ->withTimestamps();
     }
 

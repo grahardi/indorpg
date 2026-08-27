@@ -78,15 +78,17 @@ class ShopController extends Controller
 
         $item = Item::findOrFail($data['item_id']);
         $qty = $data['quantity'] ?? 1;
-        // Material bisa beli banyak sekaligus (numpuk 1 baris), equipment
-        // (artifact/accession) cuma bisa 1 per transaksi (unik per unit).
-        if ($item->category !== 'material') {
+        // Material & Accession (catalyst) bisa beli banyak sekaligus (numpuk 1
+        // baris) - keduanya consumable. Cuma Artifact (equipment) yang unik
+        // per unit, maksimal 1 per transaksi.
+        $isStackable = in_array($item->category, ['material', 'accession']);
+        if (! $isStackable) {
             $qty = 1;
         }
 
         $totalPrice = $item->price * $qty;
 
-        if ($item->category !== 'material' && $character->items()->count() >= 50) {
+        if (! $isStackable && $character->items()->count() >= 50) {
             return back()->withErrors(['gold' => 'Bag udah penuh (maksimal 50 item). Jual/buang item dulu.']);
         }
 
@@ -96,9 +98,9 @@ class ShopController extends Controller
 
         $character->decrement('gold', $totalPrice);
 
-        if ($item->category === 'material') {
-            // Material numpuk - cari baris existing item ini, nambahin quantity;
-            // kalau belum punya, baru bikin baris baru.
+        if ($isStackable) {
+            // Numpuk - cari baris existing item ini, nambahin quantity; kalau
+            // belum punya, baru bikin baris baru.
             $existing = \Illuminate\Support\Facades\DB::table('character_items')
                 ->where('character_id', $character->id)->where('item_id', $item->id)->first();
             if ($existing) {

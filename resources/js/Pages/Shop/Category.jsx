@@ -67,8 +67,8 @@ export default function Category({ items, materials = [], characters, category }
                 <h1 className="rpg-hero-title display-5 mb-2 mt-3">{isAccession ? '💠 Accession Item' : '🗿 Artifact Item'}</h1>
                 <p className="rpg-tagline mb-4">
                     {isAccession
-                        ? 'Item spesial - bisa di-level sampai 100 lewat "Item Saya" (korbanin item lain + Mithril).'
-                        : 'Item standar - bonus stat langsung, beli pakai Gold hasil menang battle.'}
+                        ? 'Catalyst sekali pakai - konsumsi buat nembus batas kelipatan 20 level pas nge-level-in Artifact Item di "Item Saya" (via sacrifice).'
+                        : 'Item standar - bonus stat langsung, bisa di-level lewat sacrifice item lain di "Item Saya".'}
                 </p>
 
                 {props.flash?.success && (
@@ -150,31 +150,54 @@ export default function Category({ items, materials = [], characters, category }
                                                 </span>
                                                 {isAccession && (
                                                     <span className="rpg-element-badge ms-1" style={{ '--accent': '#8b5cf6', color: '#8b5cf6', fontSize: '0.6rem' }}>
-                                                        Lv.1-100
+                                                        Catalyst
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
                                         <p className="text-secondary small mb-2">{item.description}</p>
-                                        <div className="rpg-power-type mb-2">
-                                            +{item.effect_value} {itemStatLabel(item)}{isAccession && ' (naik seiring level)'}
-                                        </div>
+                                        {!isAccession && (
+                                            <div className="rpg-power-type mb-2">
+                                                +{item.effect_value} {itemStatLabel(item)}
+                                            </div>
+                                        )}
                                         <div className="d-flex justify-content-between align-items-center">
                                             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#c9a24b' }}>
-                                                {item.price} Gold
+                                                {item.price} Gold{isAccession && '/pcs'}
                                             </span>
-                                            <button
-                                                onClick={() => buy(item)}
-                                                className="btn btn-sm"
-                                                disabled={!canAfford || processing}
-                                                style={{
-                                                    background: canAfford ? 'var(--bg-panel-hover)' : 'transparent',
-                                                    border: `1px solid ${canAfford ? accent : 'var(--border-subtle)'}`,
-                                                    color: canAfford ? accent : 'var(--text-muted)',
-                                                }}
-                                            >
-                                                Beli
-                                            </button>
+                                            {isAccession ? (
+                                                <div className="d-flex gap-1">
+                                                    <button
+                                                        onClick={() => buy(item, 1)}
+                                                        className="btn btn-sm"
+                                                        disabled={!canAfford || processing}
+                                                        style={{ background: canAfford ? 'var(--bg-panel-hover)' : 'transparent', border: `1px solid ${canAfford ? accent : 'var(--border-subtle)'}`, color: canAfford ? accent : 'var(--text-muted)' }}
+                                                    >
+                                                        x1
+                                                    </button>
+                                                    <button
+                                                        onClick={() => buy(item, 10)}
+                                                        className="btn btn-sm"
+                                                        disabled={!selectedCharacter || selectedCharacter.gold < item.price * 10 || processing}
+                                                        style={{ background: 'var(--bg-panel-hover)', border: `1px solid ${accent}`, color: accent }}
+                                                    >
+                                                        x10
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => buy(item)}
+                                                    className="btn btn-sm"
+                                                    disabled={!canAfford || processing}
+                                                    style={{
+                                                        background: canAfford ? 'var(--bg-panel-hover)' : 'transparent',
+                                                        border: `1px solid ${canAfford ? accent : 'var(--border-subtle)'}`,
+                                                        color: canAfford ? accent : 'var(--text-muted)',
+                                                    }}
+                                                >
+                                                    Beli
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
