@@ -1686,3 +1686,20 @@ Basis waktu "elapsed seconds sejak battle mulai" yang jadi FONDASI seluruh siste
 - `BattleController::act()` — `serverElapsedSeconds`
 
 **Pelajaran**: `Carbon::diffInSeconds()` (dan method `diffInX` sejenis) **WAJIB selalu eksplisit kasih parameter `$absolute`** kalau butuh hasil yang predictable, jangan andalkan default (defaultnya bisa beda-beda tergantung versi Carbon/Laravel yang dipakai).
+
+---
+
+## 76. Damage Number: Ikon Skill, Durasi Lebih Lama, Bisa Numpuk (Stacking) (v9.9)
+
+Setelah bug cooldown akhirnya kelar (bagian 75), sekarang polish visual damage number:
+
+### Ikon jenis skill di samping angka
+Ditentuin dari `physical_ratio` skill (dikirim backend, 0-100): **⚔️** kalau physical (≥50%), **🔮** kalau magic (<50%), **💥** kalau ultimate (nge-override yang lain). Critical hit dapet tambahan **💫** + tanda seru + font lebih besar (udah ada sebelumnya).
+
+### Durasi animasi diperpanjang
+Dari 1.1 detik → **1.8 detik** — lebih kebaca, gak buru-buru ilang.
+
+### Damage number bisa NUMPUK (gak saling timpa)
+Sebelumnya kalau ada 2 hit beruntun cepat (misal player + NPC nyerang monster yang sama nyaris bersamaan, atau efek dari skill combo), angka yang baru langsung GANTI yang lama (nempatin posisi yang sama, kesannya cuma 1 angka). Sekarang `FloatingNumberStack` (komponen baru, gantiin `FloatingNumber` lama) nyimpen SEMUA damage number yang lagi "aktif" (belum selesai fade-out-nya) dalam 1 array — tiap hit baru DITAMBAHIN ke stack (bukan ganti), digeser dikit ke atas (`stackIndex * 26px`) biar keliatan jelas sebagai angka-angka terpisah, masing-masing otomatis ilang sendiri-sendiri setelah durasi animasinya abis (independen, gak nunggu yang lain).
+
+Berlaku di party member (kiri/kanan sisi karakter) — untuk panel monster (efek ditampilin di bawah HP bar, bukan floating di atas sprite) tetap 1 tampilan aja per momen (gak di-stack), tapi udah dapet ikon skill + critical yang sama.

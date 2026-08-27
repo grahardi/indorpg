@@ -553,6 +553,7 @@ class BattleService
             'target' => 'monster',
             'is_critical' => $isCrit,
             'is_ultimate' => $skill->tier === 3,
+            'physical_ratio' => $skill->resolvedPhysicalRatio(),
         ]);
 
         if ($battle->monster_current_hp <= 0) {
@@ -651,7 +652,7 @@ class BattleService
             if ($justFainted) {
                 $msg .= " {$target->character->name} tumbang!";
             }
-            $log[] = $this->snapshot($battle, $msg, null, null, true, ['type' => 'damage', 'value' => $damage, 'target' => $target->character_id, 'is_critical' => false, 'is_ultimate' => false, 'skill_name' => $skillName]);
+            $log[] = $this->snapshot($battle, $msg, null, null, true, ['type' => 'damage', 'value' => $damage, 'target' => $target->character_id, 'is_critical' => false, 'is_ultimate' => false, 'skill_name' => $skillName, 'physical_ratio' => $physicalRatio * 100]);
 
             if (! $this->anyAlive($battle)) {
                 break;

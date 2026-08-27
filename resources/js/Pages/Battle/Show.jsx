@@ -121,37 +121,86 @@ function ManualSkillBar({ participant, battle, serverElapsedSeconds, serverElaps
 // Angka damage/heal/miss yang muncul sesaat lalu melayang naik & fade -
 // gantiin battle log teks yang dihapus total. Key harus BEDA tiap kali effect
 // baru muncul (biar React remount & animasi replay dari awal).
-function FloatingNumber({ effect, animKey, side = 'center' }) {
-    if (!effect || !['damage', 'miss', 'heal'].includes(effect.type)) return null;
+const FLOAT_DURATION_MS = 1800; // diperpanjang dari 1100ms - lebih kerasa/kebaca
+
+// Ikon jenis skill: pedang (physical), sparkle (magic), atau ledakan (ultimate,
+// nge-override yang lain). Ditentuin dari physical_ratio (0-100) yang dikirim
+// backend, biar player langsung tau ini damage fisik atau sihir dari sekilas lihat.
+function skillTypeIcon(effect) {
+    if (effect.is_ultimate) return '💥';
+    if (effect.physical_ratio === undefined || effect.physical_ratio === null) return null;
+    return effect.physical_ratio >= 50 ? '⚔️' : '🔮';
+}
+
+// Satu angka damage/heal/miss individual (dipanggil dari FloatingNumberStack,
+// bukan langsung) - stackIndex geser posisi vertikal dikit biar beberapa hit
+// beruntun keliatan NUMPUK (bukan saling nimpa persis di titik yang sama).
+function FloatingNumberItem({ effect, side, stackIndex }) {
     const isHeal = effect.type === 'heal';
     const isMiss = effect.type === 'miss';
     const color = isHeal ? '#4ad980' : isMiss ? '#c9c9c9' : '#ff5252';
     const text = isMiss ? 'MELESET' : isHeal ? `+${effect.value}` : `-${effect.value}`;
+    const icon = !isMiss && !isHeal ? skillTypeIcon(effect) : null;
 
-    // Player (kanan, hadap monster ke kiri) -> teks nongol di SISI KANAN sprite.
-    // NPC (kiri, hadap monster ke kanan) -> teks nongol di SISI KIRI sprite.
-    // Monster -> tengah/default (dipasang manual di bawah monster oleh caller).
-    const posStyle = side === 'right'
+    const basePos = side === 'right'
         ? { top: '25%', left: '100%', marginLeft: 4 }
         : side === 'left'
             ? { top: '25%', right: '100%', marginRight: 4 }
             : { top: '-6%', left: '50%', transform: 'translateX(-50%)' };
 
+    // Geser tiap item numpuk ke atas dikit-dikit (30px per stack index) - biar
+    // hit ke-2/ke-3 yang muncul nyaris bersamaan keliatan JELAS sebagai
+    // beberapa angka terpisah, bukan numpuk persis di 1 titik.
+    const stackOffset = stackIndex * 26;
+    const posStyle = side === 'center'
+        ? { ...basePos, transform: `translateX(-50%) translateY(-${stackOffset}px)` }
+        : { ...basePos, transform: `translateY(-${stackOffset}px)` };
+
     return (
         <div
-            key={animKey}
             className="rpg-floating-number"
             style={{
                 position: 'absolute', ...posStyle,
                 fontFamily: 'var(--font-display)', fontWeight: 800,
                 fontSize: isMiss ? '0.85rem' : effect.is_critical ? '1.5rem' : '1.1rem',
                 color, textShadow: '0 2px 4px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.7)',
-                zIndex: 9, pointerEvents: 'none', whiteSpace: 'nowrap',
+                zIndex: 9 + stackIndex, pointerEvents: 'none', whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: 3,
             }}
         >
-            {text}{effect.is_critical && '!'}
+            {icon && <span style={{ fontSize: '0.85em' }}>{icon}</span>}
+            {effect.is_critical && !isMiss && <span style={{ fontSize: '0.8em' }}>💫</span>}
+            {text}{effect.is_critical && !isMiss && '!'}
         </div>
     );
+}
+
+// Nampung SEMUA damage/heal/miss yang lagi "aktif" (belum selesai animasi fade-
+// out-nya) - biar kalau ada beberapa hit beruntun cepet (misal 2 skill combo,
+// atau player+NPC nyerang monster yang sama nyaris bersamaan), angkanya NUMPUK
+// kelihatan semua (bukan yang belakangan langsung nimpa/ganti yang duluan).
+function FloatingNumberStack({ effect, animKey, side = 'center' }) {
+    const [items, setItems] = useState([]);
+    const lastKeyRef = useRef(null);
+
+    useEffect(() => {
+        if (!effect || !['damage', 'miss', 'heal'].includes(effect.type)) return;
+        if (animKey === lastKeyRef.current) return; // efek yang sama, jangan dobel
+        lastKeyRef.current = animKey;
+
+        const id = `${animKey}-${Math.random()}`;
+        setItems((prev) => [...prev, { id, effect }]);
+        const timer = setTimeout(() => {
+            setItems((prev) => prev.filter((it) => it.id !== id));
+        }, FLOAT_DURATION_MS);
+
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [animKey, effect]);
+
+    return items.map((item, i) => (
+        <FloatingNumberItem key={item.id} effect={item.effect} side={side} stackIndex={i} />
+    ));
 }
 
 // Panel HP/SP/MP mode Manual - regen-nya di-interpolasi REAL-TIME (nambah
@@ -712,7 +761,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                     {p.character.name}{p.npc_encounter_level ? ` Lv.${p.npc_encounter_level}` : ''} {!live.is_alive && '☠'}
                 </div>
                 <div style={{ position: 'relative' }}>
-                    <FloatingNumber effect={current.effect?.target === p.character_id ? current.effect : null} animKey={step} side={side} />
+                    <FloatingNumberStack effect={current.effect?.target === p.character_id ? current.effect : null} animKey={step} side={side} />
                     {/* GIF gantiin pose idle pas skill dipakai (bukan numpuk) - ukuran &
                         posisi udah di-sync sama kanvas 364x360 yang sama. Ulti dikasih
                         glow emas berdenyut, beda dari skill biasa (bukan cuma warna). */}
@@ -816,8 +865,13 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                                         fontSize: current.effect.is_critical ? '1.3rem' : '1rem',
                                         color: current.effect.type === 'heal' ? '#4ad980' : current.effect.type === 'miss' ? '#c9c9c9' : '#ff5252',
                                         textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
                                     }}
                                 >
+                                    {current.effect.type !== 'miss' && current.effect.type !== 'heal' && (
+                                        <span style={{ fontSize: '0.85em' }}>{skillTypeIcon(current.effect)}</span>
+                                    )}
+                                    {current.effect.is_critical && <span style={{ fontSize: '0.8em' }}>💫</span>}
                                     {current.effect.type === 'miss' ? 'MELESET' : current.effect.type === 'heal' ? `+${current.effect.value}` : `-${current.effect.value}`}
                                     {current.effect.is_critical && '!'}
                                 </div>
@@ -939,7 +993,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                     0% { transform: translate(-50%, 0); opacity: 1; }
                     100% { transform: translate(-50%, -46px); opacity: 0; }
                 }
-                .rpg-floating-number { animation: rpg-float-up 1.1s ease-out forwards; }
+                .rpg-floating-number { animation: rpg-float-up 1.8s ease-out forwards; }
                 @keyframes rpg-ulti-pulse {
                     0% { filter: drop-shadow(0 0 8px rgba(201,162,75,0.7)) drop-shadow(0 0 2px rgba(255,255,255,0.5)); }
                     100% { filter: drop-shadow(0 0 20px rgba(201,162,75,1)) drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
