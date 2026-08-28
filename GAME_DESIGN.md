@@ -1909,3 +1909,17 @@ Validasi form sebelumnya (`'settings.*.value' => 'required'`) menolak STRING KOS
 **Root cause**: 1 giliran (`/act`) bisa hasilin BEBERAPA baris log sekaligus (aksi player + tiap NPC + monster, urutan diacak sejak bagian 58). Mini-log (bagian 65) cuma nampilin **baris TERAKHIR** (`log[step]`) — jadi kalau urutan proses kebetulan berakhir di NPC/monster (bukan aksi player), teks aksi player sendiri **gak pernah kelihatan sama sekali** biarpun beneran kejadian.
 
 **Fix**: tambah **log kedua** di bawah log pertama (warna emas, beda dari log umum), khusus nyari **mundur** dari step sekarang sampai ketemu baris terakhir yang `actor_character_id`-nya PERSIS karakter yang kamu kontrol — dijamin selalu nampilin aksi player sendiri walau bukan baris paling akhir di batch giliran itu.
+
+---
+
+## 89. Fix Balance: Critical Hit Chance Dibatasi 30%, Stun Tetap Bebas (v11.2)
+
+**Masalah**: `critical_luck` gak punya batasan atas sama sekali (beda dari accuracy/evasion yang dibatasi 50-99%), padahal dipakai buat DUA hal: peluang critical hit DAN peluang stun. Kalau ditumpuk item+stat point sampai 50-100%, otomatis crit (dan stun) SETIAP serangan - terlalu OP.
+
+### Keputusan desain
+Stat sumbernya **tetap sama** (`effective_critical_luck`), tapi **rumus konsumsinya beda** per pemakaian:
+- **Critical hit chance**: dibatasi **30%** (`min(30, critical_luck)`) - biar gak bisa crit di atas 30% serangan, seberapa pun stat-nya ditumpuk.
+- **Stun chance**: **TETAP BEBAS** (bisa sampai 100%) - dianggap aman karena skill `can_stun` tetap kena **cooldown normal**, jadi gak bisa dipakai berturut-turut tanpa jeda kayak crit yang nempel di SETIAP serangan.
+- Stun (dan crit) **tetap wajib lolos accuracy/hit-chance dulu** - kode roll-nya ada SETELAH check MELESET (kalau serangan meleset, function `return` duluan, gak pernah nyampe ke roll crit/stun sama sekali) - ini emang udah gitu dari awal, dikonfirmasi ulang.
+
+Label "Critical Luck" di halaman Karakter diperjelas jadi "Critical Luck (crit dibatasi 30%, stun gak dibatasi)" biar player paham angka mentah yang ditampilin beda dari peluang crit sebenarnya.

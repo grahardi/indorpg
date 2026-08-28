@@ -261,7 +261,7 @@ export default function Show({ character, skillLevelGrowthRatio = 1.3, itemLevel
                                 statKey="critical_hit" itemBonusKey="critical_hit" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                             <StatBar
-                                label="Critical Luck" baseValue={character.effective_critical_luck - character.bonus_critical_luck - itemBonusFor(character, 'critical_luck', itemLevelGrowthRatio)} color="#c9a24b" suffix="%"
+                                label="Critical Luck (crit dibatasi 30%, stun gak dibatasi)" baseValue={character.effective_critical_luck - character.bonus_critical_luck - itemBonusFor(character, 'critical_luck', itemLevelGrowthRatio)} color="#c9a24b" suffix="%"
                                 statKey="critical_luck" itemBonusKey="critical_luck" character={character} isOwner={isOwner} upgrading={upgrading} onUpgrade={upgrade}
                             />
                         </div>

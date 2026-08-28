@@ -505,8 +505,12 @@ class BattleService
             $note = ' (Kurang efektif...)';
         }
 
-        // Roll critical hit.
-        $isCrit = random_int(1, 100) <= $character->effective_critical_luck;
+        // Roll critical hit - critical_luck DIBATASI 30% max buat peluang crit
+        // (biar gak OP kalau numpuk item/stat sampai 50-100%, yang tadinya
+        // otomatis bikin CRIT SETIAP SERANGAN). Stat sumbernya SAMA
+        // (effective_critical_luck), cuma rumus konsumsinya beda dari stun
+        // (lihat di bawah, stun gak dibatasi - alasannya di situ).
+        $isCrit = random_int(1, 100) <= min(30, $character->effective_critical_luck);
         if ($isCrit) {
             $mitigated *= (1 + $character->effective_critical_hit / 100);
             $note .= ' CRITICAL!';
@@ -535,8 +539,13 @@ class BattleService
         $battle->monster_current_hp = max(0, $battle->monster_current_hp - $damage);
 
         // Stun - EVENT TERPISAH dari critical hit (roll sendiri, dice beda),
-        // cuma persentase peluangnya kebetulan sama (Critical Luck). Jadi bisa
-        // crit doang, stun doang, keduanya, atau gak dua-duanya - independen.
+        // pakai stat SUMBER yang sama (Critical Luck) tapi RUMUS BEDA dari
+        // crit (gak dibatasi 30% kayak crit di atas) - stun boleh sampai
+        // 100% karena skill can_stun tetap kena COOLDOWN normal, jadi gak
+        // se-OP crit yang bisa nempel di SETIAP serangan tanpa jeda. Stun
+        // JUGA tetap harus lolos accuracy/hit-chance dulu (kode ini di bawah
+        // check MELESET di atas - kalau serangannya meleset, function udah
+        // `return` duluan, gak pernah nyampe ke sini sama sekali).
         if ($skill->can_stun && $battle->monster_current_hp > 0) {
             $isStun = random_int(1, 100) <= $character->effective_critical_luck;
             if ($isStun) {
