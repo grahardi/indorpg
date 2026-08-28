@@ -20,28 +20,23 @@ class SettingController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
+        // BUG FIX FATAL DITEMUKAN: sebelumnya 'settings.*.value' => 'required'
+        // - tapi 9 setting audio (audio_battle_start, audio_critical, dst -
+        // bagian 57) SENGAJA kosong secara default (artinya "pakai suara
+        // sintesis", diisi lewat /admin/audio, bukan di sini). Alfabetis
+        // "audio_*" selalu ada di 9 baris PERTAMA (index 0-8) - makanya error
+        // "settings.0.value required" dst SELALU muncul kalau ada audio yang
+        // belum di-upload, GAGALIN SELURUH form save (bukan cuma bagian audio).
+        // Fix: 'nullable' - biar string kosong (memang disengaja) boleh lolos.
         $data = $request->validate([
             'settings' => ['required', 'array'],
             'settings.*.key' => ['required', 'string'],
-            'settings.*.value' => ['required', 'string'],
-        ]);
-
-        // DIAGNOSTIK SEMENTARA: user laporan setting gak nyimpen (ubah 1.5 ->
-        // 2, abis disimpen balik ke 1.5). Log ke file biar ketauan persis data
-        // apa yang beneran ke-terima & ke-simpen - dihapus lagi kalau udah
-        // ketauan/kelar masalahnya.
-        $before = \App\Models\GameSetting::whereIn('key', collect($data['settings'])->pluck('key'))->pluck('value', 'key');
-        \Illuminate\Support\Facades\Log::channel('single')->info('[Settings] Update diterima', [
-            'received' => $data['settings'],
-            'before' => $before,
+            'settings.*.value' => ['nullable', 'string'],
         ]);
 
         foreach ($data['settings'] as $s) {
-            GameSetting::set($s['key'], $s['value']);
+            GameSetting::set($s['key'], $s['value'] ?? '');
         }
-
-        $after = \App\Models\GameSetting::whereIn('key', collect($data['settings'])->pluck('key'))->pluck('value', 'key');
-        \Illuminate\Support\Facades\Log::channel('single')->info('[Settings] Setelah disimpan', ['after' => $after]);
 
         return back()->with('success', 'Setting disimpan.');
     }

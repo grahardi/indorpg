@@ -1883,3 +1883,19 @@ Formula cost sacrifice yang **udah ada** (`cost = level+1` per level) ternyata *
 ## 86. Bar Progress Diganti jadi Per-Level (bukan per-Part) (v10.9)
 
 **Feedback**: bar sebelumnya (bagian 85) nunjukkin progress SATU PART PENUH (20 level) — kepanjangan, gak sesuai maksud. Diganti jadi progress **per 1 level tunggal**: bar nunjukkin seberapa deket poin dari sacrifice yang dipilih buat naik SATU level berikutnya (`level saat ini + 1` poin dibutuhin, sesuai cost normal). Makin tinggi levelnya, otomatis makin banyak poin yang dibutuhin buat 1 level (`level+1`) - konsisten sama kenapa Part yang lebih tinggi lebih susah, cuma sekarang divisualisasiin per-level, bukan per-Part.
+
+---
+
+## 87. AKAR MASALAH KETEMU: Setting Audio Kosong Bikin SELURUH Form Gagal Save (v11.0)
+
+**Laporan**: error `"The settings.0.value field is required."` sampai `settings.8.value` (9 field) muncul pas coba save `/admin/settings`.
+
+### Root cause
+9 setting **audio** (`audio_battle_start`, `audio_critical`, `audio_defeat`, `audio_hit_taken`, `audio_item_drop`, `audio_miss`, `audio_skill`, `audio_ultimate`, `audio_victory` — bagian 57) **SENGAJA kosong secara default** (artinya "pakai suara sintesis", baru keisi kalau admin upload custom lewat `/admin/audio`). Karena diurutkan alfabetis (`orderBy('key')`), semua key `audio_*` selalu jatuh di **9 baris PERTAMA** (index 0-8).
+
+Validasi form sebelumnya (`'settings.*.value' => 'required'`) menolak STRING KOSONG — jadi selama ADA SATU AJA audio yang belum di-upload (kondisi normal/default), **SELURUH form settings gagal disimpan**, bukan cuma bagian audio-nya. Ini kenapa "ubah rasio 1.5→2, disimpan, balik lagi ke 1.5" — validasi gagal di step SEBELUM data sempat ditulis ke database sama sekali.
+
+### Fix
+`'settings.*.value'` diganti dari `'required'` jadi `'nullable'` — string kosong (yang MEMANG disengaja buat setting audio) sekarang boleh lolos, gak lagi gagalin keseluruhan form.
+
+**Catatan**: log diagnostik sementara (bagian 83) dihapus karena akar masalahnya udah ketemu & fix - gak perlu lagi.
