@@ -612,7 +612,8 @@ function InventorySection({ character, isOwner }) {
                                     className="p-1"
                                     style={{
                                         background: 'none', border: `2px solid ${accent}`, borderRadius: 8,
-                                        cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        position: 'relative', width: 48, height: 48,
                                     }}
                                 >
                                     <img
@@ -620,9 +621,19 @@ function InventorySection({ character, isOwner }) {
                                         alt={item.name}
                                         style={{ width: 40, height: 40, objectFit: 'contain' }}
                                     />
+                                    {/* Badge stack di pojok ikon (kayak inventory game biasanya) -
+                                        dulu teks "x5" di bawah ikon, sekarang overlay pojok kanan
+                                        atas biar lebih ringkas & familiar. */}
                                     {item.pivot?.quantity > 1 && (
-                                        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                                            x{item.pivot.quantity}
+                                        <span
+                                            style={{
+                                                position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18,
+                                                fontSize: '0.62rem', fontWeight: 700, color: '#0b0c12', background: '#c9a24b',
+                                                borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                padding: '0 4px', fontFamily: 'var(--font-mono)', border: '1px solid var(--bg-deep)',
+                                            }}
+                                        >
+                                            {item.pivot.quantity}
                                         </span>
                                     )}
                                 </button>

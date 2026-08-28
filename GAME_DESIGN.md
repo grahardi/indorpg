@@ -2069,3 +2069,13 @@ Sebelumnya cuma bintang kecil ★ di pojok kanan atas (gampang gak kesadar). Sek
 **Fix**: state diganti nyimpen cuma **pivot ID**-nya (`selectedItemPivotId`), item OBJECT-nya di-**derive fresh** dari `character.items` tiap render (`allItems.find(i => i.pivot?.id === selectedItemPivotId)`) - begitu ada update dari server, otomatis ke-refresh tanpa perlu tutup-buka lagi.
 
 **Bonus fix**: beberapa `key={item.id}` di React list (bisa collision kalau ada copy item identik) diganti jadi `key={item.pivot?.id ?? item.id}` - biar React gak ketuker render antar copy yang sama.
+
+---
+
+## 100. Catalyst: Badge Angka di Pojok Ikon (Bukan Teks di Bawah) (v12.3)
+
+**Request**: "item catalyst karena gak di-equip, apa bisa pake tampilan jumlah kecil di pojok atasnya, jadi kalau butuh 5 otomatis berkurang."
+
+**Konfirmasi**: mekanisme auto-berkurang **udah jalan dari awal** (`AccessionController::levelUp()` - catalyst yang dikonsumsi buat nembus kelipatan 20 level otomatis `decrement('quantity')`, atau kehapus barisnya kalau habis). Ini dicek AMAN dari bug class bagian 99 (equip 1 copy ngequip semua) - karena catalyst/material MEMANG didesain numpuk jadi 1 baris per jenis (`item_id`), beda dari equipment yang tiap instance-nya unik.
+
+**Yang diperbaiki**: tampilan jumlahnya doang - sebelumnya teks "x5" terpisah di bawah/samping ikon, sekarang jadi **badge angka bulat di pojok kanan atas ikon** (kayak stack counter di game inventory pada umumnya) - diterapkan konsisten di halaman Karakter (Inventory Bag → Accession Item) dan "Item Saya" (catalyst & material grid).

@@ -394,11 +394,23 @@ export default function MyItems({ characters, elements = [], itemLevelGrowthRati
                                 {catalystItems.map((item) => (
                                     <div className="col-6 col-md-3" key={item.pivot.id}>
                                         <div className="rpg-card d-flex align-items-center gap-2" style={{ '--accent': RARITY_ACCENT[item.rarity], padding: '0.6rem' }}>
-                                            <img src={item.icon_path} alt={item.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
-                                            <div>
-                                                <div style={{ fontSize: '0.78rem' }}>{item.name}</div>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>x{item.pivot.quantity ?? 1}</div>
+                                            <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
+                                                <img src={item.icon_path} alt={item.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                                                {/* Badge stack di pojok ikon (bukan teks "x5" terpisah lagi). */}
+                                                {item.pivot.quantity > 1 && (
+                                                    <span
+                                                        style={{
+                                                            position: 'absolute', top: -6, right: -6, minWidth: 16, height: 16,
+                                                            fontSize: '0.58rem', fontWeight: 700, color: '#0b0c12', background: '#c9a24b',
+                                                            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            padding: '0 3px', fontFamily: 'var(--font-mono)', border: '1px solid var(--bg-panel)',
+                                                        }}
+                                                    >
+                                                        {item.pivot.quantity}
+                                                    </span>
+                                                )}
                                             </div>
+                                            <div style={{ fontSize: '0.78rem' }}>{item.name}</div>
                                         </div>
                                     </div>
                                 ))}
@@ -413,11 +425,22 @@ export default function MyItems({ characters, elements = [], itemLevelGrowthRati
                                 {materialItems.map((item) => (
                                     <div className="col-6 col-md-3" key={item.pivot.id}>
                                         <div className="rpg-card d-flex align-items-center gap-2" style={{ '--accent': RARITY_ACCENT[item.rarity], padding: '0.6rem' }}>
-                                            <img src={item.icon_path} alt={item.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
-                                            <div>
-                                                <div style={{ fontSize: '0.78rem' }}>{item.name}</div>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>x{item.pivot.quantity ?? 1}</div>
+                                            <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
+                                                <img src={item.icon_path} alt={item.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                                                {item.pivot.quantity > 1 && (
+                                                    <span
+                                                        style={{
+                                                            position: 'absolute', top: -6, right: -6, minWidth: 16, height: 16,
+                                                            fontSize: '0.58rem', fontWeight: 700, color: '#0b0c12', background: '#c9a24b',
+                                                            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            padding: '0 3px', fontFamily: 'var(--font-mono)', border: '1px solid var(--bg-panel)',
+                                                        }}
+                                                    >
+                                                        {item.pivot.quantity}
+                                                    </span>
+                                                )}
                                             </div>
+                                            <div style={{ fontSize: '0.78rem' }}>{item.name}</div>
                                         </div>
                                     </div>
                                 ))}
