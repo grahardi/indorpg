@@ -95,7 +95,13 @@ class CharacterController extends Controller
         ]);
 
         if ($character->stat_points > 0) {
-            $character->decrement('stat_points');
+            $cost = $character->freePointCost($data['stat']);
+
+            if ($character->stat_points < $cost) {
+                return back()->withErrors(['stat' => "Butuh {$cost} stat point buat naikin stat ini lagi (kamu punya {$character->stat_points}). Investasi ke stat ini udah tinggi, cost-nya naik tiap kelipatan 25 poin."]);
+            }
+
+            $character->decrement('stat_points', $cost);
             $character->increment("bonus_{$data['stat']}");
 
             return back();

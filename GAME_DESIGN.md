@@ -1923,3 +1923,20 @@ Stat sumbernya **tetap sama** (`effective_critical_luck`), tapi **rumus konsumsi
 - Stun (dan crit) **tetap wajib lolos accuracy/hit-chance dulu** - kode roll-nya ada SETELAH check MELESET (kalau serangan meleset, function `return` duluan, gak pernah nyampe ke roll crit/stun sama sekali) - ini emang udah gitu dari awal, dikonfirmasi ulang.
 
 Label "Critical Luck" di halaman Karakter diperjelas jadi "Critical Luck (crit dibatasi 30%, stun gak dibatasi)" biar player paham angka mentah yang ditampilin beda dari peluang crit sebenarnya.
+
+---
+
+## 90. Cap Critical Luck Mentah di 100 + Cost Bertingkat buat Stat Point Gratis (v11.3)
+
+### Critical Luck mentah dibatasi 100
+`Character::getEffectiveCriticalLuckAttribute()` sekarang dibatasi maksimal **100** (walau ditumpuk item+stat lebih dari itu) — konversi ke peluang crit (30%, bagian 89) atau stun (bebas) tetap dilakuin terpisah di `BattleService`, ini cuma batas buat nilai MENTAH-nya sebelum dikonversi.
+
+### Cost stat point GRATIS naik bertingkat tiap 25 poin
+Sebelumnya assign 1 stat point gratis SELALU cuma "bayar" 1 stat point, berapa pun udah di-invest ke stat itu. Sekarang (`Character::freePointCost()`):
+- Investasi **0-24** poin ke 1 stat → cost **1** stat point per +1
+- Investasi **25-49** → cost **2** stat point per +1
+- Investasi **50-74** → cost **3** stat point per +1
+- Investasi **75-99** → cost **4** stat point per +1
+- Dst (`floor(bonus/25) + 1`)
+
+Berlaku HANYA buat jalur stat point GRATIS (`CharacterController::upgradeStat()`) — jalur EXP (`upgradeCost()`, dipakai kalau stat point abis) TETAP formula lama (gak berubah). Kalau stat_points masih ada TAPI kurang dari cost yang dibutuhin, upgrade DITOLAK (gak fallback ke EXP walau EXP-nya cukup) — behavior ini disamain persis di frontend biar tombol upgrade gak nunjukkin "bisa diklik" padahal bakal ditolak backend.

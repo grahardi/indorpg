@@ -242,7 +242,12 @@ class Character extends Model
 
     public function getEffectiveCriticalLuckAttribute(): int
     {
-        return $this->subclass->critical_luck + $this->bonus_critical_luck + $this->itemBonus('critical_luck');
+        // Nilai MENTAH dibatasi 100 (walau ditumpuk item+stat lebih dari itu) -
+        // konversi ke peluang crit (dibatasi 30%) ATAU stun (bebas) dilakuin
+        // terpisah di BattleService, bukan di sini.
+        $raw = $this->subclass->critical_luck + $this->bonus_critical_luck + $this->itemBonus('critical_luck');
+
+        return min(100, $raw);
     }
 
     /**
@@ -256,6 +261,20 @@ class Character extends Model
         $multiplier = in_array($stat, ['critical_hit', 'critical_luck'], true) ? 25 : 15;
 
         return ($currentBonus + 1) * $multiplier;
+    }
+
+    /**
+     * Cost buat assign 1 FREE stat point (dari pool stat_points, BUKAN EXP -
+     * itu upgradeCost() di atas) - naik bertingkat tiap 25 poin yang UDAH
+     * di-invest ke stat itu. 0-24 investasi = 1 stat_point/+1. 25-49 = 2
+     * stat_point/+1. 50-74 = 3. 75-99 = 4. Dst - biar stat point gratis gak
+     * bisa numpuk gila-gilaan ke 1 stat doang tanpa batas.
+     */
+    public function freePointCost(string $stat): int
+    {
+        $currentBonus = $this->{"bonus_{$stat}"} ?? 0;
+
+        return intdiv($currentBonus, 25) + 1;
     }
 
     /**

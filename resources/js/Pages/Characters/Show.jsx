@@ -77,9 +77,17 @@ function StatBar({ label, baseValue, color, suffix = '', statKey, itemBonusKey, 
     const basePct = Math.max(0, Math.min(100, (baseValue / max) * 100));
     const bonusPct = Math.max(0, Math.min(100 - basePct, (bonusValue / max) * 100));
     const itemPct = Math.max(0, Math.min(100 - basePct - bonusPct, (itemValue / max) * 100));
-    const hasFreePoint = character.stat_points > 0;
+    // Cost stat point GRATIS naik bertingkat tiap kelipatan 25 poin yang udah
+    // di-invest - SAMA PERSIS Character::freePointCost() di backend.
+    const freePointCost = Math.floor(bonusValue / 25) + 1;
+    // Backend EKSKLUSIF: kalau stat_points > 0 (berapa pun), jalur EXP gak
+    // dipakai sama sekali - harus cukup buat freePointCost, gak fallback ke
+    // EXP walau EXP-nya cukup. Frontend disamain biar gak nunjukkin
+    // "bisa" padahal nanti ditolak backend.
+    const hasAnyFreePoints = character.stat_points > 0;
+    const hasFreePoint = hasAnyFreePoints ? character.stat_points >= freePointCost : false;
     const cost = statKey ? (bonusValue + 1) * UPGRADE_MULTIPLIER[statKey] : 0;
-    const canAfford = statKey && (hasFreePoint || character.exp >= cost);
+    const canAfford = statKey && (hasAnyFreePoints ? hasFreePoint : character.exp >= cost);
     const bonusColor = '#c9a24b';
     const itemColor = '#4a9960';
     const hasExtra = bonusValue > 0 || itemValue > 0;
@@ -113,7 +121,13 @@ function StatBar({ label, baseValue, color, suffix = '', statKey, itemBonusKey, 
                 <button
                     onClick={() => onUpgrade(statKey)}
                     disabled={!canAfford || upgrading}
-                    title={hasFreePoint ? 'Upgrade +1 (gratis, pakai stat point)' : `Upgrade +1 (${cost} EXP)`}
+                    title={
+                        hasAnyFreePoints
+                            ? (hasFreePoint
+                                ? `Upgrade +1 (pakai ${freePointCost} stat point)`
+                                : `Butuh ${freePointCost} stat point (kamu punya ${character.stat_points}) - investasi ke stat ini udah tinggi`)
+                            : `Upgrade +1 (${cost} EXP)`
+                    }
                     className="btn btn-sm"
                     style={{
                         width: 30, height: 30, padding: 0, flexShrink: 0,
