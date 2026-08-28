@@ -1940,3 +1940,25 @@ Sebelumnya assign 1 stat point gratis SELALU cuma "bayar" 1 stat point, berapa p
 - Dst (`floor(bonus/25) + 1`)
 
 Berlaku HANYA buat jalur stat point GRATIS (`CharacterController::upgradeStat()`) — jalur EXP (`upgradeCost()`, dipakai kalau stat point abis) TETAP formula lama (gak berubah). Kalau stat_points masih ada TAPI kurang dari cost yang dibutuhin, upgrade DITOLAK (gak fallback ke EXP walau EXP-nya cukup) — behavior ini disamain persis di frontend biar tombol upgrade gak nunjukkin "bisa diklik" padahal bakal ditolak backend.
+
+---
+
+## 91. Command Reset Total Data Pemain + Skill Wajib Pakai SP & MP Sekaligus (v11.4)
+
+### Command baru: `php artisan game:purge-players`
+Hapus PERMANEN semua karakter PEMAIN (bukan NPC) beserta item yang udah didapat, skill point allocation, DAN seluruh history battle. Encounter direset balik ke status `pending`. **NPC & data game (monster/map/item catalog/subclass/skill) TIDAK disentuh** — itu konten shared, bukan data pemain.
+
+Urutan hapus (penting buat FK cascade): `battles` duluan (cascade ke `battle_participants` → `battle_skill_cooldowns`), baru `characters` (cascade ke `character_items` & `character_skills`). Ada konfirmasi interaktif sebelum eksekusi (`--force` buat skip).
+
+```bash
+php artisan game:purge-players
+```
+
+### Skill sekarang WAJIB pakai SP dan MP sekaligus
+**Masalah**: dari 113 skill, **69 murni MP-only** (stamina_cost=0) dan **20 murni SP-only** (mana_cost=0) — cuma 24 yang udah campuran. Ini bikin player bisa "abuse" cuma investasi ke SATU resource (misal cuma naikin mana_regen doang) dan semua skill fisik (mana_cost=0) jadi bisa di-spam tanpa batas dari sisi mana.
+
+**Fix**: skill yang sebelumnya pure 1 resource ditambahin biaya SEKUNDER proporsional **~15% dari biaya utamanya** (minimal 3), **TIMPANG SENGAJA** (sesuai contoh: skill fisik 30 SP dapet tambahan cuma ~5 MP) — biar "identitas" fisik/magic-nya tetap kerasa, cuma gak lagi 100% gratis di resource lain. Skill yang udah campuran dari awal dibiarin apa adanya.
+
+Diterapkan di **2 tempat** biar konsisten kapan pun dijalanin:
+1. Migration `2026_08_25_100001_dual_resource_skill_costs.php` — buat database yang UDAH ADA (langsung jalan pas `migrate`)
+2. `SkillSeeder::normalizeDualResourceCosts()` — dipanggil otomatis di akhir seeder, biar `migrate:fresh --seed` (instalasi baru) juga otomatis dapet fix yang sama, gak perlu nulis ulang manual 113 baris data skill satu-satu

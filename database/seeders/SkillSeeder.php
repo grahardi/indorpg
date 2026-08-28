@@ -293,5 +293,30 @@ class SkillSeeder extends Seeder
                 );
             }
         }
+
+        $this->normalizeDualResourceCosts();
+    }
+
+    /**
+     * Rework balance (bagian 91) - SEMUA skill wajib punya biaya SP DAN MP
+     * sekaligus (rasio boleh timpang, tapi gak boleh salah satunya 0 total).
+     * Data mentah di atas MASIH ada yang murni 1 resource (stamina=0 atau
+     * mana=0) - dinormalisasi di sini biar SEKALI GINI aja sumbernya, gak
+     * usah nulis ulang manual satu-satu di array atas. Fresh seed maupun
+     * migration data (2026_08_25_100001_dual_resource_skill_costs) sama-
+     * sama pakai formula identik, jadi hasilnya konsisten kapan pun dijalanin.
+     */
+    private function normalizeDualResourceCosts(): void
+    {
+        $secondaryRatio = 0.15;
+        $secondaryMin = 3;
+
+        \App\Models\Skill::where('mana_cost', 0)->where('stamina_cost', '>', 0)->get()->each(function ($skill) use ($secondaryRatio, $secondaryMin) {
+            $skill->update(['mana_cost' => max($secondaryMin, (int) round($skill->stamina_cost * $secondaryRatio))]);
+        });
+
+        \App\Models\Skill::where('stamina_cost', 0)->where('mana_cost', '>', 0)->get()->each(function ($skill) use ($secondaryRatio, $secondaryMin) {
+            $skill->update(['stamina_cost' => max($secondaryMin, (int) round($skill->mana_cost * $secondaryRatio))]);
+        });
     }
 }
