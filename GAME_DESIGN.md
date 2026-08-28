@@ -1984,3 +1984,18 @@ Diterapkan di **2 tempat** biar konsisten kapan pun dijalanin:
 **Root cause**: panel "Status Kamu" (`PlayerStatusPanel`, bagian 61) nampilin MP/SP yang **udah diinterpolasi real-time** (nambah dikit-dikit tiap detik di browser, biar keliatan "regen jalan"). Tapi pengecekan "cukup MP/SP buat pakai skill" di `ManualSkillBar` masih pakai `participant.current_mana/current_stamina` **MENTAH** — nilai dari respons server TERAKHIR, yang cuma ke-refresh kalau ada sync baru (auto-poll tiap 2.5 detik atau abis klik). Efeknya: player LIAT MP-nya udah keliatan penuh di bar (interpolasi), tapi tombol skill TETAP grey sampai beneran ada sync baru dari server yang "mengonfirmasi" MP-nya cukup — DUA tampilan (bar vs tombol) pakai sumber data yang gak sinkron.
 
 **Fix**: `ManualSkillBar` sekarang pakai **interpolasi yang SAMA PERSIS** kayak `PlayerStatusPanel` (sync-point + regen rate per detik) buat ngitung MP/SP yang dipakai di cek affordability - bar dan tombol sekarang konsisten, sama-sama "optimis" nambah real-time, jadi begitu keliatan cukup di bar, tombolnya juga langsung aktif di momen yang sama.
+
+---
+
+## 94. Fix: Klik Skill "Gak Jalan-Jalan" Lalu Tiba-Tiba Jalan (Timeout Koneksi) (v11.7)
+
+**Laporan**: "ada skill aktif, gak cooldown, tapi diklik gak jalan-jalan, tau-tau jalan setelah beberapa waktu."
+
+### Root cause
+`fetch()` ke endpoint `/act` sebelumnya **TANPA batas waktu sama sekali**. Kalau koneksi lambat/macet, request bisa NYANGKUT nunggu tanpa henti (browser punya timeout bawaan sendiri, tapi bisa sangat lama, kadang menitan). Selama nyangkut, guard `actingRef.current` tetap `true`, jadi SEMUA klik berikutnya diabaikan diam-diam — persis gejala yang dilaporkan (begitu request lama itu akhirnya timeout/gagal dengan sendirinya, guard kebuka lagi dan aksi yang sempat "menumpuk" akhirnya keproses).
+
+### Fix
+- `fetch()` sekarang dibatasi **8 detik** pakai `AbortController` — gagal cepat kalau koneksi bermasalah, guard kebuka lagi cepat, user bisa coba lagi tanpa nunggu lama. Timeout di-log jelas ke console (`[Battle] /act TIMEOUT...`) biar kebeda dari error lain.
+- Tambah indikator teks eksplisit **"⏳ Mengirim aksi..."** di bawah skill bar pas request lagi diproses — biar keliatan jelas beda dari tombol grey karena cooldown/MP-SP kurang, gak disangka "klik gak ngefek".
+
+**Kesimpulan buat user**: ini kemungkinan besar soal **koneksi**, bukan bug logic battle — tapi sekarang sistemnya lebih tahan banting (gagal cepat & kasih tau, bukan nyangkut diam-diam tanpa batas).

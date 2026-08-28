@@ -493,12 +493,24 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
         actingRef.current = true;
         setActing(true);
         lastActionTimeRef.current = Date.now();
+        // BUG FIX PENTING: sebelumnya fetch() TANPA batas waktu sama sekali -
+        // kalau koneksi lambat/macet, request bisa NYANGKUT nunggu tanpa henti
+        // (browser punya timeout bawaan sendiri, tapi bisa SANGAT lama, kadang
+        // menitan). Selama nyangkut, actingRef.current tetap true, jadi SEMUA
+        // klik berikutnya DIABAIKAN diam-diam - persis gejala "diklik gak
+        // jalan-jalan, tau-tau jalan sendiri setelah beberapa waktu" (begitu
+        // request lama itu akhirnya timeout/gagal, baru guard-nya kebuka lagi).
+        // Fix: batasi 8 detik pakai AbortController - gagal cepat, guard
+        // kebuka lagi cepat, user bisa coba lagi gak perlu nunggu lama.
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             const res = await fetch(route('battles.act', battle.token), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
                 body: JSON.stringify({ skill_id: skillId }),
+                signal: controller.signal,
             });
             // BUG FIX PENTING: sebelumnya error dari server (500, 422, dll) DIEMIN
             // TOTAL - gak ada tanda apapun ke user/developer, keliatan kayak
@@ -523,8 +535,13 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                 }
             }
         } catch (err) {
-            console.error('[Battle] /act exception:', err);
+            if (err.name === 'AbortError') {
+                console.error('[Battle] /act TIMEOUT (8 detik, kemungkinan koneksi lambat/macet) - guard dibuka lagi, coba klik ulang.');
+            } else {
+                console.error('[Battle] /act exception:', err);
+            }
         } finally {
+            clearTimeout(timeoutId);
             actingRef.current = false;
             setActing(false);
         }
@@ -1000,6 +1017,15 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                                 disabled={acting || battle.status !== 'ongoing' || live.is_alive === false}
                                 keyBindings={keyBindings}
                             />
+                            {/* Indikator EKSPLISIT pas request lagi diproses - beda dari
+                                tombol grey karena cooldown/MP-SP kurang, biar user gak
+                                salah kira "klik gak ngefek" padahal beneran lagi nunggu
+                                respons server (bisa lama kalau koneksi lambat). */}
+                            {acting && (
+                                <div className="text-center mt-2" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                    ⏳ Mengirim aksi...
+                                </div>
+                            )}
                         </div>
                     );
                 })()}
