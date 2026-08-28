@@ -121,22 +121,13 @@ function ItemDetailPanel({ character, item, elements, onClose, itemLevelGrowthRa
     const willUseCatalyst = hitCapWithPointsLeft && catalystQty > 0;
     const canLevelUp = previewLevel > currentLevel || willUseCatalyst;
 
-    // MODEL BAR: total poin buat NYELESAIN part saat ini (dari batas tier
-    // sebelumnya sampai unlockedTier) = sum(partStart+1 .. unlockedTier).
-    // Makin tinggi Part, makin panjang bar-nya (butuh lebih banyak item) -
-    // ini konsekuensi alami dari cost=level+1 per level, gak perlu rumus
-    // baru, cuma divisualisasiin di sini.
-    const partStart = unlockedTier - 20;
-    function sumCostRange(fromLevelExclusive, toLevelInclusive) {
-        let total = 0;
-        for (let lv = fromLevelExclusive; lv < toLevelInclusive; lv++) total += lv + 1;
-        return total;
-    }
-    const totalPointsForPart = sumCostRange(partStart, unlockedTier);
-    const pointsAlreadyInPart = sumCostRange(partStart, currentLevel);
-    const pointsAfterPreview = sumCostRange(partStart, previewLevel);
-    const currentFillPct = totalPointsForPart > 0 ? Math.min(100, (pointsAlreadyInPart / totalPointsForPart) * 100) : 100;
-    const previewFillPct = totalPointsForPart > 0 ? Math.min(100, (pointsAfterPreview / totalPointsForPart) * 100) : 100;
+    // MODEL BAR PER-LEVEL: bar nunjukkin progress dari level SEKARANG ke level
+    // BERIKUTNYA doang (bukan seluruh Part) - cost 1 level = level+1 poin
+    // (makin tinggi levelnya, bar-nya makin panjang/butuh lebih banyak poin,
+    // konsisten sama Part yang makin tinggi makin susah).
+    const nextLevelCost = previewLevel + 1;
+    const pointsTowardNextLevel = remaining; // sisa poin abis simulasi level-up di atas
+    const barFillPct = nextLevelCost > 0 ? Math.min(100, (pointsTowardNextLevel / nextLevelCost) * 100) : 0;
 
     function submitLevelUp() {
         if (!canLevelUp || submitting) return;
@@ -243,20 +234,15 @@ function ItemDetailPanel({ character, item, elements, onClose, itemLevelGrowthRa
                     <div className="mb-2">
                         <div className="d-flex justify-content-between align-items-center mb-1">
                             <span className="text-secondary small">
-                                Progress Part {TIERS.indexOf(unlockedTier)} (Lv.{partStart}→{unlockedTier})
+                                Progress ke Level {previewLevel + 1}
                             </span>
-                            <span className="text-secondary small">{Math.round(previewFillPct)}%</span>
+                            <span className="text-secondary small">{pointsTowardNextLevel} / {nextLevelCost} poin</span>
                         </div>
                         <div style={{ position: 'relative', height: 10, borderRadius: 5, background: 'var(--bg-panel)', overflow: 'hidden' }}>
-                            {/* Bagian yang UDAH keisi sebelum sacrifice ini (progress lama). */}
-                            <div style={{ position: 'absolute', inset: 0, width: `${currentFillPct}%`, background: '#8b5cf6', borderRadius: 5 }} />
-                            {/* Preview tambahan dari sacrifice yang DIPILIH sekarang - warna lebih terang, nempel abis progress lama. */}
-                            {previewFillPct > currentFillPct && (
-                                <div style={{ position: 'absolute', inset: 0, left: `${currentFillPct}%`, width: `${previewFillPct - currentFillPct}%`, background: '#c4a6fb', borderRadius: '0 5px 5px 0' }} />
-                            )}
+                            <div style={{ position: 'absolute', inset: 0, width: `${barFillPct}%`, background: '#8b5cf6', borderRadius: 5, transition: 'width 0.2s' }} />
                         </div>
                         <p className="text-secondary small mt-1 mb-0" style={{ fontSize: '0.68rem' }}>
-                            Bar ini makin panjang tiap Part (butuh lebih banyak sacrifice) - Part 1 cuma butuh {sumCostRange(0, 20)} poin total, Part 5 butuh {sumCostRange(80, 100)} poin.
+                            Butuh poin sesuai LEVEL SAAT ITU (level+1) - makin tinggi level, makin banyak sacrifice yang dibutuhin per level.
                         </p>
                     </div>
 

@@ -1877,3 +1877,9 @@ Formula cost sacrifice yang **udah ada** (`cost = level+1` per level) ternyata *
 - Bar ungu tua = progress yang UDAH ke-isi sebelum sacrifice sekarang
 - Bar ungu terang = tambahan preview dari sacrifice yang lagi dipilih
 - Keterangan di bawah bar nunjukkin total poin Part 1 vs Part 5 buat konteks "makin panjang makin ke atas"
+
+---
+
+## 86. Bar Progress Diganti jadi Per-Level (bukan per-Part) (v10.9)
+
+**Feedback**: bar sebelumnya (bagian 85) nunjukkin progress SATU PART PENUH (20 level) — kepanjangan, gak sesuai maksud. Diganti jadi progress **per 1 level tunggal**: bar nunjukkin seberapa deket poin dari sacrifice yang dipilih buat naik SATU level berikutnya (`level saat ini + 1` poin dibutuhin, sesuai cost normal). Makin tinggi levelnya, otomatis makin banyak poin yang dibutuhin buat 1 level (`level+1`) - konsisten sama kenapa Part yang lebih tinggi lebih susah, cuma sekarang divisualisasiin per-level, bukan per-Part.
