@@ -1999,3 +1999,17 @@ Diterapkan di **2 tempat** biar konsisten kapan pun dijalanin:
 - Tambah indikator teks eksplisit **"⏳ Mengirim aksi..."** di bawah skill bar pas request lagi diproses — biar keliatan jelas beda dari tombol grey karena cooldown/MP-SP kurang, gak disangka "klik gak ngefek".
 
 **Kesimpulan buat user**: ini kemungkinan besar soal **koneksi**, bukan bug logic battle — tapi sekarang sistemnya lebih tahan banting (gagal cepat & kasih tau, bukan nyangkut diam-diam tanpa batas).
+
+---
+
+## 95. Balance: HP Dasar Semua Monster Dikurangi 50% (v11.8)
+
+**Laporan**: "level awal gak punya item, gak punya damage sama sekali, kurangi HP semua monster awal 50%."
+
+**Masalah**: karakter di level awal (belum punya item, belum investasi stat point) damage-nya minim, tapi HP monster relatif kegedean buat damage segitu - battle awal jadi kelamaan/berat.
+
+**Fix**: HP dasar SEMUA 12 monster (di `MonsterSeeder.php`, nilai literal di array) dikurangi **50%** (dibagi 2). Karena HP dasar ini yang jadi acuan `monster_hp_growth_ratio` buat scaling per level, efeknya nurunin **seluruh kurva HP monster** secara proporsional (bukan cuma level awal doang) - contoh: 360 → 180, 720 → 360, dst.
+
+Diterapkan di 2 tempat (pelajaran dari bagian 92 - migration doang gak cukup):
+1. Migration `2026_08_26_100001_halve_monster_base_hp.php` — buat database yang UDAH ADA
+2. `MonsterSeeder.php` (sumber data) — nilai HP di array udah dibagi 2 langsung di sumbernya, jadi seed ulang kapan pun konsisten
