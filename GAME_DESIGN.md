@@ -1962,3 +1962,15 @@ php artisan game:purge-players
 Diterapkan di **2 tempat** biar konsisten kapan pun dijalanin:
 1. Migration `2026_08_25_100001_dual_resource_skill_costs.php` — buat database yang UDAH ADA (langsung jalan pas `migrate`)
 2. `SkillSeeder::normalizeDualResourceCosts()` — dipanggil otomatis di akhir seeder, biar `migrate:fresh --seed` (instalasi baru) juga otomatis dapet fix yang sama, gak perlu nulis ulang manual 113 baris data skill satu-satu
+
+---
+
+## 92. Fix Ulti Cooldown Balik ke 30s - Perbaiki di Sumber Seeder (v11.5)
+
+**Laporan**: "ulti cooldown masih 30s, harusnya 15s."
+
+**Root cause**: sama persis pola bug dengan bagian 91 (SP/MP) — migration bagian 62 dulu udah nge-set semua ultimate jadi cooldown 15s **langsung di database**, tapi **`SkillSeeder.php` (sumber data asli) masih hardcode `'cd' => 30`** buat ke-28 skill tier-3. Begitu di-reseed ulang (`db:seed` / `migrate:fresh --seed`), `updateOrCreate` di seeder nimpa balik nilainya ke 30.
+
+**Fix**: semua 28 entri `'cd' => 30` dengan `'tier' => 3` di `SkillSeeder.php` diganti langsung ke `'cd' => 15` di SUMBERNYA — jadi seed ulang kapan pun gak bakal balikin nilai lama lagi. Ditambah migration kecil buat mastiin database yang UDAH ADA sekarang juga langsung ke-fix tanpa perlu nunggu re-seed.
+
+**Pelajaran berulang**: kalau nge-patch data lewat migration doang (bagian 62, 68, dll) TANPA ikut memperbaiki SEEDER SUMBER-nya, fix itu bakal HILANG lagi begitu ada reseed - migration cuma jalan sekali dan gak "ingat" buat dijalanin ulang otomatis. Ke depannya, tiap kali ada balance fix via migration data, harus DICEK juga apa seeder sumbernya perlu diperbaiki bareng.
