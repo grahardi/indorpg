@@ -41,7 +41,7 @@ const TIERS = [0, 20, 40, 60, 80, 100];
 // Total bonus stat tertentu di level tertentu - SAMA PERSIS
 // Item::allBonusesAtLevel() di backend (base + tiap Part yang tercapai,
 // ADITIF, stat sama dijumlah, stat beda tetep kepisah).
-function allBonusesAtLevel(item, level) {
+function allBonusesAtLevel(item, level, growthRatio = 1.0) {
     const bonuses = [{ stat: item.effect_stat, value: item.effect_value, element_id: item.effect_element_id }];
     if (item.category === 'artifact' && level > 0) {
         for (const b of item.accession_bonuses ?? []) {
@@ -55,6 +55,13 @@ function allBonusesAtLevel(item, level) {
         const key = `${b.stat}-${b.element_id ?? 'x'}`;
         if (!grouped[key]) grouped[key] = { ...b, value: 0 };
         grouped[key].value += b.value;
+    }
+    // Growth kontinyu per level (bagian 85) - SAMA PERSIS Item::allBonusesAtLevel() backend.
+    if (item.category === 'artifact' && level > 0) {
+        const multiplier = 1 + (level * (growthRatio / 100));
+        for (const key in grouped) {
+            grouped[key].value = Math.round(grouped[key].value * multiplier);
+        }
     }
     return Object.values(grouped);
 }
@@ -71,14 +78,14 @@ function bonusBreakdown(item) {
     return rows;
 }
 
-function ItemDetailPanel({ character, item, elements, onClose }) {
+function ItemDetailPanel({ character, item, elements, onClose, itemLevelGrowthRatio }) {
     const [selectedSacrifice, setSelectedSacrifice] = useState([]);
     const [submitting, setSubmitting] = useState(false);
 
     const accent = RARITY_ACCENT[item.rarity] ?? '#8890a4';
     const currentLevel = item.pivot.accession_level;
     const unlockedTier = item.pivot.unlocked_tier ?? 20;
-    const currentBonuses = allBonusesAtLevel(item, currentLevel);
+    const currentBonuses = allBonusesAtLevel(item, currentLevel, itemLevelGrowthRatio);
     const breakdown = bonusBreakdown(item);
     const elementName = (elId) => elements.find((e) => e.id === elId)?.name ?? '';
 
@@ -113,6 +120,23 @@ function ItemDetailPanel({ character, item, elements, onClose }) {
     const hitCapWithPointsLeft = previewLevel >= unlockedTier && remaining > 0 && unlockedTier < 100;
     const willUseCatalyst = hitCapWithPointsLeft && catalystQty > 0;
     const canLevelUp = previewLevel > currentLevel || willUseCatalyst;
+
+    // MODEL BAR: total poin buat NYELESAIN part saat ini (dari batas tier
+    // sebelumnya sampai unlockedTier) = sum(partStart+1 .. unlockedTier).
+    // Makin tinggi Part, makin panjang bar-nya (butuh lebih banyak item) -
+    // ini konsekuensi alami dari cost=level+1 per level, gak perlu rumus
+    // baru, cuma divisualisasiin di sini.
+    const partStart = unlockedTier - 20;
+    function sumCostRange(fromLevelExclusive, toLevelInclusive) {
+        let total = 0;
+        for (let lv = fromLevelExclusive; lv < toLevelInclusive; lv++) total += lv + 1;
+        return total;
+    }
+    const totalPointsForPart = sumCostRange(partStart, unlockedTier);
+    const pointsAlreadyInPart = sumCostRange(partStart, currentLevel);
+    const pointsAfterPreview = sumCostRange(partStart, previewLevel);
+    const currentFillPct = totalPointsForPart > 0 ? Math.min(100, (pointsAlreadyInPart / totalPointsForPart) * 100) : 100;
+    const previewFillPct = totalPointsForPart > 0 ? Math.min(100, (pointsAfterPreview / totalPointsForPart) * 100) : 100;
 
     function submitLevelUp() {
         if (!canLevelUp || submitting) return;
@@ -162,7 +186,7 @@ function ItemDetailPanel({ character, item, elements, onClose }) {
 
             {item.category === 'artifact' && breakdown.length > 1 && (
                 <div className="mb-3">
-                    <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.78rem' }}>Rincian per Part</div>
+                    <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.78rem' }}>Rincian per Part (nilai dasar, sebelum growth per-level)</div>
                     <div className="d-flex flex-column gap-1">
                         {breakdown.map((b, i) => (
                             <div key={i} style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -216,6 +240,26 @@ function ItemDetailPanel({ character, item, elements, onClose }) {
                         })}
                     </div>
 
+                    <div className="mb-2">
+                        <div className="d-flex justify-content-between align-items-center mb-1">
+                            <span className="text-secondary small">
+                                Progress Part {TIERS.indexOf(unlockedTier)} (Lv.{partStart}→{unlockedTier})
+                            </span>
+                            <span className="text-secondary small">{Math.round(previewFillPct)}%</span>
+                        </div>
+                        <div style={{ position: 'relative', height: 10, borderRadius: 5, background: 'var(--bg-panel)', overflow: 'hidden' }}>
+                            {/* Bagian yang UDAH keisi sebelum sacrifice ini (progress lama). */}
+                            <div style={{ position: 'absolute', inset: 0, width: `${currentFillPct}%`, background: '#8b5cf6', borderRadius: 5 }} />
+                            {/* Preview tambahan dari sacrifice yang DIPILIH sekarang - warna lebih terang, nempel abis progress lama. */}
+                            {previewFillPct > currentFillPct && (
+                                <div style={{ position: 'absolute', inset: 0, left: `${currentFillPct}%`, width: `${previewFillPct - currentFillPct}%`, background: '#c4a6fb', borderRadius: '0 5px 5px 0' }} />
+                            )}
+                        </div>
+                        <p className="text-secondary small mt-1 mb-0" style={{ fontSize: '0.68rem' }}>
+                            Bar ini makin panjang tiap Part (butuh lebih banyak sacrifice) - Part 1 cuma butuh {sumCostRange(0, 20)} poin total, Part 5 butuh {sumCostRange(80, 100)} poin.
+                        </p>
+                    </div>
+
                     <div className="d-flex align-items-center gap-3 flex-wrap">
                         <span className="text-secondary small">
                             Poin: <strong style={{ color: '#8b5cf6' }}>{points}</strong> → Lv.{previewLevel}{willUseCatalyst ? '+' : ''}
@@ -265,7 +309,7 @@ function ItemGridCard({ item, isSelected, onClick }) {
     );
 }
 
-export default function MyItems({ characters, elements = [] }) {
+export default function MyItems({ characters, elements = [], itemLevelGrowthRatio = 1.0 }) {
     const { props } = usePage();
     const [selectedCharacterId, setSelectedCharacterId] = useState(characters[0]?.id ?? null);
     const [selectedItemPivotId, setSelectedItemPivotId] = useState(null);
@@ -330,6 +374,7 @@ export default function MyItems({ characters, elements = [] }) {
                                     item={selectedItem}
                                     elements={elements}
                                     onClose={() => setSelectedItemPivotId(null)}
+                                    itemLevelGrowthRatio={itemLevelGrowthRatio}
                                 />
                             </div>
                         )}

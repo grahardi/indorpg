@@ -66,6 +66,7 @@ class CharacterController extends Controller
             // formula-nya PERSIS sama kayak yang beneran dipakai di battle
             // (lihat BattleService::skillCombatStats).
             'skillLevelGrowthRatio' => \App\Models\GameSetting::getFloat('skill_level_growth_ratio', 1.3),
+            'itemLevelGrowthRatio' => \App\Models\GameSetting::getFloat('item_level_growth_ratio', 1.0),
         ]);
     }
 

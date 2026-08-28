@@ -1862,3 +1862,18 @@ Sebelumnya rumus flat "+25% per tier" (bagian 81). Sekarang di **Item Editor** a
 - `Item::allBonusesAtLevel()`, `bonusForStat()`, `elementalBonusForElement()` — hitung total bonus (base+Part tercapai) per stat, gantiin `accessionEffectiveValue()` lama yang dihapus
 - `Character::itemBonus()` & `elementalDamageBonus()` diupdate pakai method baru ini
 - Frontend `itemBonusFor()` (halaman karakter) & `MyItems.jsx` (detail view + rincian per-Part) disamain persis sama logic backend
+
+---
+
+## 85. Growth Kontinyu per-Level (Admin-Configurable) + Model Bar Visual Sacrifice (v10.8)
+
+### Stat aktif ikut naik terus tiap level (bukan cuma di milestone Part)
+Setting admin baru **`item_level_growth_ratio`** (default `1.0` = 1% per level). Sekarang STAT YANG UDAH AKTIF (base + Part yang tercapai) ikut naik dikit-dikit tiap level, terpisah dari lompatan bonus baru di tiap Part (bagian 84). Sesuai contoh: Physical Attack 100 di level 1 → 101 di level 2 (rasio 1.0%).
+
+**Urutan hitung** (`Item::allBonusesAtLevel()`): base + Part yang tercapai dijumlah dulu (ADITIF, bagian 84) → HASIL jumlahnya baru dikali growth multiplier (`1 + level × ratio/100`) berdasarkan level SAAT INI. Diterapkan konsisten di backend (combat) dan frontend (preview di halaman Karakter & Item Saya, prop `itemLevelGrowthRatio` di-thread dari `GameSetting`).
+
+### Model Bar Visual buat Progress Sacrifice
+Formula cost sacrifice yang **udah ada** (`cost = level+1` per level) ternyata **udah otomatis** memenuhi "Part 1 butuh dikit, Part 5 butuh banyak" — total poin per Part naik sendiri (Part 1: 210 poin, Part 2: 610, Part 3: 1.010, Part 4: 1.410, Part 5: 1.810). Gak perlu rumus baru, cuma divisualisasiin sebagai **progress bar** di panel Level Up ("Item Saya"):
+- Bar ungu tua = progress yang UDAH ke-isi sebelum sacrifice sekarang
+- Bar ungu terang = tambahan preview dari sacrifice yang lagi dipilih
+- Keterangan di bawah bar nunjukkin total poin Part 1 vs Part 5 buat konteks "makin panjang makin ke atas"

@@ -39,6 +39,7 @@ class AccessionController extends Controller
         return Inertia::render('Shop/MyItems', [
             'characters' => $characters,
             'elements' => \App\Models\Element::orderBy('name')->get(),
+            'itemLevelGrowthRatio' => \App\Models\GameSetting::getFloat('item_level_growth_ratio', 1.0),
         ]);
     }
 

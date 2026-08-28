@@ -94,11 +94,21 @@ class Item extends Model
         }
 
         // Gabungin (sum) entri yang stat+element_id-nya SAMA, biarin yang beda tetep terpisah.
-        return $bonuses
+        $summed = $bonuses
             ->groupBy(fn ($b) => $b['stat'].'-'.($b['element_id'] ?? 'x'))
-            ->map(fn ($group) => ['stat' => $group->first()['stat'], 'value' => $group->sum('value'), 'element_id' => $group->first()['element_id']])
-            ->values()
-            ->all();
+            ->map(fn ($group) => ['stat' => $group->first()['stat'], 'value' => $group->sum('value'), 'element_id' => $group->first()['element_id']]);
+
+        // Growth KONTINYU per level (bukan cuma di milestone Part) - stat yang
+        // UDAH AKTIF (base + Part yang tercapai) ikut naik dikit-dikit tiap
+        // level, terpisah dari lompatan bonus baru di tiap Part. Rasio diatur
+        // admin (default 1% per level - level 20 udah +20% dari base/Part-nya).
+        if ($this->category === 'artifact' && $level > 0) {
+            $ratio = GameSetting::getFloat('item_level_growth_ratio', 1.0) / 100;
+            $growthMultiplier = 1 + ($level * $ratio);
+            $summed = $summed->map(fn ($b) => [...$b, 'value' => (int) round($b['value'] * $growthMultiplier)]);
+        }
+
+        return $summed->values()->all();
     }
 
     /**
