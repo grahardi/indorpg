@@ -910,7 +910,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                 {current.text && (
                     <div
                         key={`log-${step}`}
-                        className="text-center mb-3"
+                        className="text-center mb-2"
                         style={{
                             fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)',
                             padding: '0.5rem 1rem', background: 'var(--bg-panel)', borderRadius: 8,
@@ -920,6 +920,41 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                         {current.text}
                     </div>
                 )}
+
+                {/* BUG FIX: 1 giliran (/act) bisa hasilin BEBERAPA baris log
+                    sekaligus (aksi player + tiap NPC + monster) - log di atas
+                    cuma nampilin BARIS TERAKHIR (log[step]), jadi kalau urutan
+                    proses gak kebetulan berakhir di aksi player (misal urutan
+                    keacak - bagian 58 - berakhir di NPC/monster), aksi player
+                    SENDIRI gak pernah kelihatan sama sekali. Fix: log KEDUA di
+                    bawah, KHUSUS nyari mundur baris terakhir yang actor_character_id-
+                    nya PERSIS karakter yang kamu kontrol - dijamin selalu kelihatan
+                    walau bukan baris paling akhir di batch. */}
+                {isManual && (() => {
+                    const myParticipant = battle.participants.find((p) => p.character.user_id === currentUserId);
+                    if (!myParticipant) return null;
+                    let myLastEntry = null;
+                    for (let i = step; i >= 0; i--) {
+                        if (log[i]?.actor_character_id === myParticipant.character_id) {
+                            myLastEntry = log[i];
+                            break;
+                        }
+                    }
+                    if (!myLastEntry) return null;
+                    return (
+                        <div
+                            key={`my-log-${step}`}
+                            className="text-center mb-3"
+                            style={{
+                                fontSize: '0.72rem', color: '#c9a24b', fontFamily: 'var(--font-mono)',
+                                padding: '0.5rem 1rem', background: 'rgba(201,162,75,0.08)', borderRadius: 8,
+                                border: '1px solid rgba(201,162,75,0.3)', lineHeight: 1.4,
+                            }}
+                        >
+                            🗡 {myLastEntry.text}
+                        </div>
+                    );
+                })()}
 
                 {/* Mode Manual: panel HP/MP/SP + tombol skill (bukan log teks lagi -
                     semua feedback lewat animasi damage number floating di atas). */}

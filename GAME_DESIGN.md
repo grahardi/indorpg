@@ -1899,3 +1899,13 @@ Validasi form sebelumnya (`'settings.*.value' => 'required'`) menolak STRING KOS
 `'settings.*.value'` diganti dari `'required'` jadi `'nullable'` — string kosong (yang MEMANG disengaja buat setting audio) sekarang boleh lolos, gak lagi gagalin keseluruhan form.
 
 **Catatan**: log diagnostik sementara (bagian 83) dihapus karena akar masalahnya udah ketemu & fix - gak perlu lagi.
+
+---
+
+## 88. Fix: Log Aksi Player Sendiri Gak Kelihatan - Tambah Log Kedua (v11.1)
+
+**Laporan**: "battle log punya pemain gak masuk, buat 2 battle log, yang kedua di bawahnya khusus buat pemain."
+
+**Root cause**: 1 giliran (`/act`) bisa hasilin BEBERAPA baris log sekaligus (aksi player + tiap NPC + monster, urutan diacak sejak bagian 58). Mini-log (bagian 65) cuma nampilin **baris TERAKHIR** (`log[step]`) — jadi kalau urutan proses kebetulan berakhir di NPC/monster (bukan aksi player), teks aksi player sendiri **gak pernah kelihatan sama sekali** biarpun beneran kejadian.
+
+**Fix**: tambah **log kedua** di bawah log pertama (warna emas, beda dari log umum), khusus nyari **mundur** dari step sekarang sampai ketemu baris terakhir yang `actor_character_id`-nya PERSIS karakter yang kamu kontrol — dijamin selalu nampilin aksi player sendiri walau bukan baris paling akhir di batch giliran itu.
