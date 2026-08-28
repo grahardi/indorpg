@@ -1974,3 +1974,13 @@ Diterapkan di **2 tempat** biar konsisten kapan pun dijalanin:
 **Fix**: semua 28 entri `'cd' => 30` dengan `'tier' => 3` di `SkillSeeder.php` diganti langsung ke `'cd' => 15` di SUMBERNYA — jadi seed ulang kapan pun gak bakal balikin nilai lama lagi. Ditambah migration kecil buat mastiin database yang UDAH ADA sekarang juga langsung ke-fix tanpa perlu nunggu re-seed.
 
 **Pelajaran berulang**: kalau nge-patch data lewat migration doang (bagian 62, 68, dll) TANPA ikut memperbaiki SEEDER SUMBER-nya, fix itu bakal HILANG lagi begitu ada reseed - migration cuma jalan sekali dan gak "ingat" buat dijalanin ulang otomatis. Ke depannya, tiap kali ada balance fix via migration data, harus DICEK juga apa seeder sumbernya perlu diperbaiki bareng.
+
+---
+
+## 93. Fix: Tombol Skill Gak Balik Aktif Setelah MP/SP Regen (v11.6)
+
+**Laporan**: "cooldown udah bener, tapi pas kurang SP/MP jadi grey, setelah regen gak balik aktif."
+
+**Root cause**: panel "Status Kamu" (`PlayerStatusPanel`, bagian 61) nampilin MP/SP yang **udah diinterpolasi real-time** (nambah dikit-dikit tiap detik di browser, biar keliatan "regen jalan"). Tapi pengecekan "cukup MP/SP buat pakai skill" di `ManualSkillBar` masih pakai `participant.current_mana/current_stamina` **MENTAH** — nilai dari respons server TERAKHIR, yang cuma ke-refresh kalau ada sync baru (auto-poll tiap 2.5 detik atau abis klik). Efeknya: player LIAT MP-nya udah keliatan penuh di bar (interpolasi), tapi tombol skill TETAP grey sampai beneran ada sync baru dari server yang "mengonfirmasi" MP-nya cukup — DUA tampilan (bar vs tombol) pakai sumber data yang gak sinkron.
+
+**Fix**: `ManualSkillBar` sekarang pakai **interpolasi yang SAMA PERSIS** kayak `PlayerStatusPanel` (sync-point + regen rate per detik) buat ngitung MP/SP yang dipakai di cek affordability - bar dan tombol sekarang konsisten, sama-sama "optimis" nambah real-time, jadi begitu keliatan cukup di bar, tombolnya juga langsung aktif di momen yang sama.

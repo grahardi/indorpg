@@ -37,7 +37,29 @@ function ManualSkillBar({ participant, battle, serverElapsedSeconds, serverElaps
         return () => clearInterval(interval);
     }, []);
 
+    // BUG FIX PENTING: sebelumnya cek "cukup MP/SP" pakai participant.current_
+    // mana/stamina MENTAH (nilai dari respons server TERAKHIR, gak berubah
+    // sampai ada sync baru) - padahal panel "Status Kamu" di sebelahnya
+    // nampilin MP/SP yang UDAH DI-INTERPOLASI real-time (PlayerStatusPanel,
+    // bagian 61). Efeknya: player liat MP-nya udah keliatan penuh/cukup di
+    // bar, tapi tombol skill TETAP grey karena cek-nya masih pakai angka lama
+    // yang belum ke-refresh dari server. Fix: interpolasi yang SAMA PERSIS
+    // diterapkan di sini juga, biar tampilan bar & tombol konsisten.
+    const syncRef = useRef({ time: Date.now(), mana: participant?.current_mana ?? 0, stamina: participant?.current_stamina ?? 0 });
+    useEffect(() => {
+        syncRef.current = { time: Date.now(), mana: participant?.current_mana ?? 0, stamina: participant?.current_stamina ?? 0 };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [participant?.current_mana, participant?.current_stamina]);
+
     if (!participant) return null;
+
+    const maxMana = participant.character.effective_base_mp;
+    const maxStamina = participant.character.effective_base_sp;
+    const manaPerSec = (participant.character.effective_mana_regen ?? 0) / (POLL_INTERVAL_MS / 1000);
+    const staminaPerSec = (participant.character.effective_stamina_regen ?? 0) / (POLL_INTERVAL_MS / 1000);
+    const elapsedSinceSync = (Date.now() - syncRef.current.time) / 1000;
+    const displayedMana = Math.min(maxMana, syncRef.current.mana + manaPerSec * elapsedSinceSync);
+    const displayedStamina = Math.min(maxStamina, syncRef.current.stamina + staminaPerSec * elapsedSinceSync);
 
     const loadout = (participant.character.subclass?.skills ?? [])
         .filter((s) => (participant.loadout_skill_ids ?? []).includes(s.id));
@@ -68,8 +90,8 @@ function ManualSkillBar({ participant, battle, serverElapsedSeconds, serverElaps
                 const cooldownSeconds = Number(skill.cooldown_seconds);
                 const remainingSeconds = lastUsed !== undefined ? Math.ceil(cooldownSeconds - (nowSeconds - lastUsed)) : 0;
                 const onCooldown = remainingSeconds > 0;
-                const affordable = Number(participant.current_mana) >= Number(skill.mana_cost)
-                    && Number(participant.current_stamina) >= Number(skill.stamina_cost);
+                const affordable = displayedMana >= Number(skill.mana_cost)
+                    && displayedStamina >= Number(skill.stamina_cost);
                 const usable = !onCooldown && affordable && !disabled;
 
                 return (
