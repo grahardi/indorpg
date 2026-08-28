@@ -1252,7 +1252,20 @@ class BattleService
                 $points = $character->statPointsEarnedBetween($oldLevel, $character->level);
                 $character->stat_points += $points;
                 $character->save();
-                $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}! (+{$points} stat point)");
+                // Cek ada level KELIPATAN 5 yang kelewat (dapet bonus +10 stat
+                // point, bukan +5 biasa) - biar pesan log JELAS nunjukkin dari
+                // mana totalnya, gak keliatan kayak "bonus misterius" yang bikin
+                // player nyangka ada fitur laen yang nyala.
+                $milestonesHit = [];
+                for ($lvl = $oldLevel + 1; $lvl <= $character->level; $lvl++) {
+                    if ($lvl % 5 === 0) {
+                        $milestonesHit[] = $lvl;
+                    }
+                }
+                $milestoneNote = $milestonesHit
+                    ? ' (termasuk bonus +10 di level kelipatan 5: Lv.'.implode(', Lv.', $milestonesHit).')'
+                    : '';
+                $log[] = $this->snapshot($battle, "{$character->name} naik ke Level {$character->level}! (+{$points} stat point{$milestoneNote})");
             }
 
             // Drop di-roll TERPISAH per kategori (artifact/accession/material) -

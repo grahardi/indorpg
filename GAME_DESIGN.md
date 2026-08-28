@@ -2013,3 +2013,13 @@ Diterapkan di **2 tempat** biar konsisten kapan pun dijalanin:
 Diterapkan di 2 tempat (pelajaran dari bagian 92 - migration doang gak cukup):
 1. Migration `2026_08_26_100001_halve_monster_base_hp.php` — buat database yang UDAH ADA
 2. `MonsterSeeder.php` (sumber data) — nilai HP di array udah dibagi 2 langsung di sumbernya, jadi seed ulang kapan pun konsisten
+
+---
+
+## 96. Klarifikasi: Bonus Stat Point Kelipatan 5 Level BUKAN Fitur/Bug Baru (v11.9)
+
+**Laporan**: "udah dapat 5 point dari level, kenapa dapat bonus point lagi, apa fitur bonus battle nyala lagi?"
+
+**Klarifikasi**: dicek, **gak ada fitur "bonus battle" terpisah** di codebase sama sekali. Ini murni mekanisme yang emang udah dirancang dari awal (`Character::statPointsForLevel()`): level BIASA dapat **+5** stat point, level yang **kelipatan 5** (5, 10, 15, 20, dst) dapat **+10**. Kalau naik lebih dari 1 level dalam 1 battle dan levelnya mencakup kelipatan 5, totalnya digabung jadi 1 pesan log — kelihatan kayak "bonus misterius" padahal itu emang penjumlahan yang bener.
+
+**Perbaikan**: pesan log level-up sekarang eksplisit nyebutin kalau ada level kelipatan 5 yang kelewat, contoh: `"naik ke Level 6! (+15 stat point (termasuk bonus +10 di level kelipatan 5: Lv.5))"` — biar transparan dari mana totalnya, gak bikin bingung lagi ke depannya.
