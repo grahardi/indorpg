@@ -1285,16 +1285,24 @@ class BattleService
                     } else {
                         $character->items()->attach($droppedItem->id, ['obtained_at' => now(), 'quantity' => 1]);
                     }
-                    $log[] = $this->snapshot($battle, "{$character->name} dapat material [{$droppedItem->name}]!");
+                    $log[] = $this->snapshot($battle, "{$character->name} dapat material [{$droppedItem->name}]!", $character->id, null, false, [
+                        'type' => 'drop', 'drop_kind' => 'material', 'item_name' => $droppedItem->name,
+                        'rarity' => $droppedItem->rarity, 'icon_path' => $droppedItem->icon_path,
+                    ]);
                 } elseif ($character->items()->count() < 50) {
                     $character->items()->attach($droppedItem->id, ['obtained_at' => now()]);
                     $rarityLabel = \App\Models\Item::RARITY_LABELS[$droppedItem->rarity] ?? $droppedItem->rarity;
-                    $log[] = $this->snapshot($battle, "{$character->name} dapat item [{$rarityLabel}] {$droppedItem->name}!");
+                    $log[] = $this->snapshot($battle, "{$character->name} dapat item [{$rarityLabel}] {$droppedItem->name}!", $character->id, null, false, [
+                        'type' => 'drop', 'drop_kind' => $dropCategory, 'item_name' => $droppedItem->name,
+                        'rarity' => $droppedItem->rarity, 'icon_path' => $droppedItem->icon_path,
+                    ]);
                 }
             }
         }
 
-        $log[] = $this->snapshot($battle, "Party dapat {$expReward} EXP + {$goldReward} Gold masing-masing karakter!");
+        $log[] = $this->snapshot($battle, "Party dapat {$expReward} EXP + {$goldReward} Gold masing-masing karakter!", null, null, false, [
+            'type' => 'reward_summary', 'exp' => $expReward, 'gold' => $goldReward,
+        ]);
     }
 
     /**

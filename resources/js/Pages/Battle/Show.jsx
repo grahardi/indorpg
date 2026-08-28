@@ -3,6 +3,15 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { battleAudio } from '../../battleAudio';
 
 const MONSTER_COLOR = '#b8433a';
+// Dipakai buat nampilin drop item/material di layar kemenangan (bagian 98) -
+// sama persis warnanya kayak yang dipakai Shop/MyItems.jsx dkk.
+const RARITY_ACCENT_MAP = {
+    common: '#8f96a3',
+    rare: '#8b5cf6',
+    sr: '#4a90e2',
+    ur: '#e8c547',
+    legendary: '#ef7d6f',
+};
 const PARTICIPANT_COLORS = ['#3f8c94', '#c9a24b', '#7269d1'];
 // Interval polling internal mode Manual (cek/proses giliran NPC & monster
 // otomatis) - angka TETAP (bukan setting admin lagi), SAMA SEKALI gak ada
@@ -371,6 +380,14 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     const monsterMaxHp = battle.monster_stats?.hp ?? monster.hp;
     const monsterExpReward = battle.monster_stats?.exp_reward ?? monster.exp_reward;
 
+    // Drop item/material yang didapet karakter YANG DIKONTROL PLAYER INI
+    // sepanjang battle - dipakai buat nampilin ringkasan "Hadiah" di layar
+    // menang (sebelumnya cuma EXP doang, item/material yang beneran didapet
+    // gak pernah ditampilin di layar hasil, cuma lewat di battle log).
+    const myCharacterId = battle.participants.find((p) => p.character.user_id === currentUserId)?.character_id;
+    const myDrops = log.filter((entry) => entry.effect?.type === 'drop' && entry.actor_character_id === myCharacterId).map((entry) => entry.effect);
+    const rewardSummary = log.find((entry) => entry.effect?.type === 'reward_summary')?.effect;
+
     const [step, setStep] = useState(0);
     const [finished, setFinished] = useState(log.length <= 1);
     const [soundOn, setSoundOn] = useState(true);
@@ -721,6 +738,31 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 700, color: '#c9a24b' }}>
                                     +{monsterExpReward} EXP <span className="rpg-power-type" style={{ fontSize: '0.85rem' }}>/ karakter</span>
                                 </div>
+                                {rewardSummary?.gold > 0 && (
+                                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1rem', color: '#c9a24b' }}>
+                                        +{rewardSummary.gold} Gold <span className="rpg-power-type" style={{ fontSize: '0.8rem' }}>/ karakter</span>
+                                    </div>
+                                )}
+                                {/* Drop item/material - BARU ditampilin di sini (sebelumnya cuma
+                                    kelewat di battle log, gak pernah nongol di ringkasan hasil). */}
+                                {myDrops.length > 0 && (
+                                    <div className="d-flex justify-content-center flex-wrap gap-2 mt-3">
+                                        {myDrops.map((drop, i) => {
+                                            const accent = RARITY_ACCENT_MAP[drop.rarity] ?? '#8890a4';
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    title={drop.item_name}
+                                                    className="d-flex align-items-center gap-2"
+                                                    style={{ background: 'var(--bg-panel)', border: `1px solid ${accent}`, borderRadius: 8, padding: '4px 8px 4px 4px' }}
+                                                >
+                                                    <img src={drop.icon_path ?? '/images/items/placeholder.png'} alt="" style={{ width: 26, height: 26, objectFit: 'contain' }} />
+                                                    <span style={{ fontSize: '0.72rem', color: accent }}>{drop.item_name}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         )}
 

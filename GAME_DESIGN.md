@@ -2039,3 +2039,15 @@ Diterapkan di 2 tempat (pelajaran dari bagian 92 - migration doang gak cukup):
 
 ### Fix 3: Indikator equip lebih jelas
 Sebelumnya cuma bintang kecil ★ di pojok kanan atas (gampang gak kesadar). Sekarang: border TEBAL emas + badge teks **"★ DIPAKAI"** full-width di atas card. Di detail view juga ditambah banner besar **"✓ SEDANG DIPAKAI"** + tombol Equip/Lepas dikasih warna kontras jelas (hijau buat Equip, merah buat Lepas) - jauh lebih susah kelewatan/gak sengaja klik.
+
+---
+
+## 98. Fix: Hadiah Drop Item/Material Gak Ditampilin di Layar Kemenangan (v12.1)
+
+**Laporan**: "hadiah item drop gak tampil di layar kemenangan."
+
+**Root cause**: layar hasil ("Hadiah") cuma nampilin EXP flat (`monsterExpReward`) - item/material yang beneran didapet dari drop (bagian 79/95) cuma lewat di battle log sebagai teks biasa ("X dapat item [Rare] Y!"), gak pernah dirangkum/ditampilin di layar RINGKASAN hasil battle.
+
+**Fix**:
+1. Backend: log entry buat drop item/material DAN reward summary (EXP+Gold) sekarang dikasih data **terstruktur** (`effect: {type: 'drop', drop_kind, item_name, rarity, icon_path}` dan `effect: {type: 'reward_summary', exp, gold}`) - bukan cuma teks polos, biar frontend bisa parsing REALIABLE tanpa nebak-nebak dari string.
+2. Frontend: layar kemenangan sekarang scan SELURUH battle log, filter drop yang actor_character_id-nya PERSIS karakter yang dikontrol player ini, terus ditampilin sebagai badge kecil (ikon + nama, warna sesuai rarity) di bawah EXP - plus Gold reward juga ditampilin (sebelumnya gak ada sama sekali di layar ini).
