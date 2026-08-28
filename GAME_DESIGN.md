@@ -2023,3 +2023,19 @@ Diterapkan di 2 tempat (pelajaran dari bagian 92 - migration doang gak cukup):
 **Klarifikasi**: dicek, **gak ada fitur "bonus battle" terpisah** di codebase sama sekali. Ini murni mekanisme yang emang udah dirancang dari awal (`Character::statPointsForLevel()`): level BIASA dapat **+5** stat point, level yang **kelipatan 5** (5, 10, 15, 20, dst) dapat **+10**. Kalau naik lebih dari 1 level dalam 1 battle dan levelnya mencakup kelipatan 5, totalnya digabung jadi 1 pesan log — kelihatan kayak "bonus misterius" padahal itu emang penjumlahan yang bener.
 
 **Perbaikan**: pesan log level-up sekarang eksplisit nyebutin kalau ada level kelipatan 5 yang kelewat, contoh: `"naik ke Level 6! (+15 stat point (termasuk bonus +10 di level kelipatan 5: Lv.5))"` — biar transparan dari mana totalnya, gak bikin bingung lagi ke depannya.
+
+---
+
+## 97. Inventory Karakter: Pisah Artifact/Accession + Hapus Tombol Equip di Catalyst + Indikator Equip Lebih Jelas (v12.0)
+
+**Laporan**: 3 masalah di Inventory Bag halaman Karakter — (1) Artifact & Accession item nyampur jadi satu, (2) tombol Equip masih muncul di Accession Item (padahal itu catalyst, bukan equipment), (3) indikator "lagi di-equip" gak jelas, bikin gak sengaja klik "Lepas dari Equip".
+
+### Fix 1: Pisah section
+`InventorySection` sekarang filter `character.items` jadi 2 kelompok terpisah: **🗿 Artifact Item** (grid utama, bisa equip, pagination) dan **💠 Accession Item / Catalyst** (section terpisah di bawah, view-only).
+
+### Fix 2: Tombol Equip dihapus total dari Accession Item
+- Frontend: tombol Equip di detail view cuma muncul kalau `selectedItem.category === 'artifact'`. Buat Accession Item, diganti catatan info ("catalyst sekali pakai, dipakai lewat Item Saya") — gak ada tombol equip/unequip sama sekali.
+- Backend: `CharacterController::toggleEquipItem()` sekarang validasi `item->category === 'artifact'` sebelum ngizinin toggle - defense in depth di luar frontend, jaga-jaga ada yang coba POST langsung ke endpoint-nya.
+
+### Fix 3: Indikator equip lebih jelas
+Sebelumnya cuma bintang kecil ★ di pojok kanan atas (gampang gak kesadar). Sekarang: border TEBAL emas + badge teks **"★ DIPAKAI"** full-width di atas card. Di detail view juga ditambah banner besar **"✓ SEDANG DIPAKAI"** + tombol Equip/Lepas dikasih warna kontras jelas (hijau buat Equip, merah buat Lepas) - jauh lebih susah kelewatan/gak sengaja klik.

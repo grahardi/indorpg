@@ -345,7 +345,12 @@ function InventorySection({ character, isOwner }) {
     const [page, setPage] = useState(0);
     const [selectedItem, setSelectedItem] = useState(null);
     const [bagOpen, setBagOpen] = useState(false);
-    const items = character.items ?? [];
+    const allItems = character.items ?? [];
+    // PISAHIN kategori (bagian 97) - Artifact = equipment beneran (bisa
+    // di-equip), Accession = catalyst sekali pakai (GAK BISA di-equip sama
+    // sekali, cuma buat referensi/dipakai lewat "Item Saya" pas craft).
+    const items = allItems.filter((i) => i.category === 'artifact');
+    const catalystItems = allItems.filter((i) => i.category === 'accession');
     const equippedItems = items.filter((i) => i.pivot?.is_equipped);
     const equippedCount = equippedItems.length;
     const totalPages = Math.max(1, Math.ceil(items.length / BAG_SLOTS_PER_PAGE));
@@ -423,18 +428,36 @@ function InventorySection({ character, isOwner }) {
                     <div className="rpg-power-type text-center mb-3">
                         +{selectedItem.effect_value} {itemStatLabel(selectedItem)}
                     </div>
-                    {isOwner && (
+                    {/* Indikator BESAR & JELAS status equip - biar gak ketuker sama
+                        "belum di-equip" pas lagi buru-buru liat item, ngurangin
+                        kemungkinan gak sengaja klik "Lepas dari Equip". */}
+                    {selectedItem.category === 'artifact' && isEquipped && (
+                        <div className="text-center mb-2" style={{ fontSize: '0.8rem', color: '#4a9960', fontWeight: 700 }}>
+                            ✓ SEDANG DIPAKAI
+                        </div>
+                    )}
+                    {/* Accession Item (catalyst) GAK BISA di-equip sama sekali -
+                        tombol Equip cuma muncul buat kategori 'artifact'. */}
+                    {isOwner && selectedItem.category === 'artifact' && (
                         <button
                             onClick={() => toggleEquip(selectedItem)}
                             disabled={togglingId === selectedItem.id}
                             className="btn w-100"
                             style={{
-                                background: isEquipped ? 'transparent' : 'var(--bg-panel-hover)',
-                                border: `1px solid ${accent}`, color: accent,
+                                background: isEquipped ? 'rgba(184,67,58,0.15)' : 'rgba(74,153,96,0.15)',
+                                border: `1px solid ${isEquipped ? '#b8433a' : '#4a9960'}`,
+                                color: isEquipped ? '#b8433a' : '#4a9960',
+                                fontWeight: 700,
                             }}
                         >
-                            {isEquipped ? 'Lepas dari Equip' : 'Equip'}
+                            {isEquipped ? '✕ Lepas dari Equip' : '✓ Equip'}
                         </button>
+                    )}
+                    {isOwner && selectedItem.category === 'accession' && (
+                        <p className="text-secondary small text-center mb-0" style={{ fontSize: '0.7rem' }}>
+                            Ini catalyst sekali pakai - gak bisa di-equip. Dipakai buat naikin tier Artifact Item lewat{' '}
+                            <Link href={route('accession.index')}>Item Saya</Link>.
+                        </p>
                     )}
                 </div>
             </div>
@@ -445,7 +468,7 @@ function InventorySection({ character, isOwner }) {
         <div className="mb-5">
             <div className="d-flex justify-content-between align-items-end mb-2">
                 <div className="rpg-skill-group-title" style={{ fontSize: '0.85rem' }}>
-                    Inventory Bag ({items.length}/{BAG_MAX_CAPACITY}) &middot; {equippedCount}/4 ke-equip
+                    🗿 Artifact Item ({items.length}/{BAG_MAX_CAPACITY}) &middot; {equippedCount}/4 ke-equip
                 </div>
                 <div className="d-flex gap-3 align-items-center">
                     {isOwner && (
@@ -484,10 +507,24 @@ function InventorySection({ character, isOwner }) {
                                         '--accent': accent, aspectRatio: '1 / 1', display: 'flex', flexDirection: 'column',
                                         alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer',
                                         opacity: isEquipped ? 1 : 0.85, position: 'relative',
+                                        // BUG FIX: indikator equip sebelumnya cuma bintang kecil
+                                        // di pojok (gampang gak kesadar) - bikin gak sengaja klik
+                                        // "Lepas dari Equip". Sekarang border TEBAL keemasan +
+                                        // badge teks jelas, gak mungkin kelewatan.
+                                        border: isEquipped ? '3px solid #c9a24b' : undefined,
+                                        boxShadow: isEquipped ? '0 0 8px rgba(201,162,75,0.4)' : undefined,
                                     }}
                                 >
                                     {isEquipped && (
-                                        <span style={{ position: 'absolute', top: 4, right: 4, fontSize: '0.7rem', color: '#c9a24b' }}>★</span>
+                                        <span
+                                            style={{
+                                                position: 'absolute', top: -1, left: -1, right: -1, fontSize: '0.55rem', fontWeight: 700,
+                                                color: '#0b0c12', background: '#c9a24b', padding: '1px 0', borderRadius: '6px 6px 0 0',
+                                                letterSpacing: '0.05em',
+                                            }}
+                                        >
+                                            ★ DIPAKAI
+                                        </span>
                                     )}
                                     <div style={{ width: '60%', aspectRatio: '1/1', background: accent, borderRadius: 6, display: 'flex', padding: 4, boxSizing: 'border-box' }}>
                                         <img
@@ -536,6 +573,49 @@ function InventorySection({ character, isOwner }) {
                     )}
                 </>
             )}
+
+            {/* Accession Item (catalyst) - DIPISAH TOTAL dari Artifact di atas,
+                sengaja gak ada tombol equip sama sekali (bukan equipment).
+                Cuma buat referensi/liat detail - dipakenya lewat "Item Saya". */}
+            <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem', color: '#8b5cf6' }}>
+                    💠 Accession Item / Catalyst ({catalystItems.length})
+                </div>
+                {catalystItems.length === 0 ? (
+                    <p className="text-secondary small mb-0">
+                        Belum punya catalyst. {isOwner && <>Dipakai buat naikin tier Artifact Item lewat <Link href={route('accession.index')}>Item Saya</Link>.</>}
+                    </p>
+                ) : (
+                    <div className="d-flex gap-2 flex-wrap">
+                        {catalystItems.map((item) => {
+                            const accent = RARITY_ACCENT[item.rarity] ?? '#8890a4';
+                            return (
+                                <button
+                                    key={item.pivot?.id ?? item.id}
+                                    onClick={() => setSelectedItem(item)}
+                                    title={item.name}
+                                    className="p-1"
+                                    style={{
+                                        background: 'none', border: `2px solid ${accent}`, borderRadius: 8,
+                                        cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                                    }}
+                                >
+                                    <img
+                                        src={item.icon_path ?? '/images/items/placeholder.png'}
+                                        alt={item.name}
+                                        style={{ width: 40, height: 40, objectFit: 'contain' }}
+                                    />
+                                    {item.pivot?.quantity > 1 && (
+                                        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                                            x{item.pivot.quantity}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

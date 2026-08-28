@@ -193,6 +193,15 @@ class CharacterController extends Controller
             abort(403, 'Bukan karaktermu.');
         }
 
+        // Cuma Artifact Item (equipment beneran) yang bisa di-equip - Accession
+        // (catalyst sekali pakai) & Material sama sekali BUKAN equipment.
+        // Validasi server-side ini jaga-jaga (defense in depth) di luar
+        // tombol Equip yang emang udah disembunyiin di frontend buat
+        // kategori selain artifact (bagian 97).
+        if ($item->category !== 'artifact') {
+            return back()->withErrors(['item' => 'Cuma Artifact Item yang bisa di-equip.']);
+        }
+
         $pivot = $character->items()->where('item_id', $item->id)->first();
         if (! $pivot) {
             return back()->withErrors(['item' => 'Item ini gak ada di inventory karaktermu.']);
