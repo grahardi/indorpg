@@ -187,11 +187,29 @@ class CharacterController extends Controller
     /**
      * Toggle equip/unequip item - maks 4 item ke-equip sekaligus per karakter.
      */
-    public function toggleEquipItem(Request $request, Character $character, \App\Models\Item $item): RedirectResponse
+    public function toggleEquipItem(Request $request, Character $character, int $characterItemId): RedirectResponse
     {
         if ($character->user_id !== $request->user()->id) {
             abort(403, 'Bukan karaktermu.');
         }
+
+        // BUG FIX FATAL: sebelumnya diidentifikasi pakai item_id (Item::class,
+        // route-model-bound {item}) - kalau karakter punya LEBIH dari 1 copy
+        // item yang SAMA (item_id sama, pivot row beda), updateExistingPivot()
+        // di bawah bakal nge-update SEMUA baris yang item_id-nya cocok, BUKAN
+        // cuma 1 copy yang dimaksud. Efeknya: equip 1 copy, SEMUA copy ikut
+        // ke-equip. Fix: identifikasi by PIVOT ROW ID (character_items.id)
+        // yang UNIK per baris, gak peduli ada berapa banyak copy item sama.
+        $pivotRow = \Illuminate\Support\Facades\DB::table('character_items')
+            ->where('id', $characterItemId)
+            ->where('character_id', $character->id)
+            ->first();
+
+        if (! $pivotRow) {
+            return back()->withErrors(['item' => 'Item ini gak ada di inventory karaktermu.']);
+        }
+
+        $item = \App\Models\Item::findOrFail($pivotRow->item_id);
 
         // Cuma Artifact Item (equipment beneran) yang bisa di-equip - Accession
         // (catalyst sekali pakai) & Material sama sekali BUKAN equipment.
@@ -202,12 +220,7 @@ class CharacterController extends Controller
             return back()->withErrors(['item' => 'Cuma Artifact Item yang bisa di-equip.']);
         }
 
-        $pivot = $character->items()->where('item_id', $item->id)->first();
-        if (! $pivot) {
-            return back()->withErrors(['item' => 'Item ini gak ada di inventory karaktermu.']);
-        }
-
-        $isEquipped = (bool) $pivot->pivot->is_equipped;
+        $isEquipped = (bool) $pivotRow->is_equipped;
 
         if (! $isEquipped) {
             $equippedCount = $character->items()->wherePivot('is_equipped', true)->count();
@@ -216,7 +229,9 @@ class CharacterController extends Controller
             }
         }
 
-        $character->items()->updateExistingPivot($item->id, ['is_equipped' => ! $isEquipped]);
+        // Update PERSIS baris pivot ini doang (by primary key), gak nyentuh
+        // baris lain sama sekali - walau item_id-nya kebetulan sama.
+        \Illuminate\Support\Facades\DB::table('character_items')->where('id', $characterItemId)->update(['is_equipped' => ! $isEquipped]);
 
         return back();
     }

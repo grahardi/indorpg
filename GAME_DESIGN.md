@@ -2051,3 +2051,21 @@ Sebelumnya cuma bintang kecil ★ di pojok kanan atas (gampang gak kesadar). Sek
 **Fix**:
 1. Backend: log entry buat drop item/material DAN reward summary (EXP+Gold) sekarang dikasih data **terstruktur** (`effect: {type: 'drop', drop_kind, item_name, rarity, icon_path}` dan `effect: {type: 'reward_summary', exp, gold}`) - bukan cuma teks polos, biar frontend bisa parsing REALIABLE tanpa nebak-nebak dari string.
 2. Frontend: layar kemenangan sekarang scan SELURUH battle log, filter drop yang actor_character_id-nya PERSIS karakter yang dikontrol player ini, terus ditampilin sebagai badge kecil (ikon + nama, warna sesuai rarity) di bawah EXP - plus Gold reward juga ditampilin (sebelumnya gak ada sama sekali di layar ini).
+
+---
+
+## 99. Fix Bug Fatal: Equip 1 Copy Item Malah Ngequip SEMUA Copy + Star Gak Update Langsung (v12.2)
+
+**Laporan**: "item yang sama padahal cuma equip satu jadi equip semua, sama ketika diklik equip langsung ganti equipped atau ada bintang ini kalau ditutup item baru tau sudah equip."
+
+### Bug 1: equip 1 copy → semua copy ikut ke-equip
+**Root cause**: endpoint toggle-equip diidentifikasi pakai `item_id` (ID katalog, SAMA buat semua copy item identik) — `updateExistingPivot($item->id, ...)` di backend nge-update **SEMUA baris pivot** yang `item_id`-nya cocok, bukan cuma 1 copy spesifik yang diklik. Kalau karakter punya 2+ copy item yang sama, equip 1 otomatis nge-equip semuanya.
+
+**Fix**: route & controller diganti total, identifikasi pakai **PIVOT ROW ID** (`character_items.id`, unik per baris/copy) — bukan `item_id` lagi. `toggleEquipItem()` sekarang ambil baris SPESIFIK by primary key, update PERSIS baris itu doang. Frontend (`toggleEquip()`) juga dikirim `item.pivot.id`, bukan `item.id`.
+
+### Bug 2: badge "sedang dipakai" gak update langsung
+**Root cause**: `selectedItem` (state React di detail view) sebelumnya nyimpen OBJEK item UTUH pas diklik (`setSelectedItem(item)`) — begitu toggle equip sukses & data ke-refresh dari server, state ini TETAP nunjuk ke objek LAMA (stale reference), gak otomatis ikut ke-update. Makanya badge equip baru bener kelihatan kalau ditutup dulu terus buka item lain.
+
+**Fix**: state diganti nyimpen cuma **pivot ID**-nya (`selectedItemPivotId`), item OBJECT-nya di-**derive fresh** dari `character.items` tiap render (`allItems.find(i => i.pivot?.id === selectedItemPivotId)`) - begitu ada update dari server, otomatis ke-refresh tanpa perlu tutup-buka lagi.
+
+**Bonus fix**: beberapa `key={item.id}` di React list (bisa collision kalau ada copy item identik) diganti jadi `key={item.pivot?.id ?? item.id}` - biar React gak ketuker render antar copy yang sama.

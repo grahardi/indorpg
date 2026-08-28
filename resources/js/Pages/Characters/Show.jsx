@@ -343,9 +343,20 @@ const BAG_MAX_CAPACITY = 50; // sementara
 function InventorySection({ character, isOwner }) {
     const [togglingId, setTogglingId] = useState(null);
     const [page, setPage] = useState(0);
-    const [selectedItem, setSelectedItem] = useState(null);
+    // BUG FIX PENTING: sebelumnya nyimpen OBJEK item utuh (`setSelectedItem(item)`)
+    // - begitu toggle equip sukses & Inertia refresh props character.items
+    // dengan data BARU, state ini TETAP nunjuk ke objek LAMA (stale reference,
+    // gak otomatis ke-update). Efeknya: abis klik Equip, badge/bintang "lagi
+    // dipakai" gak langsung berubah - baru kelihatan bener kalau ditutup terus
+    // buka item lain. Fix: simpen cuma PIVOT ID-nya, item OBJECT-nya di-derive
+    // FRESH dari allItems tiap render - otomatis ngikutin data terbaru.
+    const [selectedItemPivotId, setSelectedItemPivotId] = useState(null);
     const [bagOpen, setBagOpen] = useState(false);
     const allItems = character.items ?? [];
+    // Derive fresh dari allItems TIAP render (bukan objek yang di-capture pas
+    // klik) - begitu ada update dari server (misal abis toggle equip), ini
+    // otomatis ke-refresh tanpa perlu tutup-buka detail dulu.
+    const selectedItem = allItems.find((i) => i.pivot?.id === selectedItemPivotId) ?? null;
     // PISAHIN kategori (bagian 97) - Artifact = equipment beneran (bisa
     // di-equip), Accession = catalyst sekali pakai (GAK BISA di-equip sama
     // sekali, cuma buat referensi/dipakai lewat "Item Saya" pas craft).
@@ -359,8 +370,12 @@ function InventorySection({ character, isOwner }) {
     const emptySlots = BAG_SLOTS_PER_PAGE - pageItems.length;
 
     function toggleEquip(item) {
-        setTogglingId(item.id);
-        router.post(route('characters.items.toggle-equip', [character.id, item.id]), {}, {
+        // BUG FIX: sebelumnya kirim item.id (catalog ID, sama buat semua copy
+        // item identik) - server gak bisa bedain COPY mana yang dimaksud kalau
+        // karakter punya lebih dari 1. Sekarang kirim item.pivot.id (ID baris
+        // pivot yang UNIK per copy), server update PERSIS baris itu doang.
+        setTogglingId(item.pivot.id);
+        router.post(route('characters.items.toggle-equip', [character.id, item.pivot.id]), {}, {
             preserveScroll: true,
             onFinish: () => setTogglingId(null),
         });
@@ -385,7 +400,7 @@ function InventorySection({ character, isOwner }) {
                             const accent = RARITY_ACCENT[item.rarity] ?? '#8890a4';
                             return (
                                 <img
-                                    key={item.id}
+                                    key={item.pivot?.id ?? item.id}
                                     src={item.icon_path ?? '/images/items/placeholder.png'}
                                     alt={item.name}
                                     title={`${item.name} (+${item.effect_value} ${itemStatLabel(item)})`}
@@ -408,7 +423,7 @@ function InventorySection({ character, isOwner }) {
             <div className="mb-5">
                 <div className="rpg-skill-group-title mb-2" style={{ fontSize: '0.85rem' }}>Inventory Bag</div>
                 <div className="rpg-card mx-auto" style={{ '--accent': accent, maxWidth: 360 }}>
-                    <button onClick={() => setSelectedItem(null)} className="rpg-back-link mb-3">
+                    <button onClick={() => setSelectedItemPivotId(null)} className="rpg-back-link mb-3">
                         &larr; Kembali ke Bag
                     </button>
                     <div className="text-center mb-3">
@@ -441,7 +456,7 @@ function InventorySection({ character, isOwner }) {
                     {isOwner && selectedItem.category === 'artifact' && (
                         <button
                             onClick={() => toggleEquip(selectedItem)}
-                            disabled={togglingId === selectedItem.id}
+                            disabled={togglingId === selectedItem.pivot.id}
                             className="btn w-100"
                             style={{
                                 background: isEquipped ? 'rgba(184,67,58,0.15)' : 'rgba(74,153,96,0.15)',
@@ -500,8 +515,8 @@ function InventorySection({ character, isOwner }) {
                             const isEquipped = item.pivot?.is_equipped;
                             return (
                                 <button
-                                    key={item.id}
-                                    onClick={() => setSelectedItem(item)}
+                                    key={item.pivot?.id ?? item.id}
+                                    onClick={() => setSelectedItemPivotId(item.pivot.id)}
                                     className="rpg-card text-center p-2"
                                     style={{
                                         '--accent': accent, aspectRatio: '1 / 1', display: 'flex', flexDirection: 'column',
@@ -592,7 +607,7 @@ function InventorySection({ character, isOwner }) {
                             return (
                                 <button
                                     key={item.pivot?.id ?? item.id}
-                                    onClick={() => setSelectedItem(item)}
+                                    onClick={() => setSelectedItemPivotId(item.pivot.id)}
                                     title={item.name}
                                     className="p-1"
                                     style={{
