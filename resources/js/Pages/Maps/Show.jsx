@@ -67,6 +67,15 @@ export default function Show({ map, spawnPoints }) {
                     </div>
                 )}
 
+                {/* DIAGNOSTIK SEMENTARA: user laporan gambar background map gak
+                    muncul walau udah ke-upload & kelihatan bener di admin list.
+                    Tampilin nilai MENTAH background_path di sini (visible di
+                    halaman langsung, gak perlu DevTools) - dihapus lagi begitu
+                    penyebabnya ketauan. */}
+                <p className="text-secondary small" style={{ fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>
+                    [DEBUG] map.background_path = {JSON.stringify(map.background_path)}
+                </p>
+
                 {/* Area peta - pakai gambar yang di-upload admin (map.background_path),
                     fallback ke gradient placeholder kalau belum ada gambar. */}
                 <div
