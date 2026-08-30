@@ -2220,3 +2220,13 @@ Tombol **"💰 Jual"** di detail item (halaman Karakter, Inventory Bag) — berl
 **Root cause**: `Maps/Show.jsx` ternyata **selalu** pakai badge huruf inisial (`monster.name.charAt(0)`) buat ikon di layar hasil explore, gak pernah cek `avatar_path` sama sekali — beda dari 3 halaman lain (`Monsters/Show.jsx`, `Battle/Select.jsx`, `Battle/Show.jsx`) yang **udah benar** dari awal (pakai `avatar_path`/`full_body_path` kalau ada, fallback ke badge huruf kalau kosong).
 
 **Fix**: `Maps/Show.jsx` disamain pola-nya — cek `monster.avatar_path` dulu, tampilin gambarnya kalau ada, fallback ke badge huruf kalau kosong. Data `monster` yang dikirim `MapController` udah full model dari awal (otomatis include `avatar_path`), jadi gak perlu perubahan backend.
+
+---
+
+## 110. Fix Map Background: Ganti dari CSS background-image ke <img> Tag (v13.3)
+
+**Konfirmasi diagnostik**: `map.background_path` terbukti punya nilai yang BENAR (`"/images/maps/reruntuhan-kuno-bg.png"`) - jadi bukan soal data sama sekali. File-nya sendiri juga terbukti valid (thumbnail-nya kelihatan bener di Admin Map list, `<img>` tag yang sama).
+
+**Kesimpulan**: masalahnya spesifik di cara CSS `background-image` diterapkan di `Maps/Show.jsx` - entah ada override CSS lain yang cuma ngenain properti itu, atau sebab lain yang gak kekejar dari analisis statis kode.
+
+**Fix**: dibanding lanjut debug CSS `background-image`, langsung diganti pakai `<img>` tag beneran (positioned absolute di belakang spawn point button) - method yang UDAH TERBUKTI kerja buat file YANG SAMA PERSIS di halaman admin. Lebih robust karena `<img>` tag gak rentan ke masalah CSS shorthand/specificity yang biasa bikin `background-image` susah di-debug.

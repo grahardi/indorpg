@@ -67,31 +67,34 @@ export default function Show({ map, spawnPoints }) {
                     </div>
                 )}
 
-                {/* DIAGNOSTIK SEMENTARA: user laporan gambar background map gak
-                    muncul walau udah ke-upload & kelihatan bener di admin list.
-                    Tampilin nilai MENTAH background_path di sini (visible di
-                    halaman langsung, gak perlu DevTools) - dihapus lagi begitu
-                    penyebabnya ketauan. */}
-                <p className="text-secondary small" style={{ fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>
-                    [DEBUG] map.background_path = {JSON.stringify(map.background_path)}
-                </p>
-
-                {/* Area peta - pakai gambar yang di-upload admin (map.background_path),
-                    fallback ke gradient placeholder kalau belum ada gambar. */}
+                {/* Area peta - pakai gambar yang di-upload admin (map.background_path).
+                    BUG FIX: sebelumnya pakai CSS backgroundImage (gak pernah
+                    kelihatan walau value-nya kebukti BENAR/valid - kemungkinan
+                    ada override CSS lain yang cuma kena background-image, bukan
+                    <img> tag). Ganti ke <img> tag beneran (posisinya absolute di
+                    belakang) - method yang UDAH TERBUKTI kerja buat file yang
+                    SAMA PERSIS di admin list (Admin/Maps/Index.jsx). */}
                 <div
                     style={{
                         position: 'relative',
                         aspectRatio: '16 / 9',
-                        backgroundImage: map.background_path ? `url(${map.background_path})` : undefined,
-                        background: map.background_path ? undefined : 'radial-gradient(circle at 30% 20%, #1e2230, var(--bg-panel) 70%)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
+                        background: map.background_path ? '#0b0c12' : 'radial-gradient(circle at 30% 20%, #1e2230, var(--bg-panel) 70%)',
                         border: '1px solid var(--border-subtle)',
                         borderRadius: 12,
                         overflow: 'hidden',
                         marginBottom: '2rem',
                     }}
                 >
+                    {map.background_path && (
+                        <img
+                            src={map.background_path}
+                            alt={map.name}
+                            style={{
+                                position: 'absolute', inset: 0, width: '100%', height: '100%',
+                                objectFit: 'cover', objectPosition: 'center', zIndex: 0,
+                            }}
+                        />
+                    )}
                     {spawnPoints.map((sp) => (
                         <button
                             key={sp.id}
@@ -110,6 +113,7 @@ export default function Show({ map, spawnPoints }) {
                                 background: sp.is_locked ? '#3a3d4a' : sp.on_cooldown ? 'var(--text-muted)' : '#b8433a',
                                 cursor: (sp.on_cooldown || sp.is_locked) ? 'not-allowed' : 'pointer',
                                 boxShadow: (sp.on_cooldown || sp.is_locked) ? 'none' : '0 0 12px rgba(184,67,58,0.7)',
+                                zIndex: 1,
                             }}
                         />
                     ))}
