@@ -33,6 +33,8 @@ export default function Form({ skill, elements }) {
 
     const [animationPath, setAnimationPath] = useState(skill.animation_path ?? null);
     const [uploadingAnim, setUploadingAnim] = useState(false);
+    const [audioPath, setAudioPath] = useState(skill.audio_path ?? null);
+    const [uploadingAudio, setUploadingAudio] = useState(false);
 
     function submit(e) {
         e.preventDefault();
@@ -62,6 +64,47 @@ export default function Form({ skill, elements }) {
         } finally {
             setUploadingAnim(false);
             e.target.value = '';
+        }
+    }
+
+    // Upload audio custom PER-SKILL (bagian 102) - kosong = fallback ke
+    // setting global audio_skill/audio_ultimate, yang juga kosong fallback
+    // ke suara sintesis.
+    async function handleAudioUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploadingAudio(true);
+        try {
+            const formData = new FormData();
+            formData.append('audio', file);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const res = await fetch(route('admin.skills.upload-audio', skill.id), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData,
+            });
+            if (!res.ok) throw new Error('Upload gagal');
+            const json = await res.json();
+            setAudioPath(json.path);
+        } catch (err) {
+            alert('Upload audio gagal, coba lagi.');
+        } finally {
+            setUploadingAudio(false);
+            e.target.value = '';
+        }
+    }
+
+    async function handleAudioReset() {
+        if (!confirm('Reset audio custom skill ini ke default (setting global/sintesis)?')) return;
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            await fetch(route('admin.skills.reset-audio', skill.id), {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            setAudioPath(null);
+        } catch (err) {
+            alert('Reset gagal, coba lagi.');
         }
     }
 
@@ -231,6 +274,36 @@ export default function Form({ skill, elements }) {
                             <label className="btn btn-sm btn-outline-light mb-0" style={{ cursor: uploadingAnim ? 'wait' : 'pointer' }}>
                                 {uploadingAnim ? 'Mengupload...' : animationPath ? 'Ganti GIF' : 'Upload GIF'}
                                 <input type="file" accept="image/gif" onChange={handleAnimationUpload} disabled={uploadingAnim} hidden />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="mb-3">
+                        <label className="rpg-stat-label d-block mb-1">Audio Custom Skill (opsional)</label>
+                        <p className="text-secondary small mb-2">
+                            Suara khusus skill ini pas dipakai di battle. Kosong = pakai setting global (audio_skill/audio_ultimate
+                            di Admin Settings), yang juga kosong = pakai suara sintesis bawaan.
+                        </p>
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                            {audioPath && (
+                                <>
+                                    <audio ref={(el) => { if (el) el.dataset.src = audioPath; }} id={`audio-preview-${skill.id}`} src={audioPath} preload="none" />
+                                    <button
+                                        type="button"
+                                        onClick={() => document.getElementById(`audio-preview-${skill.id}`)?.play()}
+                                        className="rpg-back-link"
+                                        style={{ fontSize: '0.75rem' }}
+                                    >
+                                        ▶ Play
+                                    </button>
+                                    <button type="button" onClick={handleAudioReset} className="rpg-back-link" style={{ fontSize: '0.75rem', color: '#b8433a', borderColor: '#b8433a' }}>
+                                        Reset
+                                    </button>
+                                </>
+                            )}
+                            <label className="btn btn-sm btn-outline-light mb-0" style={{ cursor: uploadingAudio ? 'wait' : 'pointer' }}>
+                                {uploadingAudio ? 'Mengupload...' : audioPath ? 'Ganti Audio' : 'Upload Audio'}
+                                <input type="file" accept="audio/mp3,audio/wav,audio/ogg,audio/mp4,.mp3,.wav,.ogg,.m4a" onChange={handleAudioUpload} disabled={uploadingAudio} hidden />
                             </label>
                         </div>
                     </div>

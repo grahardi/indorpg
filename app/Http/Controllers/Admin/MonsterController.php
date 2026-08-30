@@ -147,4 +147,54 @@ class MonsterController extends Controller
 
         return $data;
     }
+
+    /**
+     * Audio custom PER-SKILL MONSTER (bagian 102) - kosong = fallback ke
+     * setting global audio_hit_taken di /admin/settings, yang juga kosong
+     * fallback ke suara sintesis. Skill monster diidentifikasi by INDEX di
+     * array skills_config (bukan ID - entrinya emang gak punya ID sendiri).
+     */
+    public function uploadSkillAudio(Request $request, Monster $monster, int $skillIndex): \Illuminate\Http\JsonResponse
+    {
+        $request->validate([
+            'audio' => ['required', 'file', 'mimes:mp3,wav,ogg,m4a', 'max:2048'],
+        ]);
+
+        $skillsConfig = $monster->skills_config ?? [];
+        if (! array_key_exists($skillIndex, $skillsConfig)) {
+            abort(404, 'Skill monster ini gak ketemu - mungkin urutannya berubah, refresh halaman dulu.');
+        }
+
+        $extension = $request->file('audio')->getClientOriginalExtension();
+        $filename = "monster-{$monster->id}-skill-{$skillIndex}.{$extension}";
+        $relativePath = "images/monsters/skill-audio/{$filename}";
+
+        @mkdir(public_path('images/monsters/skill-audio'), 0755, true);
+        foreach (glob(public_path("images/monsters/skill-audio/monster-{$monster->id}-skill-{$skillIndex}.*")) ?: [] as $old) {
+            @unlink($old);
+        }
+        $request->file('audio')->move(public_path('images/monsters/skill-audio'), $filename);
+
+        $skillsConfig[$skillIndex]['audio_path'] = '/'.$relativePath;
+        $monster->update(['skills_config' => $skillsConfig]);
+
+        return response()->json(['path' => '/'.$relativePath]);
+    }
+
+    public function resetSkillAudio(Monster $monster, int $skillIndex): \Illuminate\Http\JsonResponse
+    {
+        $skillsConfig = $monster->skills_config ?? [];
+        if (! array_key_exists($skillIndex, $skillsConfig)) {
+            abort(404);
+        }
+
+        foreach (glob(public_path("images/monsters/skill-audio/monster-{$monster->id}-skill-{$skillIndex}.*")) ?: [] as $old) {
+            @unlink($old);
+        }
+
+        unset($skillsConfig[$skillIndex]['audio_path']);
+        $monster->update(['skills_config' => $skillsConfig]);
+
+        return response()->json(['ok' => true]);
+    }
 }

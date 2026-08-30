@@ -97,12 +97,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/monsters', [AdminMonsterController::class, 'store'])->name('monsters.store');
     Route::get('/monsters/{monster}/edit', [AdminMonsterController::class, 'edit'])->name('monsters.edit');
     Route::put('/monsters/{monster}', [AdminMonsterController::class, 'update'])->name('monsters.update');
+    Route::post('/monsters/{monster}/skills/{skillIndex}/upload-audio', [AdminMonsterController::class, 'uploadSkillAudio'])->name('monsters.skills.upload-audio');
+    Route::delete('/monsters/{monster}/skills/{skillIndex}/audio', [AdminMonsterController::class, 'resetSkillAudio'])->name('monsters.skills.reset-audio');
     Route::delete('/monsters/{monster}', [AdminMonsterController::class, 'destroy'])->name('monsters.destroy');
 
     Route::get('/skills', [AdminSkillController::class, 'index'])->name('skills.index');
     Route::get('/skills/{skill}/edit', [AdminSkillController::class, 'edit'])->name('skills.edit');
     Route::put('/skills/{skill}', [AdminSkillController::class, 'update'])->name('skills.update');
     Route::post('/skills/{skill}/upload-animation', [AdminSkillController::class, 'uploadAnimation'])->name('skills.upload-animation');
+    Route::post('/skills/{skill}/upload-audio', [AdminSkillController::class, 'uploadAudio'])->name('skills.upload-audio');
+    Route::delete('/skills/{skill}/audio', [AdminSkillController::class, 'resetAudio'])->name('skills.reset-audio');
 
     Route::get('/maps', [AdminMapController::class, 'index'])->name('maps.index');
     Route::get('/maps/create', [AdminMapController::class, 'create'])->name('maps.create');

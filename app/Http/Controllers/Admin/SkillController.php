@@ -93,4 +93,40 @@ class SkillController extends Controller
 
         return response()->json(['path' => '/'.$relativePath]);
     }
+
+    /**
+     * Audio custom PER-SKILL (bagian 102) - kosong = fallback ke setting
+     * global audio_skill/audio_ultimate di /admin/settings, yang juga kosong
+     * fallback ke suara sintesis (lihat battleAudio.js).
+     */
+    public function uploadAudio(Request $request, Skill $skill): JsonResponse
+    {
+        $request->validate([
+            'audio' => ['required', 'file', 'mimes:mp3,wav,ogg,m4a', 'max:2048'],
+        ]);
+
+        $extension = $request->file('audio')->getClientOriginalExtension();
+        $filename = "skill-{$skill->id}.{$extension}";
+        $relativePath = "images/skills/audio/{$filename}";
+
+        @mkdir(public_path('images/skills/audio'), 0755, true);
+        foreach (glob(public_path("images/skills/audio/skill-{$skill->id}.*")) ?: [] as $old) {
+            @unlink($old);
+        }
+        $request->file('audio')->move(public_path('images/skills/audio'), $filename);
+
+        $skill->update(['audio_path' => '/'.$relativePath]);
+
+        return response()->json(['path' => '/'.$relativePath]);
+    }
+
+    public function resetAudio(Skill $skill): JsonResponse
+    {
+        foreach (glob(public_path("images/skills/audio/skill-{$skill->id}.*")) ?: [] as $old) {
+            @unlink($old);
+        }
+        $skill->update(['audio_path' => null]);
+
+        return response()->json(['ok' => true]);
+    }
 }

@@ -1,4 +1,5 @@
 import { Head, useForm, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import Layout from '../../../Layout';
 
 const RANKS = ['F', 'E', 'D', 'C', 'B', 'A', 'S'];
@@ -81,7 +82,9 @@ function MatchupSlots({ label, hint, slots, setSlots, elements, accent }) {
     );
 }
 
-function MonsterSkillsManager({ skills, setSkills }) {
+function MonsterSkillsManager({ skills, setSkills, monsterId }) {
+    const [uploadingAudioIdx, setUploadingAudioIdx] = useState(null);
+
     function addSkill() {
         setSkills([...skills, { name: '', damage_ratio: 100, effect: 'single', can_stun: false, usage_ratio: 20, physical_ratio: 100 }]);
     }
@@ -94,6 +97,47 @@ function MonsterSkillsManager({ skills, setSkills }) {
 
     function removeSkill(i) {
         setSkills(skills.filter((_, idx) => idx !== i));
+    }
+
+    // Audio custom per-skill monster - CUMA bisa diupload kalau monster udah
+    // tersimpan (edit mode, ada monsterId) - skill_config index dipakai buat
+    // identifikasi (entrinya emang gak punya ID sendiri, cuma posisi array).
+    async function handleSkillAudioUpload(i, e) {
+        const file = e.target.files[0];
+        if (!file || !monsterId) return;
+        setUploadingAudioIdx(i);
+        try {
+            const formData = new FormData();
+            formData.append('audio', file);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const res = await fetch(route('admin.monsters.skills.upload-audio', [monsterId, i]), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData,
+            });
+            if (!res.ok) throw new Error('Upload gagal');
+            const json = await res.json();
+            updateSkill(i, 'audio_path', json.path);
+        } catch (err) {
+            alert('Upload audio gagal, coba lagi.');
+        } finally {
+            setUploadingAudioIdx(null);
+            e.target.value = '';
+        }
+    }
+
+    async function handleSkillAudioReset(i) {
+        if (!monsterId || !confirm('Reset audio custom skill monster ini ke default?')) return;
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            await fetch(route('admin.monsters.skills.reset-audio', [monsterId, i]), {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            updateSkill(i, 'audio_path', undefined);
+        } catch (err) {
+            alert('Reset gagal, coba lagi.');
+        }
     }
 
     return (
@@ -176,7 +220,48 @@ function MonsterSkillsManager({ skills, setSkills }) {
                             />
                             <label className="form-check-label text-secondary" htmlFor={`stun-${i}`} style={{ fontSize: '0.65rem' }}>Stun</label>
                         </div>
-                        <div className="col-md-12 text-end">
+                        <div className="col-md-8">
+                            <label className="rpg-stat-label d-block mb-1" style={{ fontSize: '0.65rem' }}>
+                                Audio Custom (opsional - kosong pakai setting global/sintesis)
+                            </label>
+                            {monsterId ? (
+                                <div className="d-flex align-items-center gap-2 flex-wrap">
+                                    {skill.audio_path && (
+                                        <>
+                                            <audio id={`monster-skill-audio-${i}`} src={skill.audio_path} preload="none" />
+                                            <button
+                                                type="button"
+                                                onClick={() => document.getElementById(`monster-skill-audio-${i}`)?.play()}
+                                                className="rpg-back-link"
+                                                style={{ fontSize: '0.7rem' }}
+                                            >
+                                                ▶ Play
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSkillAudioReset(i)}
+                                                className="rpg-back-link"
+                                                style={{ fontSize: '0.7rem', color: '#b8433a', borderColor: '#b8433a' }}
+                                            >
+                                                Reset
+                                            </button>
+                                        </>
+                                    )}
+                                    <label className="btn btn-sm btn-outline-light mb-0" style={{ cursor: uploadingAudioIdx === i ? 'wait' : 'pointer', fontSize: '0.7rem' }}>
+                                        {uploadingAudioIdx === i ? 'Mengupload...' : skill.audio_path ? 'Ganti Audio' : 'Upload Audio'}
+                                        <input
+                                            type="file" accept="audio/mp3,audio/wav,audio/ogg,audio/mp4,.mp3,.wav,.ogg,.m4a"
+                                            onChange={(e) => handleSkillAudioUpload(i, e)}
+                                            disabled={uploadingAudioIdx === i}
+                                            hidden
+                                        />
+                                    </label>
+                                </div>
+                            ) : (
+                                <p className="text-secondary small fst-italic mb-0">Simpan monster ini dulu, baru bisa upload audio per-skill.</p>
+                            )}
+                        </div>
+                        <div className="col-md-4 text-end">
                             <button type="button" onClick={() => removeSkill(i)} className="rpg-back-link" style={{ fontSize: '0.7rem', color: '#b8433a', borderColor: '#b8433a', background: 'none' }}>
                                 Hapus
                             </button>
@@ -337,6 +422,7 @@ export default function Form({ monster, elements, combatPatterns }) {
                     <MonsterSkillsManager
                         skills={data.skills_config}
                         setSkills={(v) => setData('skills_config', v)}
+                        monsterId={monster?.id}
                     />
 
                     <div className="row g-3">

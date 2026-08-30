@@ -2097,3 +2097,24 @@ Browser modern (Chrome, Safari, dll) **nolak** `audio.play()` kalau dipanggil di
 **Fix**: fungsi baru `unlockAudio()` - "priming" izin audio (resume AudioContext + play+pause instan) yang dipanggil di DALAM handler klik LANGSUNG (bukan dari efek/async): tombol toggle Suara, tombol skill (mode Manual), dan tombol "Mulai Battle" (mode Auto) - biar browser "inget" user udah kasih izin, jadi suara yang dipicu belakangan (dari respons API) lebih besar kemungkinan diizinin.
 
 **Buat user**: kalau masih gak jalan setelah update ini, buka DevTools Console pas battle - sekarang bakal ada pesan error jelas yang bisa dicek (misal `NotAllowedError` = beneran diblokir browser, `NotSupportedError` = format file gak didukung, dll).
+
+---
+
+## 102. Custom Audio Per-Skill & Per-Serangan-Monster (v12.5)
+
+Perluasan dari sistem audio global (bagian 57/101) — sekarang admin bisa upload suara **spesifik per skill** (Skill Editor) dan **per serangan monster** (Monster Form), bukan cuma 1 suara generik buat semua "pakai skill".
+
+### Prioritas fallback
+```
+Audio per-skill (kalau di-upload) → Setting global (/admin/settings, audio_skill/audio_ultimate/dst) → Suara sintesis (Web Audio API)
+```
+
+### Skill Editor (`/admin/skills/{id}/edit`)
+Section baru "Audio Custom Skill" — upload MP3/WAV/OGG/M4A (maks 2MB), preview + tombol Reset. Disimpan ke `skills.audio_path` (kolom baru).
+
+### Monster Form (`/admin/monsters/{id}/edit`)
+Tiap kartu "Skill Monster" dapet section upload audio sendiri-sendiri — disimpan ke key `audio_path` DI DALAM entri JSON `skills_config` (identifikasi by INDEX array, bukan ID, karena entrinya emang gak punya ID sendiri). **Cuma bisa diupload kalau monster udah tersimpan** (butuh `monster.id` buat endpoint upload) — monster baru harus disimpan dulu, baru bisa tambah audio per skill.
+
+### Implementasi
+- Backend: effect data (`BattleService`) buat serangan player (dari `$skill->audio_path`) DAN serangan monster (dari `$monsterSkill['audio_path']`) sama-sama nyertain `skill_audio_path`
+- Frontend (`Show.jsx`): sound trigger logic sekarang cek `effect.skill_audio_path` DULUAN sebelum fallback ke `audioSettings.audio_*` (global) — `battleAudio.js` sendiri gak perlu diubah, cukup pilih URL mana yang dilewatin dari pemanggilnya

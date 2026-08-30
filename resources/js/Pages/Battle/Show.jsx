@@ -451,17 +451,22 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
             return;
         }
         if (effect?.type === 'damage') {
+            // Prioritas: audio custom PER-SKILL (bagian 102, effect.skill_audio_path
+            // dari skill player ATAU skill_config monster) DULUAN kalau ada, baru
+            // fallback ke setting global (audioSettings.audio_*), yang juga kosong
+            // fallback ke suara sintesis (di dalam battleAudio.js sendiri).
+            const perSkillAudio = effect.skill_audio_path || null;
             if (effect.is_critical) {
-                battleAudio.critical(audioSettings.audio_critical);
+                battleAudio.critical(perSkillAudio || audioSettings.audio_critical);
             } else if (entry.is_monster_actor) {
                 // Monster yang nyerang party -> "kena serangan" (beda dari nyerang monster).
-                battleAudio.hitTaken(audioSettings.audio_hit_taken);
+                battleAudio.hitTaken(perSkillAudio || audioSettings.audio_hit_taken);
             } else if (effect.is_ultimate) {
-                battleAudio.ultimate(audioSettings.audio_ultimate);
+                battleAudio.ultimate(perSkillAudio || audioSettings.audio_ultimate);
             } else if (entry.skill_id) {
-                battleAudio.skill(audioSettings.audio_skill);
+                battleAudio.skill(perSkillAudio || audioSettings.audio_skill);
             } else {
-                battleAudio.hit(audioSettings.audio_skill);
+                battleAudio.hit(perSkillAudio || audioSettings.audio_skill);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
