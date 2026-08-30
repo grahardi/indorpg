@@ -2167,3 +2167,17 @@ Reward (EXP/gold/item) **tetap kepotong benar** (dihitung dari `battle.status` a
 - `displayStatus` dihapus overridenya — langsung pakai `battle.status` apa adanya. "Lewati" sekarang cuma ngatur SEBERAPA CEPAT nyampe ke hasil, BUKAN ngubah apa hasilnya.
 - `userSkipped` dihapus dari kondisi yang mematiin suara menang/kalah — dan karena udah gak dipakai di mana pun lagi, state-nya dihapus total (dead code cleanup).
 - `displayStatus === 'fled'` TETAP jalan normal buat kasus **menyerah beneran** (klik "Menyerah" di battle Manual) - ini gak kena imbas, cuma override "skip=fled" yang salah yang dihapus.
+
+---
+
+## 106. Fix Fatal: Pembelian Item di Shop SELALU Gagal (Payload Kosong) (v12.9)
+
+**Laporan**: "pembelian item gagal padahal sudah klik OK."
+
+### Root cause
+`Shop/Category.jsx`'s `buy()` sebelumnya pakai `useForm({}).post(url, { data: {...}, preserveScroll: true })` — tapi **`useForm().post()` GAK NERIMA opsi `data`** buat override isi form. `post()` dari `useForm()` SELALU ngirim state `data` yang di-manage `useForm()` itu sendiri — yang di sini diinisialisasi **kosong** (`useForm({})`) dan gak pernah di-`setData()`. Efeknya: **SETIAP** pembelian ngirim payload KOSONG ke server, gagal validasi (`item_id`/`character_id` required), gagal terus walau player udah klik OK di konfirmasi.
+
+### Fix
+Diganti ke `router.post(url, data, options)` langsung (dari `@inertiajs/react`) — API yang BENERAN nerima objek data sebagai argumen kedua yang terpisah dari opsi. `processing` state (buat disable tombol pas lagi proses) diganti jadi `useState` manual sederhana, karena `useForm()` udah gak dipake sama sekali di halaman ini.
+
+**Audit menyeluruh**: dicek SEMUA 14 file lain yang pakai `useForm()` di seluruh frontend - gak ada pola serupa di tempat lain, bug ini terisolasi cuma di halaman Shop.

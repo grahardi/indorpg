@@ -1,4 +1,4 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../Layout';
 
@@ -35,7 +35,7 @@ export default function Category({ items, materials = [], characters, category }
     const [selectedCharacterId, setSelectedCharacterId] = useState(characters[0]?.id ?? null);
     const [rarityFilter, setRarityFilter] = useState('all');
     const [page, setPage] = useState(0);
-    const { post, processing } = useForm({});
+    const [processing, setProcessing] = useState(false);
 
     const selectedCharacter = characters.find((c) => c.id === selectedCharacterId);
     const isAccession = category === 'accession';
@@ -53,9 +53,18 @@ export default function Category({ items, materials = [], characters, category }
         if (!selectedCharacterId) return;
         const totalPrice = item.price * quantity;
         if (!confirm(`Beli "${item.name}"${quantity > 1 ? ` x${quantity}` : ''} seharga ${totalPrice} Gold buat ${selectedCharacter?.name}?`)) return;
-        post(route('shop.buy'), {
-            data: { item_id: item.id, character_id: selectedCharacterId, quantity },
+        // BUG FIX FATAL: sebelumnya useForm({}).post(url, {data: {...}}) - tapi
+        // useForm().post() GAK NERIMA opsi `data` buat override isi form, dia
+        // SELALU ngirim state `data` yang di-manage useForm() sendiri (yang di
+        // sini kosong `{}` dari awal, gak pernah di-setData()). Efeknya: SETIAP
+        // pembelian ngirim payload KOSONG ke server, gagal validasi (item_id/
+        // character_id required), gagal terus walau player udah klik OK di
+        // konfirmasi. Fix: pakai router.post(url, data, options) langsung -
+        // API yang BENERAN nerima objek data sebagai argumen ke-2.
+        setProcessing(true);
+        router.post(route('shop.buy'), { item_id: item.id, character_id: selectedCharacterId, quantity }, {
             preserveScroll: true,
+            onFinish: () => setProcessing(false),
         });
     }
 
