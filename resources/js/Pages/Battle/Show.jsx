@@ -456,18 +456,37 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
             // fallback ke setting global (audioSettings.audio_*), yang juga kosong
             // fallback ke suara sintesis (di dalam battleAudio.js sendiri).
             const perSkillAudio = effect.skill_audio_path || null;
+            let resolvedUrl = null;
+            let soundKind = null;
             if (effect.is_critical) {
-                battleAudio.critical(perSkillAudio || audioSettings.audio_critical);
+                resolvedUrl = perSkillAudio || audioSettings.audio_critical;
+                soundKind = 'critical';
+                battleAudio.critical(resolvedUrl);
             } else if (entry.is_monster_actor) {
                 // Monster yang nyerang party -> "kena serangan" (beda dari nyerang monster).
-                battleAudio.hitTaken(perSkillAudio || audioSettings.audio_hit_taken);
+                resolvedUrl = perSkillAudio || audioSettings.audio_hit_taken;
+                soundKind = 'hitTaken';
+                battleAudio.hitTaken(resolvedUrl);
             } else if (effect.is_ultimate) {
-                battleAudio.ultimate(perSkillAudio || audioSettings.audio_ultimate);
+                resolvedUrl = perSkillAudio || audioSettings.audio_ultimate;
+                soundKind = 'ultimate';
+                battleAudio.ultimate(resolvedUrl);
             } else if (entry.skill_id) {
-                battleAudio.skill(perSkillAudio || audioSettings.audio_skill);
+                resolvedUrl = perSkillAudio || audioSettings.audio_skill;
+                soundKind = 'skill';
+                battleAudio.skill(resolvedUrl);
             } else {
-                battleAudio.hit(perSkillAudio || audioSettings.audio_skill);
+                resolvedUrl = perSkillAudio || audioSettings.audio_skill;
+                soundKind = 'hit';
+                battleAudio.hit(resolvedUrl);
             }
+            // DIAGNOSTIK SEMENTARA: user laporan masih denger suara sintesis
+            // padahal udah upload custom - log ini nunjukkin PERSIS url apa
+            // yang kepilih (atau null/undefined kalau emang gak ada data sama
+            // sekali) buat event suara ini, biar ketauan putusnya di data
+            // (audioSettings/skill_audio_path kosong) atau di playback (file
+            // ada tapi gagal diputar browser).
+            console.log(`[battleAudio DEBUG] kind=${soundKind} perSkillAudio=${perSkillAudio} audioSettings=${JSON.stringify(audioSettings)} resolvedUrl=${resolvedUrl}`);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step]);

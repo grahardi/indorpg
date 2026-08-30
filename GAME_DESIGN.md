@@ -2118,3 +2118,20 @@ Tiap kartu "Skill Monster" dapet section upload audio sendiri-sendiri — disimp
 ### Implementasi
 - Backend: effect data (`BattleService`) buat serangan player (dari `$skill->audio_path`) DAN serangan monster (dari `$monsterSkill['audio_path']`) sama-sama nyertain `skill_audio_path`
 - Frontend (`Show.jsx`): sound trigger logic sekarang cek `effect.skill_audio_path` DULUAN sebelum fallback ke `audioSettings.audio_*` (global) — `battleAudio.js` sendiri gak perlu diubah, cukup pilih URL mana yang dilewatin dari pemanggilnya
+
+---
+
+## 103. Fix Fatal: Fallback Sintesis Gak Beneran Jalan + Log Diagnostik Lengkap (v12.6)
+
+**Laporan berulang**: "tetap gak ada suara, masih pake bawaan sistem yang 8-bit."
+
+### Bug fatal yang belum tuntas dari fix sebelumnya (bagian 101)
+Fix kemarin nambahin LOG error, tapi `playCustom()` **tetap `return true`** begitu ada URL, WALAU `audio.play()` beneran GAGAL secara async (403/404, format gak didukung, diblokir autoplay browser, dll). Efeknya: `playCustom(url) || beep()` — begitu ada URL, `beep()` fallback **GAK PERNAH dipanggil**, walau file-nya gagal total diputar. Kalau kejadian, harusnya malah DIEM TOTAL (gak ada suara SAMA SEKALI), bukan balik ke 8-bit.
+
+Jadi kalau user masih denger 8-bit, itu nunjukkin `audioSettings`/`skill.audio_path` **kosong** pas nyampe ke fungsi ini dari awal (`playCustom(falsy)` balik `false` dari cek `if (!url)`) — bukan soal file-nya gagal diputar.
+
+### Fix ganda
+1. **`battleAudio.js` dirombak total** - `playWithFallback()` (gantiin `playCustom`) SEKARANG BENERAN NUNGGU hasil asli `audio.play()` (resolve/reject) sebelum mutusin fallback - dijamin SELALU ada suara (custom kalau berhasil, sintesis kalau gagal ATAU kosong), gak pernah diem total lagi kalaupun file-nya beneran gagal diputar.
+2. **Log diagnostik lengkap** ditambahin di `Show.jsx` (`[battleAudio DEBUG] kind=... perSkillAudio=... audioSettings=... resolvedUrl=...`) - nunjukkin PERSIS data apa yang nyampe pas tiap suara dipicu, biar ketauan putusnya di DATA (setting/skill audio_path kosong) atau di PLAYBACK (file ada tapi gagal diputar browser).
+
+**Buat user**: coba battle lagi, buka DevTools Console, dan kirim baris `[battleAudio DEBUG]` yang muncul - dari situ langsung ketauan persis kenapa masih ke sintesis.

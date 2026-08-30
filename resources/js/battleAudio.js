@@ -1,6 +1,7 @@
 // Efek suara battle - default disintesis pakai Web Audio API (gak perlu file
-// eksternal), TAPI admin bisa upload file custom per event lewat /admin/audio
-// yang bakal dipakai ini kalau ada (fallback ke sintesis kalau kosong).
+// eksternal), TAPI admin bisa upload file custom per event/skill/monster
+// yang bakal dipakai ini kalau ada (fallback ke sintesis kalau kosong ATAU
+// kalau gagal diputar).
 
 let ctx = null;
 const customAudioCache = {};
@@ -38,30 +39,36 @@ function getCtx() {
     return ctx;
 }
 
-// Mainin file custom (di-cache per URL biar gak re-fetch tiap panggil).
-// Return true kalau berhasil coba mainin (walau gagal autoplay, tetep true -
-// caller gak perlu fallback ke sintesis lagi kalau emang ada custom file).
-function playCustom(url) {
-    if (!url) return false;
+// BUG FIX FATAL (v12.6): versi sebelumnya `playCustom()` SELALU return `true`
+// begitu URL ada (walau audio.play() BENERAN GAGAL secara async) - efeknya
+// caller (`playCustom(url) || beep()`) NGGAK PERNAH manggil beep() fallback
+// kalau ada URL, meskipun file-nya gagal total diputar (403/404, format gak
+// didukung, kena blokir autoplay browser, dll). User ngerasa "upload udah
+// tapi tetep suara 8-bit" itu SEBALIKNYA gejala lain (audioSettings-nya
+// kosong nyampe ke sini, playCustom balik false dari awal karena !url) -
+// tapi kalaupun url-nya ADA dan GAGAL diputar, versi lama bakal DIEM AJA
+// (gak ada suara sama sekali), BUKAN fallback ke sintesis. Fix total:
+// `playWithFallback()` nunggu hasil asli dari audio.play() (resolve/reject),
+// BARU mutusin fallback - dijamin SELALU ada suara (custom kalau berhasil,
+// sintesis kalau gagal/kosong), gak pernah diem total.
+function playWithFallback(url, fallbackFn, label) {
+    if (!url) {
+        fallbackFn();
+        return;
+    }
     try {
         if (!customAudioCache[url]) {
             customAudioCache[url] = new Audio(url);
         }
         const audio = customAudioCache[url];
         audio.currentTime = 0;
-        // BUG FIX PENTING: sebelumnya error DIEMIN TOTAL (.catch(() => {})) -
-        // kalau gagal muter (paling sering: kebijakan autoplay browser nolak
-        // audio.play() yang dipanggil dari luar user-gesture langsung, atau
-        // path/format file salah), gak ada TANDA APAPUN, kelihatan kayak
-        // "upload udah tapi gak jalan" tanpa ada cara ngedebug-nya. Sekarang
-        // di-log ke console biar ketauan ALASAN PASTINYA.
         audio.play().catch((err) => {
-            console.error(`[battleAudio] Gagal muter audio custom "${url}":`, err.name, '-', err.message);
+            console.error(`[battleAudio] "${label}" - gagal muter audio custom "${url}" (${err.name}: ${err.message}) - fallback ke suara sintesis.`);
+            fallbackFn();
         });
-        return true;
     } catch (e) {
-        console.error(`[battleAudio] Exception pas nyoba muter audio custom "${url}":`, e);
-        return false;
+        console.error(`[battleAudio] "${label}" - exception pas nyoba muter "${url}" - fallback ke suara sintesis.`, e);
+        fallbackFn();
     }
 }
 
@@ -87,34 +94,36 @@ function beep({ freq = 440, duration = 0.12, type = 'square', volume = 0.15, swe
     }
 }
 
-// Semua fungsi terima `customUrl` opsional (dari GameSetting, di-pass lewat
-// props audioSettings di Battle/Show.jsx) - kalau ada, dipakai; kalau kosong,
-// fallback ke suara sintesis bawaan.
+function beepUltimate() {
+    [220, 330, 440, 660].forEach((f, i) => beep({ freq: f, duration: 0.22, type: 'sawtooth', volume: 0.2, delay: i * 0.06 }));
+}
+function beepCritical() {
+    beep({ freq: 320, sweepTo: 120, duration: 0.18, type: 'sawtooth', volume: 0.22 });
+    beep({ freq: 550, duration: 0.12, type: 'square', volume: 0.16, delay: 0.08 });
+}
+function beepItemDrop() {
+    [660, 880, 1100].forEach((f, i) => beep({ freq: f, duration: 0.14, type: 'sine', volume: 0.14, delay: i * 0.08 }));
+}
+function beepVictory() {
+    [523, 659, 784, 1046].forEach((f, i) => beep({ freq: f, duration: 0.28, type: 'square', volume: 0.16, delay: i * 0.15 }));
+}
+function beepDefeat() {
+    [400, 350, 300, 220].forEach((f, i) => beep({ freq: f, duration: 0.32, type: 'sawtooth', volume: 0.14, delay: i * 0.18 }));
+}
+
+// Semua fungsi terima `customUrl` opsional (dari GameSetting/skill.audio_path,
+// di-pass lewat Battle/Show.jsx) - kalau ada DAN berhasil diputar, dipakai;
+// kalau kosong ATAU GAGAL diputar, fallback ke suara sintesis bawaan (dijamin
+// SELALU ada suara, gak pernah diem total).
 export const battleAudio = {
-    hit: (customUrl) => playCustom(customUrl) || beep({ freq: 220, sweepTo: 90, duration: 0.15, type: 'square', volume: 0.2 }),
-    hitTaken: (customUrl) => playCustom(customUrl) || beep({ freq: 180, sweepTo: 70, duration: 0.16, type: 'sawtooth', volume: 0.22 }),
-    skill: (customUrl) => playCustom(customUrl) || beep({ freq: 400, sweepTo: 650, duration: 0.14, type: 'triangle', volume: 0.15 }),
-    ultimate: (customUrl) => {
-        if (playCustom(customUrl)) return;
-        [220, 330, 440, 660].forEach((f, i) => beep({ freq: f, duration: 0.22, type: 'sawtooth', volume: 0.2, delay: i * 0.06 }));
-    },
-    critical: (customUrl) => {
-        if (playCustom(customUrl)) return;
-        beep({ freq: 320, sweepTo: 120, duration: 0.18, type: 'sawtooth', volume: 0.22 });
-        beep({ freq: 550, duration: 0.12, type: 'square', volume: 0.16, delay: 0.08 });
-    },
-    miss: (customUrl) => playCustom(customUrl) || beep({ freq: 600, sweepTo: 950, duration: 0.12, type: 'sine', volume: 0.1 }),
-    cast: (customUrl) => playCustom(customUrl) || beep({ freq: 150, sweepTo: 400, duration: 0.1, type: 'triangle', volume: 0.1 }),
-    itemDrop: (customUrl) => {
-        if (playCustom(customUrl)) return;
-        [660, 880, 1100].forEach((f, i) => beep({ freq: f, duration: 0.14, type: 'sine', volume: 0.14, delay: i * 0.08 }));
-    },
-    victory: (customUrl) => {
-        if (playCustom(customUrl)) return;
-        [523, 659, 784, 1046].forEach((f, i) => beep({ freq: f, duration: 0.28, type: 'square', volume: 0.16, delay: i * 0.15 }));
-    },
-    defeat: (customUrl) => {
-        if (playCustom(customUrl)) return;
-        [400, 350, 300, 220].forEach((f, i) => beep({ freq: f, duration: 0.32, type: 'sawtooth', volume: 0.14, delay: i * 0.18 }));
-    },
+    hit: (customUrl) => playWithFallback(customUrl, () => beep({ freq: 220, sweepTo: 90, duration: 0.15, type: 'square', volume: 0.2 }), 'hit'),
+    hitTaken: (customUrl) => playWithFallback(customUrl, () => beep({ freq: 180, sweepTo: 70, duration: 0.16, type: 'sawtooth', volume: 0.22 }), 'hitTaken'),
+    skill: (customUrl) => playWithFallback(customUrl, () => beep({ freq: 400, sweepTo: 650, duration: 0.14, type: 'triangle', volume: 0.15 }), 'skill'),
+    ultimate: (customUrl) => playWithFallback(customUrl, beepUltimate, 'ultimate'),
+    critical: (customUrl) => playWithFallback(customUrl, beepCritical, 'critical'),
+    miss: (customUrl) => playWithFallback(customUrl, () => beep({ freq: 600, sweepTo: 950, duration: 0.12, type: 'sine', volume: 0.1 }), 'miss'),
+    cast: (customUrl) => playWithFallback(customUrl, () => beep({ freq: 150, sweepTo: 400, duration: 0.1, type: 'triangle', volume: 0.1 }), 'cast'),
+    itemDrop: (customUrl) => playWithFallback(customUrl, beepItemDrop, 'itemDrop'),
+    victory: (customUrl) => playWithFallback(customUrl, beepVictory, 'victory'),
+    defeat: (customUrl) => playWithFallback(customUrl, beepDefeat, 'defeat'),
 };
