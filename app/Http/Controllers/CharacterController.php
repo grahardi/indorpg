@@ -235,4 +235,49 @@ class CharacterController extends Controller
 
         return back();
     }
+
+    /**
+     * Jual item balik ke Gold - harga ACAK antara item_sell_price_min_pct
+     * dan item_sell_price_max_pct (default 30-60%) dari harga beli aslinya,
+     * di-roll ULANG tiap transaksi (gak selalu sama). Berlaku SEMUA kategori
+     * item (Artifact/Accession/Material) - stackable (Accession/Material)
+     * jual 1 unit tiap klik (quantity berkurang 1), Artifact langsung
+     * kehapus barisnya (unik per instance).
+     */
+    public function sellItem(Request $request, Character $character, int $characterItemId): RedirectResponse
+    {
+        if ($character->user_id !== $request->user()->id) {
+            abort(403, 'Bukan karaktermu.');
+        }
+
+        $pivotRow = \Illuminate\Support\Facades\DB::table('character_items')
+            ->where('id', $characterItemId)
+            ->where('character_id', $character->id)
+            ->first();
+
+        if (! $pivotRow) {
+            return back()->withErrors(['item' => 'Item ini gak ada di inventory karaktermu.']);
+        }
+
+        if ($pivotRow->is_equipped) {
+            return back()->withErrors(['item' => 'Item ini lagi di-equip - lepas dulu sebelum dijual.']);
+        }
+
+        $item = \App\Models\Item::findOrFail($pivotRow->item_id);
+
+        $minPct = \App\Models\GameSetting::getFloat('item_sell_price_min_pct', 30);
+        $maxPct = \App\Models\GameSetting::getFloat('item_sell_price_max_pct', 60);
+        $rolledPct = random_int((int) ($minPct * 100), (int) ($maxPct * 100)) / 100;
+        $sellPrice = max(1, (int) round($item->price * $rolledPct / 100));
+
+        if ($pivotRow->quantity > 1) {
+            \Illuminate\Support\Facades\DB::table('character_items')->where('id', $characterItemId)->decrement('quantity');
+        } else {
+            \Illuminate\Support\Facades\DB::table('character_items')->where('id', $characterItemId)->delete();
+        }
+
+        $character->increment('gold', $sellPrice);
+
+        return back()->with('success', "{$item->name} terjual seharga {$sellPrice} Gold (".round($rolledPct)."% dari harga beli).");
+    }
 }

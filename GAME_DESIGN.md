@@ -2181,3 +2181,17 @@ Reward (EXP/gold/item) **tetap kepotong benar** (dihitung dari `battle.status` a
 Diganti ke `router.post(url, data, options)` langsung (dari `@inertiajs/react`) — API yang BENERAN nerima objek data sebagai argumen kedua yang terpisah dari opsi. `processing` state (buat disable tombol pas lagi proses) diganti jadi `useState` manual sederhana, karena `useForm()` udah gak dipake sama sekali di halaman ini.
 
 **Audit menyeluruh**: dicek SEMUA 14 file lain yang pakai `useForm()` di seluruh frontend - gak ada pola serupa di tempat lain, bug ini terisolasi cuma di halaman Shop.
+
+---
+
+## 107. Kapasitas Bag Naik ke 200 + Fitur Jual Item (Harga Acak 30-60%) (v13.0)
+
+### Kapasitas bag: 50 → 200
+Diubah di semua titik yang punya cek kapasitas: `ShopController::buy()`, `BattleService` (drop loot), dan `BAG_MAX_CAPACITY` di frontend (`Characters/Show.jsx`).
+
+### Fitur baru: Jual Item
+Tombol **"💰 Jual"** di detail item (halaman Karakter, Inventory Bag) — berlaku SEMUA kategori (Artifact/Accession/Material), **kecuali item yang lagi di-equip** (harus dilepas dulu).
+
+**Harga jual**: ACAK antara **30-60%** dari harga beli asli (`item.price`), di-roll ULANG tiap transaksi (gak selalu sama nominalnya) — 2 setting admin baru: `item_sell_price_min_pct` (default 30) dan `item_sell_price_max_pct` (default 60), bisa diubah di `/admin/settings`.
+
+**Mekanisme jual**: `CharacterController::sellItem()` — item Artifact (unik per instance) langsung kehapus barisnya abis dijual; item stackable (Accession/Material) jual **1 unit per klik** (quantity berkurang 1, baris kehapus kalau abis). Identifikasi pakai pivot row ID (konsisten sama fix bagian 99, aman dari bug "jual 1 malah kejual semua" kalau ada copy identik).

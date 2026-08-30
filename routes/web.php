@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/characters/{character}/loadout', [CharacterController::class, 'updateLoadout'])->name('characters.loadout');
     Route::post('/characters/{character}/skills/{skill}/allocate', [CharacterController::class, 'allocateSkillPoint'])->name('characters.skills.allocate');
     Route::post('/characters/{character}/items/{characterItemId}/toggle-equip', [CharacterController::class, 'toggleEquipItem'])->name('characters.items.toggle-equip');
+    Route::post('/characters/{character}/items/{characterItemId}/sell', [CharacterController::class, 'sellItem'])->name('characters.items.sell');
 
     Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
     Route::get('/shop/{category}', [ShopController::class, 'category'])->name('shop.category')->where('category', 'artifact|accession');

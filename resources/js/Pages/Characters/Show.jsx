@@ -338,7 +338,7 @@ function itemStatLabel(item) {
 }
 
 const BAG_SLOTS_PER_PAGE = 9; // grid 3x3
-const BAG_MAX_CAPACITY = 50; // sementara
+const BAG_MAX_CAPACITY = 200;
 
 function InventorySection({ character, isOwner }) {
     const [togglingId, setTogglingId] = useState(null);
@@ -376,6 +376,16 @@ function InventorySection({ character, isOwner }) {
         // pivot yang UNIK per copy), server update PERSIS baris itu doang.
         setTogglingId(item.pivot.id);
         router.post(route('characters.items.toggle-equip', [character.id, item.pivot.id]), {}, {
+            preserveScroll: true,
+            onFinish: () => setTogglingId(null),
+        });
+    }
+
+    function sellItem(item) {
+        if (item.pivot?.is_equipped) return;
+        if (!confirm(`Jual "${item.name}"? Harga jual ACAK 30-60% dari harga beli aslinya (${item.price} Gold).`)) return;
+        setTogglingId(item.pivot.id);
+        router.post(route('characters.items.sell', [character.id, item.pivot.id]), {}, {
             preserveScroll: true,
             onFinish: () => setTogglingId(null),
         });
@@ -469,10 +479,26 @@ function InventorySection({ character, isOwner }) {
                         </button>
                     )}
                     {isOwner && selectedItem.category === 'accession' && (
-                        <p className="text-secondary small text-center mb-0" style={{ fontSize: '0.7rem' }}>
+                        <p className="text-secondary small text-center mb-2" style={{ fontSize: '0.7rem' }}>
                             Ini catalyst sekali pakai - gak bisa di-equip. Dipakai buat naikin tier Artifact Item lewat{' '}
                             <Link href={route('accession.index')}>Item Saya</Link>.
                         </p>
+                    )}
+                    {isOwner && (
+                        <button
+                            onClick={() => sellItem(selectedItem)}
+                            disabled={togglingId === selectedItem.pivot.id || isEquipped}
+                            className="btn w-100 mt-2"
+                            style={{
+                                background: isEquipped ? 'transparent' : 'rgba(201,162,75,0.12)',
+                                border: `1px solid ${isEquipped ? 'var(--border-subtle)' : '#c9a24b'}`,
+                                color: isEquipped ? 'var(--text-muted)' : '#c9a24b',
+                                fontSize: '0.85rem',
+                            }}
+                            title={isEquipped ? 'Lepas equip dulu sebelum dijual' : `Jual - harga acak 30-60% dari ${selectedItem.price} Gold`}
+                        >
+                            💰 Jual (≈{Math.round(selectedItem.price * 0.3)}-{Math.round(selectedItem.price * 0.6)} Gold)
+                        </button>
                     )}
                 </div>
             </div>

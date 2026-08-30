@@ -1290,7 +1290,7 @@ class BattleService
                         'type' => 'drop', 'drop_kind' => 'material', 'item_name' => $droppedItem->name,
                         'rarity' => $droppedItem->rarity, 'icon_path' => $droppedItem->icon_path,
                     ]);
-                } elseif ($character->items()->count() < 50) {
+                } elseif ($character->items()->count() < 200) {
                     $character->items()->attach($droppedItem->id, ['obtained_at' => now()]);
                     $rarityLabel = \App\Models\Item::RARITY_LABELS[$droppedItem->rarity] ?? $droppedItem->rarity;
                     $log[] = $this->snapshot($battle, "{$character->name} dapat item [{$rarityLabel}] {$droppedItem->name}!", $character->id, null, false, [

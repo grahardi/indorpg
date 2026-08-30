@@ -88,8 +88,8 @@ class ShopController extends Controller
 
         $totalPrice = $item->price * $qty;
 
-        if (! $isStackable && $character->items()->count() >= 50) {
-            return back()->withErrors(['gold' => 'Bag udah penuh (maksimal 50 item). Jual/buang item dulu.']);
+        if (! $isStackable && $character->items()->count() >= 200) {
+            return back()->withErrors(['gold' => 'Bag udah penuh (maksimal 200 item). Jual/buang item dulu.']);
         }
 
         if ($character->gold < $totalPrice) {
