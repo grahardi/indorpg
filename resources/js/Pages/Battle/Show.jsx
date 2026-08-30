@@ -495,8 +495,13 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     // user nge-skip (dianggap menyerah, gak ada suara menang/kalah).
     useEffect(() => {
         if (!finished || finishedSoundPlayed.current || !soundOn || userSkipped) return;
-        if (battle.status === 'won') battleAudio.victory(audioSettings.audio_victory);
-        else if (battle.status === 'lost') battleAudio.defeat(audioSettings.audio_defeat);
+        if (battle.status === 'won') {
+            console.log(`[battleAudio DEBUG] kind=victory audio_victory=${audioSettings.audio_victory}`);
+            battleAudio.victory(audioSettings.audio_victory);
+        } else if (battle.status === 'lost') {
+            console.log(`[battleAudio DEBUG] kind=defeat audio_defeat=${audioSettings.audio_defeat}`);
+            battleAudio.defeat(audioSettings.audio_defeat);
+        }
         finishedSoundPlayed.current = true;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [finished]);
