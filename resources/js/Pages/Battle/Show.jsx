@@ -1,6 +1,6 @@
 import { Link, Head, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { battleAudio } from '../../battleAudio';
+import { battleAudio, unlockAudio } from '../../battleAudio';
 
 const MONSTER_COLOR = '#b8433a';
 // Dipakai buat nampilin drop item/material di layar kemenangan (bagian 98) -
@@ -106,7 +106,7 @@ function ManualSkillBar({ participant, battle, serverElapsedSeconds, serverElaps
                 return (
                     <button
                         key={skill.id}
-                        onClick={() => usable && onUseSkill(skill.id)}
+                        onClick={() => { if (usable) { unlockAudio(); onUseSkill(skill.id); } }}
                         disabled={!usable}
                         title={`${skill.name} (${skill.mana_cost} MP / ${skill.stamina_cost} SP)`}
                         style={{
@@ -1076,7 +1076,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
                     Manual gak ada "playback" yang bisa di-skip). */}
                 <div className="d-flex justify-content-center gap-2 mt-3">
                     <button
-                        onClick={() => setSoundOn((s) => !s)}
+                        onClick={() => { unlockAudio(); setSoundOn((s) => !s); }}
                         className="btn btn-sm"
                         style={{
                             background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',

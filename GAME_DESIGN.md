@@ -2079,3 +2079,21 @@ Sebelumnya cuma bintang kecil ★ di pojok kanan atas (gampang gak kesadar). Sek
 **Konfirmasi**: mekanisme auto-berkurang **udah jalan dari awal** (`AccessionController::levelUp()` - catalyst yang dikonsumsi buat nembus kelipatan 20 level otomatis `decrement('quantity')`, atau kehapus barisnya kalau habis). Ini dicek AMAN dari bug class bagian 99 (equip 1 copy ngequip semua) - karena catalyst/material MEMANG didesain numpuk jadi 1 baris per jenis (`item_id`), beda dari equipment yang tiap instance-nya unik.
 
 **Yang diperbaiki**: tampilan jumlahnya doang - sebelumnya teks "x5" terpisah di bawah/samping ikon, sekarang jadi **badge angka bulat di pojok kanan atas ikon** (kayak stack counter di game inventory pada umumnya) - diterapkan konsisten di halaman Karakter (Inventory Bag → Accession Item) dan "Item Saya" (catalyst & material grid).
+
+---
+
+## 101. Fix Audio Custom Gak Jalan - Diemin Error + Tambah "Unlock" Buat Kebijakan Autoplay Browser (v12.4)
+
+**Laporan**: "sound-nya gak jalan padahal udah di-upload."
+
+### Bug 1: error diemin total, fallback juga gak jalan
+`playCustom()` (bagian 57) sebelumnya `audio.play().catch(() => {})` - kalau gagal muter (alasan apapun), error-nya DIEMIN, gak ada log sama sekali. Lebih parah lagi: fungsi tetap `return true` walau gagal, jadi fallback suara sintesis JUGA gak ikut jalan (`playCustom(url) || beep()` - karena `playCustom` udah bilang "true", `beep()` gak pernah dipanggil). Hasilnya: gak ada suara SAMA SEKALI, tanpa jejak kenapa.
+
+**Fix**: error sekarang di-log ke console (`[battleAudio] Gagal muter audio custom...`) - kelihatan alasan pastinya (nama error + pesan).
+
+### Bug 2 (kemungkinan besar penyebab utama): kebijakan autoplay browser
+Browser modern (Chrome, Safari, dll) **nolak** `audio.play()` kalau dipanggil di LUAR user-gesture langsung (klik tombol). Battle sound dipicu dari respons ASYNC (fetch server abis skill dieksekusi) - browser bisa anggap ini "bukan bagian dari" klik aslinya dan blokir diam-diam, walau file-nya valid dan ke-upload bener.
+
+**Fix**: fungsi baru `unlockAudio()` - "priming" izin audio (resume AudioContext + play+pause instan) yang dipanggil di DALAM handler klik LANGSUNG (bukan dari efek/async): tombol toggle Suara, tombol skill (mode Manual), dan tombol "Mulai Battle" (mode Auto) - biar browser "inget" user udah kasih izin, jadi suara yang dipicu belakangan (dari respons API) lebih besar kemungkinan diizinin.
+
+**Buat user**: kalau masih gak jalan setelah update ini, buka DevTools Console pas battle - sekarang bakal ada pesan error jelas yang bisa dicek (misal `NotAllowedError` = beneran diblokir browser, `NotSupportedError` = format file gak didukung, dll).

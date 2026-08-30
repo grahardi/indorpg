@@ -5,6 +5,27 @@
 let ctx = null;
 const customAudioCache = {};
 
+// "Buka kunci" izin audio browser - banyak browser (Chrome, Safari, dll)
+// NOLAK audio.play() kalau dipanggil di luar user-gesture LANGSUNG (klik
+// tombol, misalnya) - kalau suara dipicu dari respons async (fetch server
+// abis skill dieksekusi), browser bisa anggap itu "bukan bagian dari" klik
+// aslinya dan blokir diam-diam. Fix: panggil ini di DALAM handler klik
+// LANGSUNG (misal tombol toggle Suara) - resume AudioContext + coba
+// play+pause instan biar browser "inget" user udah kasih izin buat elemen
+// audio berikutnya di sesi ini.
+export function unlockAudio() {
+    try {
+        const audioCtx = getCtx();
+        if (audioCtx?.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
+        const silent = new Audio();
+        silent.play().then(() => silent.pause()).catch(() => {});
+    } catch (e) {
+        // Diemin - ini cuma usaha "priming", bukan critical path.
+    }
+}
+
 function getCtx() {
     if (!ctx) {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -28,9 +49,18 @@ function playCustom(url) {
         }
         const audio = customAudioCache[url];
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        // BUG FIX PENTING: sebelumnya error DIEMIN TOTAL (.catch(() => {})) -
+        // kalau gagal muter (paling sering: kebijakan autoplay browser nolak
+        // audio.play() yang dipanggil dari luar user-gesture langsung, atau
+        // path/format file salah), gak ada TANDA APAPUN, kelihatan kayak
+        // "upload udah tapi gak jalan" tanpa ada cara ngedebug-nya. Sekarang
+        // di-log ke console biar ketauan ALASAN PASTINYA.
+        audio.play().catch((err) => {
+            console.error(`[battleAudio] Gagal muter audio custom "${url}":`, err.name, '-', err.message);
+        });
         return true;
     } catch (e) {
+        console.error(`[battleAudio] Exception pas nyoba muter audio custom "${url}":`, e);
         return false;
     }
 }

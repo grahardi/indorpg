@@ -1,5 +1,6 @@
 import { Link, Head, useForm, usePage } from '@inertiajs/react';
 import Layout from '../../Layout';
+import { unlockAudio } from '../../battleAudio';
 
 export default function Select({ encounter, characters }) {
     const { props } = usePage();
@@ -11,6 +12,11 @@ export default function Select({ encounter, characters }) {
 
     function submit(e) {
         e.preventDefault();
+        // "Buka kunci" izin audio browser di sini (bagian 101) - klik "Mulai
+        // Battle" ini user-gesture LANGSUNG yang PASTI kejadian di semua mode
+        // (beda dari tombol Suara yang sering gak disentuh karena defaultnya
+        // udah ON, atau tombol skill yang cuma ada di mode Manual).
+        unlockAudio();
         post(route('encounters.start', encounter.id));
     }
 
