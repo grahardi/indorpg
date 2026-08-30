@@ -1,4 +1,5 @@
 import { Head, useForm, Link } from '@inertiajs/react';
+import { useRef, useState } from 'react';
 import Layout from '../../../Layout';
 
 function Field({ label, children }) {
@@ -6,6 +7,96 @@ function Field({ label, children }) {
         <div className="mb-3">
             <label className="rpg-stat-label d-block mb-1">{label}</label>
             {children}
+        </div>
+    );
+}
+
+/**
+ * Editor posisi visual - klik/drag marker langsung di atas gambar map (kayak
+ * Google Maps) buat atur pos_x/pos_y, gak perlu nebak-nebak angka persentase
+ * manual. Tetep sinkron 2 arah sama input angka di bawahnya (drag update
+ * angka, ubah angka manual juga update posisi marker).
+ */
+function MapPositionPicker({ map, posX, posY, onChange }) {
+    const containerRef = useRef(null);
+    const [dragging, setDragging] = useState(false);
+
+    function updateFromEvent(e) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const x = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100));
+        onChange(Math.round(x * 10) / 10, Math.round(y * 10) / 10);
+    }
+
+    function handleContainerClick(e) {
+        // Klik di background (bukan lagi drag marker) - marker LANGSUNG
+        // lompat ke titik yang diklik.
+        if (dragging) return;
+        updateFromEvent(e);
+    }
+
+    function startDrag(e) {
+        e.stopPropagation();
+        setDragging(true);
+    }
+
+    function onMove(e) {
+        if (!dragging) return;
+        updateFromEvent(e);
+    }
+
+    function endDrag() {
+        setDragging(false);
+    }
+
+    return (
+        <div
+            ref={containerRef}
+            onClick={handleContainerClick}
+            onMouseMove={onMove}
+            onMouseUp={endDrag}
+            onMouseLeave={endDrag}
+            onTouchMove={onMove}
+            onTouchEnd={endDrag}
+            style={{
+                position: 'relative',
+                aspectRatio: '16 / 9',
+                background: map.background_path ? '#0b0c12' : 'radial-gradient(circle at 30% 20%, #1e2230, var(--bg-panel) 70%)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 12,
+                overflow: 'hidden',
+                cursor: dragging ? 'grabbing' : 'crosshair',
+                userSelect: 'none',
+                marginBottom: '0.5rem',
+            }}
+        >
+            {map.background_path && (
+                <img
+                    src={map.background_path}
+                    alt={map.name}
+                    draggable={false}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
+                />
+            )}
+            <div
+                onMouseDown={startDrag}
+                onTouchStart={startDrag}
+                style={{
+                    position: 'absolute',
+                    left: `${posX}%`,
+                    top: `${posY}%`,
+                    transform: 'translate(-50%, -50%)',
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    border: '3px solid #fff',
+                    background: '#b8433a',
+                    boxShadow: '0 0 12px rgba(184,67,58,0.9)',
+                    cursor: dragging ? 'grabbing' : 'grab',
+                }}
+            />
         </div>
     );
 }
@@ -53,7 +144,7 @@ export default function Form({ map, spawnPoint, monsters }) {
     return (
         <Layout>
             <Head title={isEdit ? `Edit ${spawnPoint.name}` : 'Spawn Point Baru'} />
-            <div className="container py-5" style={{ maxWidth: 650 }}>
+            <div className="container py-5" style={{ maxWidth: 850 }}>
                 <Link href={route('admin.maps.spawn-points.index', map.id)} className="rpg-back-link mb-3">&larr; Spawn Points ({map.name})</Link>
                 <h1 className="rpg-hero-title display-6 mt-3 mb-4">{isEdit ? `Edit: ${spawnPoint.name}` : 'Spawn Point Baru'}</h1>
 
@@ -65,6 +156,15 @@ export default function Form({ map, spawnPoint, monsters }) {
 
                     <Field label="Deskripsi">
                         <textarea className={inputClass} rows={2} value={data.description} onChange={(e) => setData('description', e.target.value)} />
+                    </Field>
+
+                    <Field label="Posisi di Peta (klik atau drag titik merah)">
+                        <MapPositionPicker
+                            map={map}
+                            posX={Number(data.pos_x)}
+                            posY={Number(data.pos_y)}
+                            onChange={(x, y) => { setData('pos_x', x); setData('pos_y', y); }}
+                        />
                     </Field>
 
                     <div className="row g-3">

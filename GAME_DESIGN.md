@@ -2230,3 +2230,15 @@ Tombol **"💰 Jual"** di detail item (halaman Karakter, Inventory Bag) — berl
 **Kesimpulan**: masalahnya spesifik di cara CSS `background-image` diterapkan di `Maps/Show.jsx` - entah ada override CSS lain yang cuma ngenain properti itu, atau sebab lain yang gak kekejar dari analisis statis kode.
 
 **Fix**: dibanding lanjut debug CSS `background-image`, langsung diganti pakai `<img>` tag beneran (positioned absolute di belakang spawn point button) - method yang UDAH TERBUKTI kerja buat file YANG SAMA PERSIS di halaman admin. Lebih robust karena `<img>` tag gak rentan ke masalah CSS shorthand/specificity yang biasa bikin `background-image` susah di-debug.
+
+---
+
+## 111. Editor Posisi Spawn Point Visual (Klik/Drag kayak Google Maps) (v13.4)
+
+**Request**: "apa bisa spawn point menunjuk map atau digeser gitu kayak google map."
+
+Sebelumnya posisi spawn point (`pos_x`/`pos_y`) cuma bisa diatur lewat input angka persentase manual (nebak-nebak posisi tanpa liat preview). Sekarang ditambah **`MapPositionPicker`** — komponen visual yang render gambar background map (`map.background_path`) beneran, dengan marker merah yang bisa:
+- **Diklik** di titik mana pun di atas gambar → marker langsung lompat ke situ
+- **Di-drag** (mouse & touch, support mobile) → marker ngikutin kursor real-time
+
+Posisi (X/Y%) otomatis update ke `data.pos_x`/`data.pos_y` pas drag/klik - sinkron 2 arah sama input angka manual di bawahnya (masih dipertahanin buat penyesuaian presisi/ketik langsung). Container form dilebarkan (650px → 850px) biar preview map-nya cukup besar buat klik yang akurat.
