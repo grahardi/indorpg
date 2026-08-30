@@ -2210,3 +2210,13 @@ Tombol **"💰 Jual"** di detail item (halaman Karakter, Inventory Bag) — berl
   - **Avatar** (thumbnail kecil, dipake di list/card monster)
   - **Full Body** (gambar besar, dipake di battle scene)
 - Sama kayak upload audio per-skill (bagian 102), cuma bisa diupload kalau monster **udah tersimpan** (butuh `monster.id`) — monster baru harus disimpan dulu, baru bisa upload gambar
+
+---
+
+## 109. Fix: Halaman Peta (Encounter) Belum Pakai Avatar Monster (v13.2)
+
+**Laporan**: gambar avatar monster gak muncul di layar "muncul!" pas explore map — cuma badge huruf inisial doang.
+
+**Root cause**: `Maps/Show.jsx` ternyata **selalu** pakai badge huruf inisial (`monster.name.charAt(0)`) buat ikon di layar hasil explore, gak pernah cek `avatar_path` sama sekali — beda dari 3 halaman lain (`Monsters/Show.jsx`, `Battle/Select.jsx`, `Battle/Show.jsx`) yang **udah benar** dari awal (pakai `avatar_path`/`full_body_path` kalau ada, fallback ke badge huruf kalau kosong).
+
+**Fix**: `Maps/Show.jsx` disamain pola-nya — cek `monster.avatar_path` dulu, tampilin gambarnya kalau ada, fallback ke badge huruf kalau kosong. Data `monster` yang dikirim `MapController` udah full model dari awal (otomatis include `avatar_path`), jadi gak perlu perubahan backend.

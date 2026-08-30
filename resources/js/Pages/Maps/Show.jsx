@@ -40,9 +40,17 @@ export default function Show({ map, spawnPoints }) {
                     >
                         {result.status === 'encounter' ? (
                             <div className="d-flex align-items-center gap-3">
-                                <div className="rpg-badge-hex" style={{ '--accent': '#b8433a' }}>
-                                    {result.monster.name.charAt(0)}
-                                </div>
+                                {result.monster.avatar_path ? (
+                                    <img
+                                        src={result.monster.avatar_path}
+                                        alt={result.monster.name}
+                                        style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 12, border: '2px solid #b8433a', flexShrink: 0 }}
+                                    />
+                                ) : (
+                                    <div className="rpg-badge-hex" style={{ '--accent': '#b8433a' }}>
+                                        {result.monster.name.charAt(0)}
+                                    </div>
+                                )}
                                 <div>
                                     <div className="rpg-subclass-name">{result.message}</div>
                                     <div className="rpg-power-type">
