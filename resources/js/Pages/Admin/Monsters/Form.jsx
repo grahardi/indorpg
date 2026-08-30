@@ -307,6 +307,40 @@ export default function Form({ monster, elements, combatPatterns }) {
         }
     }
 
+    // Upload gambar Avatar (thumbnail kecil) & Full Body (gambar besar buat
+    // battle scene) - fitur yang SEBELUMNYA gak ada UI-nya sama sekali (cuma
+    // ada catatan nyasar bilang "diatur lewat halaman detail" yang gak
+    // pernah dibuat). Cuma bisa diupload kalau monster udah tersimpan
+    // (butuh monster.id).
+    const [avatarPath, setAvatarPath] = useState(monster?.avatar_path ?? null);
+    const [fullBodyPath, setFullBodyPath] = useState(monster?.full_body_path ?? null);
+    const [uploadingImage, setUploadingImage] = useState(null); // 'avatar' | 'fullbody' | null
+
+    async function handleImageUpload(type, e) {
+        const file = e.target.files[0];
+        if (!file || !monster?.id) return;
+        setUploadingImage(type);
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const res = await fetch(route('admin.monsters.upload-image', [monster.id, type]), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData,
+            });
+            if (!res.ok) throw new Error('Upload gagal');
+            const json = await res.json();
+            if (type === 'avatar') setAvatarPath(json.path);
+            else setFullBodyPath(json.path);
+        } catch (err) {
+            alert('Upload gambar gagal, coba lagi.');
+        } finally {
+            setUploadingImage(null);
+            e.target.value = '';
+        }
+    }
+
     const inputClass = 'form-control bg-dark text-light border-secondary';
 
     return (
@@ -444,11 +478,40 @@ export default function Form({ monster, elements, combatPatterns }) {
                         </div>
                     </div>
 
+                    <div className="mb-3">
+                        <label className="rpg-stat-label d-block mb-2">Gambar Monster</label>
+                        {!isEdit ? (
+                            <p className="text-secondary small fst-italic">Simpan monster ini dulu, baru bisa upload gambar.</p>
+                        ) : (
+                            <div className="row g-3">
+                                <div className="col-md-6">
+                                    <p className="text-secondary small mb-1">Avatar (thumbnail kecil, dipake di list/card)</p>
+                                    <div className="d-flex align-items-center gap-2">
+                                        {avatarPath && <img src={avatarPath} alt="Avatar" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border-subtle)' }} />}
+                                        <label className="btn btn-sm btn-outline-light mb-0" style={{ cursor: uploadingImage === 'avatar' ? 'wait' : 'pointer' }}>
+                                            {uploadingImage === 'avatar' ? 'Mengupload...' : avatarPath ? 'Ganti Avatar' : 'Upload Avatar'}
+                                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload('avatar', e)} disabled={uploadingImage === 'avatar'} hidden />
+                                        </label>
+                                    </div>
+                                </div>
+                                <div className="col-md-6">
+                                    <p className="text-secondary small mb-1">Full Body (gambar besar, dipake di battle scene)</p>
+                                    <div className="d-flex align-items-center gap-2">
+                                        {fullBodyPath && <img src={fullBodyPath} alt="Full body" style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 8, border: '1px solid var(--border-subtle)' }} />}
+                                        <label className="btn btn-sm btn-outline-light mb-0" style={{ cursor: uploadingImage === 'fullbody' ? 'wait' : 'pointer' }}>
+                                            {uploadingImage === 'fullbody' ? 'Mengupload...' : fullBodyPath ? 'Ganti Full Body' : 'Upload Full Body'}
+                                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload('fullbody', e)} disabled={uploadingImage === 'fullbody'} hidden />
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <p className="text-secondary small mt-3">
                         Catatan: HP/damage/defense/EXP di atas adalah nilai di <strong>level dasar</strong>.
                         Stat aktual pas battle di-scale otomatis sesuai level encounter (lihat Settings buat atur rasio kenaikannya).
                         Kelas (F-S) itu label kekuatan yang ditampilin ke player, TERPISAH dari level dasar.
-                        Avatar/full body diatur lewat halaman detail monster (upload gambar), bukan di sini.
                     </p>
 
                     <button type="submit" className="btn btn-outline-light mt-2" disabled={processing}>

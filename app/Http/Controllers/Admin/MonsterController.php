@@ -197,4 +197,37 @@ class MonsterController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    /**
+     * Upload gambar Avatar (thumbnail kecil, dipake di list/card monster) ATAU
+     * Full Body (gambar besar, dipake di battle scene) - field ini SEBELUMNYA
+     * gak punya UI upload SAMA SEKALI di admin (cuma ada catatan nyasar bilang
+     * "diatur lewat halaman detail monster" yang ternyata gak pernah dibuat).
+     * `type` cuma boleh 'avatar' atau 'fullbody'.
+     */
+    public function uploadImage(Request $request, Monster $monster, string $type): \Illuminate\Http\JsonResponse
+    {
+        if (! in_array($type, ['avatar', 'fullbody'], true)) {
+            abort(404);
+        }
+
+        $request->validate([
+            'image' => ['required', 'image', 'max:4096'],
+        ]);
+
+        $column = $type === 'avatar' ? 'avatar_path' : 'full_body_path';
+        $extension = $request->file('image')->getClientOriginalExtension();
+        $filename = "monster-{$monster->id}-{$type}.{$extension}";
+        $relativePath = "images/monsters/{$filename}";
+
+        @mkdir(public_path('images/monsters'), 0755, true);
+        foreach (glob(public_path("images/monsters/monster-{$monster->id}-{$type}.*")) ?: [] as $old) {
+            @unlink($old);
+        }
+        $request->file('image')->move(public_path('images/monsters'), $filename);
+
+        $monster->update([$column => '/'.$relativePath]);
+
+        return response()->json(['path' => '/'.$relativePath]);
+    }
 }

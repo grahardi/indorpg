@@ -2195,3 +2195,18 @@ Tombol **"💰 Jual"** di detail item (halaman Karakter, Inventory Bag) — berl
 **Harga jual**: ACAK antara **30-60%** dari harga beli asli (`item.price`), di-roll ULANG tiap transaksi (gak selalu sama nominalnya) — 2 setting admin baru: `item_sell_price_min_pct` (default 30) dan `item_sell_price_max_pct` (default 60), bisa diubah di `/admin/settings`.
 
 **Mekanisme jual**: `CharacterController::sellItem()` — item Artifact (unik per instance) langsung kehapus barisnya abis dijual; item stackable (Accession/Material) jual **1 unit per klik** (quantity berkurang 1, baris kehapus kalau abis). Identifikasi pakai pivot row ID (konsisten sama fix bagian 99, aman dari bug "jual 1 malah kejual semua" kalau ada copy identik).
+
+---
+
+## 108. Fitur Baru: Upload Avatar & Full Body Monster di Admin (v13.1)
+
+**Laporan**: "update gambar avatar dan gambar real battle monster kok gak ada di edit."
+
+**Konfirmasi**: dicek, ini emang **belum pernah dibuat** — form edit monster punya catatan nyasar "Avatar/full body diatur lewat halaman detail monster (upload gambar), bukan di sini", padahal halaman detail itu **gak pernah ada**. `MonsterSeeder.php` juga gak nge-seed kedua field ini sama sekali. Bukan bug, murni fitur yang kelewat kebuat.
+
+**Implementasi baru**:
+- `Admin\MonsterController::uploadImage()` — endpoint baru, terima `type` (`avatar` atau `fullbody`), validasi file gambar (maks 4MB), simpan ke `public/images/monsters/monster-{id}-{type}.{ext}`, auto-hapus file lama kalau ganti
+- Form edit monster sekarang punya section "Gambar Monster" dengan 2 upload terpisah:
+  - **Avatar** (thumbnail kecil, dipake di list/card monster)
+  - **Full Body** (gambar besar, dipake di battle scene)
+- Sama kayak upload audio per-skill (bagian 102), cuma bisa diupload kalau monster **udah tersimpan** (butuh `monster.id`) — monster baru harus disimpan dulu, baru bisa upload gambar

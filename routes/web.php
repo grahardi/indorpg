@@ -105,6 +105,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/monsters/{monster}/edit', [AdminMonsterController::class, 'edit'])->name('monsters.edit');
     Route::put('/monsters/{monster}', [AdminMonsterController::class, 'update'])->name('monsters.update');
     Route::post('/monsters/{monster}/skills/{skillIndex}/upload-audio', [AdminMonsterController::class, 'uploadSkillAudio'])->name('monsters.skills.upload-audio');
+    Route::post('/monsters/{monster}/upload-image/{type}', [AdminMonsterController::class, 'uploadImage'])->name('monsters.upload-image');
     Route::delete('/monsters/{monster}/skills/{skillIndex}/audio', [AdminMonsterController::class, 'resetSkillAudio'])->name('monsters.skills.reset-audio');
     Route::delete('/monsters/{monster}', [AdminMonsterController::class, 'destroy'])->name('monsters.destroy');
 
