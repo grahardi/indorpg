@@ -2149,3 +2149,21 @@ Jadi kalau user masih denger 8-bit, itu nunjukkin `audioSettings`/`skill.audio_p
 Semua titik diagnostik audio yang udah ada (bagian 103-104: `[battleAudio DEBUG] kind=...`, `[battleAudio] "..." - gagal muter...`) sekarang otomatis kekirim ke file ini juga, gak cuma di console browser.
 
 **Ini fitur sementara** buat lacak bug audio yang berulang - bakal disederhanain/dihapus begitu masalahnya kelar.
+
+---
+
+## 105. AKAR MASALAH SUARA MENANG KETEMU: "Lewati" Dikira Menyerah, Padahal Cuma Skip Animasi (v12.8)
+
+**Konfirmasi user**: battle beneran menang (dapat gold+drop), tapi log `kind=victory` gak pernah muncul sama sekali.
+
+### Root cause
+Tombol **"Lewati"** (skip ANIMASI, mode Auto — battle udah di-resolve PENUH di server SEBELUM animasi diputar, "Lewati" cuma skip REPLAY visualnya) ternyata di-set jadi `userSkipped=true`, yang bikin:
+1. `displayStatus` di-override jadi **`'fled'`** (dianggap "menyerah") — TERLEPAS dari hasil beneran (menang/kalah) — layar hasil salah nampilin "Party Menyerah" walau player MENANG
+2. Suara menang/kalah **gak pernah dipicu sama sekali** (kondisi `|| userSkipped` di guard useEffect-nya)
+
+Reward (EXP/gold/item) **tetap kepotong benar** (dihitung dari `battle.status` asli, bukan `displayStatus`) — makanya user liat gold+drop normal, tapi suara & LABEL hasil-nya salah.
+
+### Fix
+- `displayStatus` dihapus overridenya — langsung pakai `battle.status` apa adanya. "Lewati" sekarang cuma ngatur SEBERAPA CEPAT nyampe ke hasil, BUKAN ngubah apa hasilnya.
+- `userSkipped` dihapus dari kondisi yang mematiin suara menang/kalah — dan karena udah gak dipakai di mana pun lagi, state-nya dihapus total (dead code cleanup).
+- `displayStatus === 'fled'` TETAP jalan normal buat kasus **menyerah beneran** (klik "Menyerah" di battle Manual) - ini gak kena imbas, cuma override "skip=fled" yang salah yang dihapus.

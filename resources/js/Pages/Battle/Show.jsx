@@ -392,16 +392,21 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     const [finished, setFinished] = useState(log.length <= 1);
     const [soundOn, setSoundOn] = useState(true);
     const [redirectIn, setRedirectIn] = useState(null);
-    const [userSkipped, setUserSkipped] = useState(false);
     const timerRef = useRef(null);
     const finishedSoundPlayed = useRef(false);
 
     // Status yang beneran ditampilin - kalau user klik Lewati, dianggap
-    // "menyerah" (gak nunggu hasil), TERLEPAS dari status asli battle di
-    // database. Catatan: EXP/reward battle yang sebenarnya udah kepotong dari
-    // awal (battle di-resolve penuh di server sebelum halaman ini kebuka),
-    // jadi ini murni override tampilan doang - reward yang beneran gak berubah.
-    const displayStatus = userSkipped ? 'fled' : battle.status;
+    // BUG FIX PENTING: sebelumnya "Lewati" (skip ANIMASI doang, di mode Auto)
+    // malah bikin layar HASIL nampilin "Party Menyerah" walau battle-nya
+    // BENERAN menang/kalah (battle di-resolve PENUH di server SEBELUM
+    // animasi diputar - "Lewati" cuma skip REPLAY visualnya doang, sama
+    // sekali gak ngubah hasil beneran). Efeknya: player yang klik Lewati
+    // ngerasa battle-nya "gak keitung" padahal reward tetep kepotong bener
+    // (EXP/gold/item), CUMA tampilannya yang salah ngomong. Juga bikin suara
+    // menang/kalah gak pernah bunyi (lihat useEffect di bawah). Fix: langsung
+    // pakai battle.status APA ADANYA - "Lewati" cuma ngatur SEBERAPA CEPAT
+    // nyampe ke hasil, BUKAN ngubah apa hasilnya.
+    const displayStatus = battle.status;
 
     // Target total durasi animasi 15-30 detik, interval per baris log disesuaikan
     // biar totalnya masuk range itu (dibatasi biar gak terlalu cepat/lambat per baris).
@@ -491,10 +496,12 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step]);
 
-    // Suara menang/kalah, sekali doang pas animasi kelar. Gak bunyi kalau
-    // user nge-skip (dianggap menyerah, gak ada suara menang/kalah).
+    // Suara menang/kalah, sekali doang pas animasi kelar. BUG FIX: sebelumnya
+    // "Lewati" (skip animasi doang) juga mematiin suara ini - dibenerin
+    // bareng fix displayStatus di atas (skip animasi != menyerah, battle-nya
+    // beneran menang/kalah, suaranya harus tetep bunyi).
     useEffect(() => {
-        if (!finished || finishedSoundPlayed.current || !soundOn || userSkipped) return;
+        if (!finished || finishedSoundPlayed.current || !soundOn) return;
         if (battle.status === 'won') {
             sendDebugLog(`[battleAudio DEBUG] kind=victory audio_victory=${audioSettings.audio_victory}`);
             battleAudio.victory(audioSettings.audio_victory);
@@ -529,7 +536,6 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
         clearTimeout(timerRef.current);
         setStep(log.length - 1);
         setFinished(true);
-        setUserSkipped(true);
     }
 
     // Kirim 1 aksi manual (klik skill / keyboard) ke server, update state
