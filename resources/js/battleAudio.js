@@ -6,6 +6,24 @@
 let ctx = null;
 const customAudioCache = {};
 
+// Kirim log diagnostik ke SERVER (bagian 104) - biar bisa diliat lewat
+// /admin/frontend-debug-log (file txt), gak perlu bolak-balik screenshot
+// DevTools Console. Tetap console.log juga (buat yang bisa akses DevTools).
+// "Fire and forget" - gagal kirim gak masalah, cuma diagnostik tambahan.
+export function sendDebugLog(message) {
+    console.log(message);
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        fetch('/frontend-debug-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ message }),
+        }).catch(() => {});
+    } catch (e) {
+        // Diemin - ini cuma diagnostik tambahan, gak boleh ganggu gameplay.
+    }
+}
+
 // "Buka kunci" izin audio browser - banyak browser (Chrome, Safari, dll)
 // NOLAK audio.play() kalau dipanggil di luar user-gesture LANGSUNG (klik
 // tombol, misalnya) - kalau suara dipicu dari respons async (fetch server
@@ -63,11 +81,11 @@ function playWithFallback(url, fallbackFn, label) {
         const audio = customAudioCache[url];
         audio.currentTime = 0;
         audio.play().catch((err) => {
-            console.error(`[battleAudio] "${label}" - gagal muter audio custom "${url}" (${err.name}: ${err.message}) - fallback ke suara sintesis.`);
+            sendDebugLog(`[battleAudio] "${label}" - gagal muter audio custom "${url}" (${err.name}: ${err.message}) - fallback ke suara sintesis.`);
             fallbackFn();
         });
     } catch (e) {
-        console.error(`[battleAudio] "${label}" - exception pas nyoba muter "${url}" - fallback ke suara sintesis.`, e);
+        sendDebugLog(`[battleAudio] "${label}" - exception pas nyoba muter "${url}" - fallback ke suara sintesis. ${e}`);
         fallbackFn();
     }
 }

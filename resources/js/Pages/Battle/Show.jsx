@@ -1,6 +1,6 @@
 import { Link, Head, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { battleAudio, unlockAudio } from '../../battleAudio';
+import { battleAudio, unlockAudio, sendDebugLog } from '../../battleAudio';
 
 const MONSTER_COLOR = '#b8433a';
 // Dipakai buat nampilin drop item/material di layar kemenangan (bagian 98) -
@@ -486,7 +486,7 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
             // sekali) buat event suara ini, biar ketauan putusnya di data
             // (audioSettings/skill_audio_path kosong) atau di playback (file
             // ada tapi gagal diputar browser).
-            console.log(`[battleAudio DEBUG] kind=${soundKind} perSkillAudio=${perSkillAudio} audioSettings=${JSON.stringify(audioSettings)} resolvedUrl=${resolvedUrl}`);
+            sendDebugLog(`[battleAudio DEBUG] kind=${soundKind} perSkillAudio=${perSkillAudio} audioSettings=${JSON.stringify(audioSettings)} resolvedUrl=${resolvedUrl}`);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step]);
@@ -496,10 +496,10 @@ export default function Show({ battle: initialBattle, battleBackground, keyBindi
     useEffect(() => {
         if (!finished || finishedSoundPlayed.current || !soundOn || userSkipped) return;
         if (battle.status === 'won') {
-            console.log(`[battleAudio DEBUG] kind=victory audio_victory=${audioSettings.audio_victory}`);
+            sendDebugLog(`[battleAudio DEBUG] kind=victory audio_victory=${audioSettings.audio_victory}`);
             battleAudio.victory(audioSettings.audio_victory);
         } else if (battle.status === 'lost') {
-            console.log(`[battleAudio DEBUG] kind=defeat audio_defeat=${audioSettings.audio_defeat}`);
+            sendDebugLog(`[battleAudio DEBUG] kind=defeat audio_defeat=${audioSettings.audio_defeat}`);
             battleAudio.defeat(audioSettings.audio_defeat);
         }
         finishedSoundPlayed.current = true;

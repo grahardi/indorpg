@@ -2135,3 +2135,17 @@ Jadi kalau user masih denger 8-bit, itu nunjukkin `audioSettings`/`skill.audio_p
 2. **Log diagnostik lengkap** ditambahin di `Show.jsx` (`[battleAudio DEBUG] kind=... perSkillAudio=... audioSettings=... resolvedUrl=...`) - nunjukkin PERSIS data apa yang nyampe pas tiap suara dipicu, biar ketauan putusnya di DATA (setting/skill audio_path kosong) atau di PLAYBACK (file ada tapi gagal diputar browser).
 
 **Buat user**: coba battle lagi, buka DevTools Console, dan kirim baris `[battleAudio DEBUG]` yang muncul - dari situ langsung ketauan persis kenapa masih ke sintesis.
+
+---
+
+## 104. Log Diagnostik Frontend Sekarang Bisa Dicek dari File (Bukan Cuma DevTools) (v12.7)
+
+**Konteks**: user gak bisa lihat log `[battleAudio DEBUG] kind=victory` yang diharapkan muncul - kemungkinan besar JS terbarunya belum ke-load (perlu `npm run build` + hard refresh), atau butuh cara lain buat verifikasi selain screenshot Console.
+
+**Fitur baru**: `sendDebugLog()` (`battleAudio.js`) - selain tetap `console.log` seperti biasa, SEKARANG JUGA ngirim log yang sama ke server via `POST /frontend-debug-log` (endpoint accessible SEMUA user login, bukan cuma admin - karena yang tes battle player biasa), ditulis ke `storage/logs/frontend-debug.log`.
+
+**Cara akses (gak perlu SSH/DevTools)**: admin buka `/admin/frontend-debug-log` — nampilin 300 baris terakhir sebagai teks polos, gampang di-copy. `DELETE` ke endpoint yang sama buat clear.
+
+Semua titik diagnostik audio yang udah ada (bagian 103-104: `[battleAudio DEBUG] kind=...`, `[battleAudio] "..." - gagal muter...`) sekarang otomatis kekirim ke file ini juga, gak cuma di console browser.
+
+**Ini fitur sementara** buat lacak bug audio yang berulang - bakal disederhanain/dihapus begitu masalahnya kelar.

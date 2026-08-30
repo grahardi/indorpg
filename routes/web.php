@@ -50,6 +50,11 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 Route::middleware('auth')->group(function () {
     Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\SettingsController::class, 'update'])->name('settings.update');
+    // Terima log diagnostik dari BROWSER (bagian 104) - dibuka buat SEMUA
+    // user login (bukan admin-only), karena yang tes battle player biasa,
+    // bukan cuma admin. Ditulis ke file yang sama, admin liat lewat
+    // /admin/frontend-debug-log.
+    Route::post('/frontend-debug-log', [\App\Http\Controllers\Admin\DebugLogController::class, 'receiveFrontendLog'])->name('debug-log.frontend-receive');
     Route::get('/characters', [CharacterController::class, 'index'])->name('characters.index');
     Route::post('/characters', [CharacterController::class, 'store'])->name('characters.store');
     Route::delete('/characters/{character}', [CharacterController::class, 'destroy'])->name('characters.destroy');
@@ -91,7 +96,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // (route + controller) kalau masalahnya udah kelar.
     Route::get('/skill-debug-log', [\App\Http\Controllers\Admin\DebugLogController::class, 'show'])->name('debug-log.show');
     Route::delete('/skill-debug-log', [\App\Http\Controllers\Admin\DebugLogController::class, 'clear'])->name('debug-log.clear');
-
+    Route::get('/frontend-debug-log', [\App\Http\Controllers\Admin\DebugLogController::class, 'showFrontendLog'])->name('debug-log.frontend-show');
+    Route::delete('/frontend-debug-log', [\App\Http\Controllers\Admin\DebugLogController::class, 'clearFrontendLog'])->name('debug-log.frontend-clear');
     Route::get('/monsters', [AdminMonsterController::class, 'index'])->name('monsters.index');
     Route::get('/monsters/create', [AdminMonsterController::class, 'create'])->name('monsters.create');
     Route::post('/monsters', [AdminMonsterController::class, 'store'])->name('monsters.store');
