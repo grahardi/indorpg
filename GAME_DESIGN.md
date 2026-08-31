@@ -2242,3 +2242,22 @@ Sebelumnya posisi spawn point (`pos_x`/`pos_y`) cuma bisa diatur lewat input ang
 - **Di-drag** (mouse & touch, support mobile) → marker ngikutin kursor real-time
 
 Posisi (X/Y%) otomatis update ke `data.pos_x`/`data.pos_y` pas drag/klik - sinkron 2 arah sama input angka manual di bawahnya (masih dipertahanin buat penyesuaian presisi/ketik langsung). Container form dilebarkan (650px → 850px) biar preview map-nya cukup besar buat klik yang akurat.
+
+---
+
+## 112. FIX FATAL: Seeder Settings Nimpa Balik Semua Customization Admin (v13.5)
+
+**Laporan**: "apa built terakhir menghapus settingan upload audio ya kok hilang."
+
+### Root cause (bug arsitektur serius, bukan cuma soal audio)
+`GameSettingSeeder::run()` sebelumnya pakai `GameSetting::updateOrCreate(['key' => $key], ['value' => $value, ...])` — `updateOrCreate` ini **SELALU nimpa kolom `value`** pakai default hardcoded di array seeder, **BAHKAN buat setting yang UDAH DICUSTOM admin** (upload audio via `/admin/audio`, ubah rasio via `/admin/settings`, dll)!
+
+Efeknya: **SETIAP KALI** seeder ini dijalankan lagi (misal admin `php artisan migrate --seed` buat fix LAIN yang gak ada hubungannya sama sekali - dan sepanjang percakapan ini saya beberapa kali minta jalanin itu), **SEMUA custom value ke-RESET balik ke default** — audio yang udah di-upload jadi kosong lagi, rasio yang udah diubah balik ke angka awal, dst. Ini BUKAN cuma soal audio - **setting APAPUN** yang admin ubah manual berisiko kena reset kalau seeder ke-jalanin ulang.
+
+### Fix
+Diganti jadi: kalau row **UDAH ADA**, cuma update **description**-nya (biar dokumentasi terbaru ke-apply), **value-nya DIBIARKAN APA ADANYA** (gak disentuh sama sekali). Value cuma di-set kalau row-nya BENERAN BARU (setting yang baru pertama kali ditambahin ke seeder).
+
+### Audit seeder lain
+Dicek `SkillSeeder.php` (per-skill `audio_path`) dan `MonsterSeeder.php` (`avatar_path`/`full_body_path`/`skills_config`) — **AMAN**, kolom-kolom upload itu emang gak termasuk di payload `updateOrCreate` mereka dari awal, jadi gak ikut ke-timpa. Masalahnya terisolasi cuma di `GameSettingSeeder`.
+
+**Buat user**: mohon maaf soal ini - audio yang hilang kemarin kemungkinan besar ke-reset gara-gara instruksi `migrate --seed` yang saya kasih di fix-fix sebelumnya. Tolong upload ulang audio-nya - sekarang udah gak akan ke-reset lagi walau ada reseed berikutnya.

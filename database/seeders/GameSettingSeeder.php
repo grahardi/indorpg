@@ -40,8 +40,24 @@ class GameSettingSeeder extends Seeder
             'npc_level_cache_seconds' => ['300', 'Level NPC (di preview Guild MAUPUN battle beneran) di-cache selama sekian detik - biar konsisten (angka yang keliatan pas milih party = angka yang beneran dipakai), gak diacak ulang tiap request. Setelah kadaluarsa, di-roll ulang otomatis pas ada yang buka Guild/mulai battle lagi.'],
         ];
 
+        // BUG FIX FATAL DITEMUKAN (v13.5): updateOrCreate() SEBELUMNYA
+        // SELALU nimpa kolom 'value' pakai default di array atas - bahkan
+        // buat setting yang UDAH DICUSTOM admin (upload audio via
+        // /admin/audio, ubah rasio via /admin/settings, dll)! Efeknya:
+        // SETIAP kali seeder ini dijalankan lagi (misal admin migrate --seed
+        // buat fix LAIN yang gak ada hubungannya sama sekali), SEMUA custom
+        // value ke-RESET balik ke default - persis laporan "audio upload
+        // hilang abis update". Fix: kalau row UDAH ADA, cuma update
+        // deskripsinya (biar dokumentasi terbaru ke-apply), value-nya
+        // DIBIARKAN APA ADANYA. Value cuma di-set pas row-nya BENERAN BARU
+        // (setting yang baru pertama kali ditambahin).
         foreach ($defaults as $key => [$value, $desc]) {
-            GameSetting::updateOrCreate(['key' => $key], ['value' => $value, 'description' => $desc]);
+            $existing = GameSetting::where('key', $key)->first();
+            if ($existing) {
+                $existing->update(['description' => $desc]);
+            } else {
+                GameSetting::create(['key' => $key, 'value' => $value, 'description' => $desc]);
+            }
         }
 
         // Setting lama 'monster_level_growth_ratio' udah dipecah jadi
